@@ -9,6 +9,7 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pickerItem: PhotosPickerItem?
     @State private var name = ""
+    @AppStorage("appTheme") private var theme: AppTheme = .system
 
     var body: some View {
         NavigationStack {
@@ -32,6 +33,13 @@ struct ProfileView: View {
                 Section("Name") {
                     TextField("Your name", text: $name)
                         .textInputAutocapitalization(.words)
+                }
+
+                Section("Appearance") {
+                    Picker("Theme", selection: $theme) {
+                        ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section {

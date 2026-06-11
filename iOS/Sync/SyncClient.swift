@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Observation
+import SwiftData
 
 enum SyncState: Sendable { case idle, searching, sent, failed }
 
@@ -58,21 +59,13 @@ private final class OutgoingConn: @unchecked Sendable {
 }
 
 /// Main-actor, observable sender the UI binds to.
-/// One entry in the sync history.
-struct SyncLogEntry: Identifiable {
-    let id = UUID()
-    let date: Date
-    let detail: String
-    let success: Bool
-}
-
 @MainActor
 @Observable
 final class SyncCoordinator {
     var state: SyncState = .idle
     var lastSync: Date?
-    var log: [SyncLogEntry] = []
 
+    @ObservationIgnored var modelContext: ModelContext?
     @ObservationIgnored private var pendingCount = 0
 
     @ObservationIgnored
@@ -91,13 +84,17 @@ final class SyncCoordinator {
         case .sent:
             lastSync = Date()
             let count = pendingCount
-            log.insert(SyncLogEntry(date: Date(),
-                                    detail: "Synced \(count) reading\(count == 1 ? "" : "s")",
-                                    success: true), at: 0)
+            record("Synced \(count) reading\(count == 1 ? "" : "s")", success: true)
         case .failed:
-            log.insert(SyncLogEntry(date: Date(), detail: "Mac not found", success: false), at: 0)
+            record("Mac not found", success: false)
         default:
             break
         }
+    }
+
+    private func record(_ detail: String, success: Bool) {
+        guard let modelContext else { return }
+        modelContext.insert(SyncLogEntry(date: Date(), detail: detail, success: success))
+        try? modelContext.save()
     }
 }

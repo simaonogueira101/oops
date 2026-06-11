@@ -1,10 +1,13 @@
 import SwiftUI
+import SwiftData
 
 /// The Mac-sync drawer (iOS-only — opened from the top-bar sync button): status, a sync
-/// button, and a table of recent sync history.
+/// button, and a persisted table of recent sync history.
 struct MacSyncView: View {
     let sync: SyncCoordinator
     let onSyncNow: () -> Void
+
+    @Query(sort: \SyncLogEntry.date, order: .reverse) private var log: [SyncLogEntry]
 
     var body: some View {
         NavigationStack {
@@ -31,10 +34,10 @@ struct MacSyncView: View {
 
                 List {
                     Section("History") {
-                        if sync.log.isEmpty {
+                        if log.isEmpty {
                             Text("No syncs yet").foregroundStyle(.secondary)
                         } else {
-                            ForEach(sync.log) { entry in
+                            ForEach(log) { entry in
                                 HStack(spacing: Spacing.sm) {
                                     Image(systemName: entry.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                                         .foregroundStyle(entry.success ? .green : .red)

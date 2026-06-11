@@ -36,15 +36,16 @@ struct HomeRootView: View {
             }
 
             TabView(selection: $tab) {
-                Tab("Overview", systemImage: "square.grid.2x2", value: HomeTab.overview) {
+                Tab("Overview", systemImage: "circle.grid.2x2", value: HomeTab.overview) {
                     OverviewView(metrics: .sample)
                 }
-                Tab("Sleep", systemImage: "bed.double", value: HomeTab.sleep) { SleepView() }
+                Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) { SleepView() }
                 Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) { RecoveryView() }
-                Tab("Strain", systemImage: "flame", value: HomeTab.strain) { StrainView() }
+                Tab("Strain", systemImage: "bolt", value: HomeTab.strain) { StrainView() }
             }
         }
         .task {
+            sync.modelContext = modelContext
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
             if BuildInfo.build > lastSeen, lastSeen > 0 {
                 withAnimation { justUpdated = true }

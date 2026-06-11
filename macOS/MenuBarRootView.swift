@@ -17,10 +17,10 @@ struct MenuBarRootView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
-                Image(systemName: "square.grid.2x2").tag(Tab.overview)
-                Image(systemName: "bed.double").tag(Tab.sleep)
+                Image(systemName: "circle.grid.2x2").tag(Tab.overview)
+                Image(systemName: "moon").tag(Tab.sleep)
                 Image(systemName: "heart").tag(Tab.recovery)
-                Image(systemName: "flame").tag(Tab.strain)
+                Image(systemName: "bolt").tag(Tab.strain)
                 Image(systemName: "laptopcomputer").tag(Tab.mac)
             }
             .pickerStyle(.segmented)

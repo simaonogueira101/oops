@@ -23,6 +23,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: G7998J9BB3
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "Oops uses Bluetooth to connect to your smart ring and read its data."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
   OopsMac:

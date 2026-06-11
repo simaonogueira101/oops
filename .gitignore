@@ -15,3 +15,7 @@ Payload/
 
 # Swift Package Manager
 .build/
+
+# local build output
+build_ipa/
+Oops.ipa

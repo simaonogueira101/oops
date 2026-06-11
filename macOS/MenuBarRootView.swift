@@ -92,7 +92,7 @@ struct MenuBarRootView: View {
         Button { openWindow(id: "setup") } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: setup.isComplete ? "checkmark.seal.fill" : "iphone.gen3")
-                    .foregroundStyle(setup.isComplete ? .green : .blue)
+                    .foregroundStyle(setup.isComplete ? AppColor.positive : AppColor.accent)
                 Text(setup.isComplete ? "iPhone setup complete" : "Set up iPhone…")
                 Spacer()
                 if !setup.isComplete {
@@ -120,7 +120,7 @@ struct MenuBarRootView: View {
         VStack(spacing: Spacing.xxs) {
             if justUpdated {
                 Label("Updated to build \(BuildInfo.build)", systemImage: "checkmark.seal.fill")
-                    .font(.caption).foregroundStyle(.green)
+                    .font(.caption).foregroundStyle(AppColor.positive)
             }
             Text(BuildInfo.label).font(.caption2).foregroundStyle(.tertiary)
         }

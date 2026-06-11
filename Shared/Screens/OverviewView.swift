@@ -17,13 +17,13 @@ struct OverviewView: View {
     private var ringSection: some View {
         HStack(alignment: .center, spacing: Spacing.md) {
             VStack(spacing: Spacing.lg) {
-                stat("\(percent(metrics.recovery))%", "RECOVERY", .green)
-                stat("\(metrics.hrv)", "HRV", .green)
+                stat("\(percent(metrics.recovery))%", "RECOVERY", AppColor.recovery)
+                stat("\(metrics.hrv)", "HRV", AppColor.recovery)
             }
             MetricRings(recovery: metrics.recovery, strain: metrics.strainFraction, size: 160)
             VStack(spacing: Spacing.lg) {
-                stat(metrics.strain.formatted(.number.precision(.fractionLength(1))), "STRAIN", .blue)
-                stat("\(percent(metrics.sleepPerformance))%", "SLEEP", .blue)
+                stat(metrics.strain.formatted(.number.precision(.fractionLength(1))), "STRAIN", AppColor.strain)
+                stat("\(percent(metrics.sleepPerformance))%", "SLEEP", AppColor.sleep)
             }
         }
         .padding(.horizontal, Spacing.lg)

@@ -10,8 +10,8 @@ struct MetricRings: View {
 
     var body: some View {
         ZStack {
-            ring(value: recovery, color: .green)
-            ring(value: strain, color: .blue)
+            ring(value: recovery, color: AppColor.recovery)
+            ring(value: strain, color: AppColor.strain)
                 .scaleEffect(0.72)
             Image(systemName: "circle.dashed")
                 .font(.title)

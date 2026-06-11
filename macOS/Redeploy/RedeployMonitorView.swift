@@ -101,9 +101,9 @@ struct RedeployMonitorView: View {
     }
     private var expiryColor: Color {
         guard let d = service.daysUntilExpiry else { return .secondary }
-        if d < 0 { return .red }
-        if d <= 2 { return .orange }
-        return .green
+        if d < 0 { return AppColor.negative }
+        if d <= 2 { return AppColor.caution }
+        return AppColor.positive
     }
     private var expiryIcon: String {
         guard let d = service.daysUntilExpiry, d >= 0 else { return "exclamationmark.triangle.fill" }
@@ -117,6 +117,6 @@ struct RedeployMonitorView: View {
     }
     private var lastRunColor: Color {
         guard let s = service.status else { return .secondary }
-        return s.success ? .green : .red
+        return s.success ? AppColor.positive : AppColor.negative
     }
 }

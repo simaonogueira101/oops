@@ -7,7 +7,7 @@ struct UpdatedBanner: View {
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
-            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+            Image(systemName: "checkmark.seal.fill").foregroundStyle(AppColor.positive)
             Text("Updated to build \(build)").font(.subheadline.weight(.medium))
             Spacer()
             Button(action: onDismiss) {

@@ -15,7 +15,7 @@ struct MacSyncView: View {
                 Image(systemName: "laptopcomputer.and.iphone")
                     .font(.heroGlyph)
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(sync.state == .sent ? .green : .blue)
+                    .foregroundStyle(sync.state == .sent ? AppColor.positive : AppColor.accent)
                     .padding(.top, Spacing.lg)
 
                 Text(title).font(.title2.weight(.semibold))
@@ -40,7 +40,7 @@ struct MacSyncView: View {
                             ForEach(log) { entry in
                                 HStack(spacing: Spacing.sm) {
                                     Image(systemName: entry.success ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundStyle(entry.success ? .green : .red)
+                                        .foregroundStyle(entry.success ? AppColor.positive : AppColor.negative)
                                     Text(entry.detail)
                                     Spacer()
                                     Text(entry.date, format: .dateTime.hour().minute().second())

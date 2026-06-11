@@ -34,13 +34,13 @@ struct TopBar: View {
                 Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
             }
             Image(systemName: "circle.dashed").imageScale(.small)
-                .foregroundStyle(battery?.isCharging == true ? .green : .primary)
+                .foregroundStyle(battery?.isCharging == true ? AppColor.positive : .primary)
         }
     }
 
     private var syncLabel: some View {
         Image(systemName: "laptopcomputer").imageScale(.small)
-            .foregroundStyle(syncState == .sent ? .green : .primary)
+            .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
     }
 }
 

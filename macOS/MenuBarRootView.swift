@@ -6,6 +6,7 @@ struct MenuBarRootView: View {
     @Bindable var setup: SetupModel
     @Bindable var redeploy: RedeployService
     @Bindable var inbox: SyncInbox
+    @Bindable var login: LoginItem
     @Environment(\.openWindow) private var openWindow
     @State private var tab = Tab.ring
     @State private var justUpdated = false
@@ -34,6 +35,8 @@ struct MenuBarRootView: View {
                     RedeployMonitorView(service: redeploy)
                     Divider().padding(.horizontal, Spacing.md)
                     setupButton
+                    Divider().padding(.horizontal, Spacing.md)
+                    loginToggle
                     versionFooter
                 }
             }
@@ -43,7 +46,18 @@ struct MenuBarRootView: View {
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuildMac")
             if BuildInfo.build > lastSeen, lastSeen > 0 { justUpdated = true }
             UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuildMac")
+            await login.refresh()
         }
+    }
+
+    private var loginToggle: some View {
+        Toggle(isOn: Binding(
+            get: { login.isEnabled },
+            set: { on in Task { on ? await login.enable() : await login.disable() } }
+        )) {
+            Label("Launch at login", systemImage: "power")
+        }
+        .padding(Spacing.md)
     }
 
     private var versionFooter: some View {

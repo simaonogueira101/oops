@@ -18,10 +18,11 @@ struct OopsMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var setup = SetupModel()
     @State private var redeploy = RedeployService()
+    @State private var login = LoginItem()
 
     var body: some Scene {
         MenuBarExtra("Oops", systemImage: "circle.dashed") {
-            MenuBarRootView(setup: setup, redeploy: redeploy, inbox: delegate.inbox)
+            MenuBarRootView(setup: setup, redeploy: redeploy, inbox: delegate.inbox, login: login)
                 .frame(width: 340, height: 560)
         }
         .menuBarExtraStyle(.window)

@@ -148,12 +148,11 @@ final class RedeployService {
             -derivedDataPath build_mac CURRENT_PROJECT_VERSION="$BUILD" \\
             CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO build > /tmp/oops_mac_build.log 2>&1
           if grep -q "BUILD SUCCEEDED" /tmp/oops_mac_build.log; then
-            mkdir -p "$HOME/Applications"
             pkill -x OopsMac 2>/dev/null
             sleep 1
-            rm -rf "$HOME/Applications/Oops.app"
-            cp -R build_mac/Build/Products/Debug/OopsMac.app "$HOME/Applications/Oops.app"
-            open "$HOME/Applications/Oops.app"
+            rm -rf "/Applications/Oops.app"
+            cp -R build_mac/Build/Products/Debug/OopsMac.app "/Applications/Oops.app"
+            open "/Applications/Oops.app"
           fi
         fi
         echo "=== done ==="

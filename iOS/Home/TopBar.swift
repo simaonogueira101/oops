@@ -8,19 +8,19 @@ struct TopBar: View {
     let battery: BatteryStatus?
     let syncState: SyncState
     let onProfile: () -> Void
-    let onBattery: () -> Void
     let onSync: () -> Void
 
     var body: some View {
         ZStack {
-            // Absolutely centred so "Today" stays put regardless of side widths.
+            // Fixed-width, absolutely centred so "Today" stays put and doesn't resize.
             DateSelector(date: $date)
+                .frame(width: 150)
             HStack {
-                Button(action: onProfile) { Avatar(profile: profile) }
+                Button(action: onProfile) { Avatar(profile: profile, size: 30) }
                     .buttonStyle(.plain)
                 Spacer()
-                HStack(spacing: Spacing.sm) {
-                    Button(action: onBattery) { batteryLabel }.buttonStyle(.plain)
+                HStack(spacing: Spacing.md) {
+                    batteryLabel
                     Button(action: onSync) { syncLabel }.buttonStyle(.plain)
                 }
             }

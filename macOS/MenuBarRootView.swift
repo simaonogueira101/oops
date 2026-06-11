@@ -29,14 +29,18 @@ struct MenuBarRootView: View {
 
             Divider()
 
-            switch tab {
-            case .overview: OverviewView(metrics: .sample)
-            case .sleep: SleepView()
-            case .recovery: RecoveryView()
-            case .strain: StrainView()
-            case .mac: macTab
+            Group {
+                switch tab {
+                case .overview: OverviewView(metrics: .sample)
+                case .sleep: SleepView()
+                case .recovery: RecoveryView()
+                case .strain: StrainView()
+                case .mac: macTab
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .background(Color(.windowBackgroundColor))
         .task {
             inbox.start()
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuildMac")

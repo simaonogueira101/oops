@@ -16,7 +16,7 @@ struct HomeRootView: View {
     @State private var justUpdated = false
 
     enum HomeTab: Hashable { case overview, sleep, recovery, strain }
-    enum HomeSheet: Int, Identifiable { case profile, battery, sync; var id: Int { rawValue } }
+    enum HomeSheet: Int, Identifiable { case profile, sync; var id: Int { rawValue } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,7 +26,6 @@ struct HomeRootView: View {
                 battery: manager?.batteryStatus,
                 syncState: sync.state,
                 onProfile: { sheet = .profile },
-                onBattery: { sheet = .battery },
                 onSync: { sheet = .sync }
             )
 
@@ -45,7 +44,6 @@ struct HomeRootView: View {
                 Tab("Strain", systemImage: "flame", value: HomeTab.strain) { StrainView() }
             }
         }
-        .background(Color(.systemGroupedBackground))
         .task {
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
             if BuildInfo.build > lastSeen, lastSeen > 0 {
@@ -63,10 +61,6 @@ struct HomeRootView: View {
             switch which {
             case .profile:
                 ProfileView(profile: profile)
-            case .battery:
-                if let manager {
-                    NavigationStack { BatteryScreen(manager: manager) }
-                }
             case .sync:
                 MacSyncView(state: sync.state, lastSync: sync.lastSync, onSyncNow: pushSync)
             }

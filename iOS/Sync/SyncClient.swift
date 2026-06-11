@@ -58,21 +58,46 @@ private final class OutgoingConn: @unchecked Sendable {
 }
 
 /// Main-actor, observable sender the UI binds to.
+/// One entry in the sync history.
+struct SyncLogEntry: Identifiable {
+    let id = UUID()
+    let date: Date
+    let detail: String
+    let success: Bool
+}
+
 @MainActor
 @Observable
 final class SyncCoordinator {
     var state: SyncState = .idle
     var lastSync: Date?
+    var log: [SyncLogEntry] = []
+
+    @ObservationIgnored private var pendingCount = 0
 
     @ObservationIgnored
     private lazy var client = SyncClient { [weak self] newState in
-        Task { @MainActor in
-            self?.state = newState
-            if newState == .sent { self?.lastSync = Date() }
-        }
+        Task { @MainActor in self?.handle(newState) }
     }
 
     func push(_ readings: [BatteryDTO]) {
+        pendingCount = readings.count
         client.push(SyncPayload(source: OopsSync.deviceName, battery: readings))
+    }
+
+    private func handle(_ newState: SyncState) {
+        state = newState
+        switch newState {
+        case .sent:
+            lastSync = Date()
+            let count = pendingCount
+            log.insert(SyncLogEntry(date: Date(),
+                                    detail: "Synced \(count) reading\(count == 1 ? "" : "s")",
+                                    success: true), at: 0)
+        case .failed:
+            log.insert(SyncLogEntry(date: Date(), detail: "Mac not found", success: false), at: 0)
+        default:
+            break
+        }
     }
 }

@@ -62,7 +62,7 @@ struct HomeRootView: View {
             case .profile:
                 ProfileView(profile: profile)
             case .sync:
-                MacSyncView(state: sync.state, lastSync: sync.lastSync, onSyncNow: pushSync)
+                MacSyncView(sync: sync, onSyncNow: pushSync)
             }
         }
     }

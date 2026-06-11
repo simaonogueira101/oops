@@ -12,9 +12,8 @@ struct TopBar: View {
 
     var body: some View {
         ZStack {
-            // Fixed-width, absolutely centred so "Today" stays put and doesn't resize.
+            // Absolutely centred; the date label itself has a fixed width (below).
             DateSelector(date: $date)
-                .frame(width: 150)
             HStack {
                 Button(action: onProfile) { Avatar(profile: profile, size: 30) }
                     .buttonStyle(.plain)
@@ -75,7 +74,7 @@ struct DateSelector: View {
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Button { shift(-1) } label: { Image(systemName: "chevron.left") }
-            Text(label).font(.headline)
+            Text(label).font(.headline).lineLimit(1).frame(width: 110)
             Button { shift(1) } label: { Image(systemName: "chevron.right") }
                 .disabled(Calendar.current.isDateInToday(date))
         }

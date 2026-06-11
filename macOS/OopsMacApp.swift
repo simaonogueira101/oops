@@ -1,17 +1,24 @@
 import SwiftUI
 import SwiftData
 
-/// The macOS companion: a menu-bar app showing the same screens as the iPhone app.
-/// (Redeploy monitor and Mac↔iPhone sync land in the next steps.)
+/// The macOS companion: a menu-bar app showing the same screens as the iPhone app,
+/// plus a guided setup wizard for installing Oops onto the iPhone.
 @main
 struct OopsMacApp: App {
+    @State private var setup = SetupModel()
+
     var body: some Scene {
         MenuBarExtra("Oops", systemImage: "circle.dashed") {
-            ContentView()
-                .frame(width: 320, height: 480)
+            MenuBarRootView(setup: setup)
+                .frame(width: 340, height: 560)
         }
         .menuBarExtraStyle(.window)
         // Local-only SwiftData store (the Mac is the sync hub; no CloudKit).
         .modelContainer(for: BatteryReading.self)
+
+        Window("Set up Oops", id: "setup") {
+            OnboardingView(setup: setup)
+        }
+        .windowResizability(.contentSize)
     }
 }

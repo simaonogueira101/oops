@@ -19,8 +19,9 @@ struct SleepStageChart: View {
             .cornerRadius(4)
             .foregroundStyle(interval.stage.color)
         }
-        // First domain value sits at the bottom, so reverse to put Awake on top.
-        .chartYScale(domain: order.reversed().map(\.title))
+        // Swift Charts places the first categorical value at the top, so pass order as-is
+        // (Awake → Deep) to get the conventional Awake-on-top hypnogram.
+        .chartYScale(domain: order.map(\.title))
         .chartYAxis {
             AxisMarks(position: .leading, values: order.map(\.title)) { value in
                 AxisValueLabel {

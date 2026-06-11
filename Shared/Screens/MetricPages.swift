@@ -1,16 +1,7 @@
 import SwiftUI
 
 /// Empty placeholder screens shared by both apps — native ContentUnavailableView.
-
-struct SleepView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "No Sleep Data",
-            systemImage: "bed.double",
-            description: Text("Sleep tracking arrives when your Colmi R09 does.")
-        )
-    }
-}
+/// (Sleep now has a full screen in `Sleep/SleepView.swift`; Recovery/Strain follow.)
 
 struct RecoveryView: View {
     var body: some View {

@@ -41,10 +41,8 @@ func context(_ side: Int) -> CGContext {
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
 }
 
-/// Draws the glyph centered with a soft downward depth shadow.
-func drawGlyph(in ctx: CGContext, canvas: CGFloat, diameter: CGFloat) {
-    let origin = (canvas - diameter) / 2
-    let rect = CGRect(x: origin, y: origin, width: diameter, height: diameter)
+/// Draws the glyph into an explicit rect with a soft downward depth shadow.
+func drawGlyph(in ctx: CGContext, rect: CGRect, canvas: CGFloat) {
     ctx.saveGState()
     ctx.setShadow(
         offset: CGSize(width: 0, height: -canvas * 0.012),
@@ -54,18 +52,26 @@ func drawGlyph(in ctx: CGContext, canvas: CGFloat, diameter: CGFloat) {
     ctx.restoreGState()
 }
 
+/// A smaller glyph anchored to the bottom-left of `area`, inset by `pad` on the
+/// left and bottom so it clears the squircle's corner curve.
+func bottomLeftRect(in area: CGRect, diameter: CGFloat, pad: CGFloat) -> CGRect {
+    CGRect(x: area.minX + pad, y: area.minY + pad, width: diameter, height: diameter)
+}
+
 func writePNG(_ image: CGImage, to url: URL) {
     let rep = NSBitmapImageRep(cgImage: image)
     try! rep.representation(using: .png, properties: [:])!.write(to: url)
 }
 
-// iOS: full-bleed white square, glyph at ~52% of the tile.
+// iOS: full-bleed white square, smaller glyph anchored bottom-left.
 func renderIOS(side: Int) -> CGImage {
     let ctx = context(side)
     let s = CGFloat(side)
+    let full = CGRect(x: 0, y: 0, width: s, height: s)
     ctx.setFillColor(NSColor.white.cgColor)
-    ctx.fill(CGRect(x: 0, y: 0, width: s, height: s))
-    drawGlyph(in: ctx, canvas: s, diameter: s * 0.52)
+    ctx.fill(full)
+    let rect = bottomLeftRect(in: full, diameter: s * 0.38, pad: s * 0.14)
+    drawGlyph(in: ctx, rect: rect, canvas: s)
     return ctx.makeImage()!
 }
 
@@ -87,7 +93,9 @@ func renderMac(side: Int) -> CGImage {
     ctx.setFillColor(NSColor.white.cgColor)
     ctx.fillPath()
     ctx.restoreGState()
-    drawGlyph(in: ctx, canvas: s, diameter: body * 0.52)
+    // Same composition as iOS, anchored to the bottom-left of the rounded body.
+    let rect = bottomLeftRect(in: bodyRect, diameter: body * 0.38, pad: body * 0.14)
+    drawGlyph(in: ctx, rect: rect, canvas: s)
     return ctx.makeImage()!
 }
 

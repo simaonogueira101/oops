@@ -11,6 +11,7 @@ struct MenuBarRootView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var tab = Tab.overview
     @State private var justUpdated = false
+    @State private var date = Date()
 
     enum Tab { case overview, sleep, recovery, strain, mac }
 
@@ -29,16 +30,19 @@ struct MenuBarRootView: View {
 
             Divider()
 
-            Group {
-                switch tab {
-                case .overview: OverviewView(metrics: .sample)
-                case .sleep: SleepView()
-                case .recovery: RecoveryView()
-                case .strain: StrainView()
-                case .mac: macTab
+            NavigationStack {
+                Group {
+                    switch tab {
+                    case .overview: OverviewView(metrics: .sample, date: $date)
+                    case .sleep: SleepView()
+                    case .recovery: RecoveryView()
+                    case .strain: StrainView()
+                    case .mac: macTab
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .appNavigationDestinations()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(.windowBackgroundColor))
         .task {

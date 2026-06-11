@@ -37,11 +37,20 @@ struct HomeRootView: View {
 
             TabView(selection: $tab) {
                 Tab("Overview", systemImage: "circle.grid.2x2", value: HomeTab.overview) {
-                    OverviewView(metrics: .sample)
+                    NavigationStack {
+                        OverviewView(metrics: .sample, date: $date, battery: manager?.batteryStatus)
+                            .appNavigationDestinations()
+                    }
                 }
-                Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) { SleepView() }
-                Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) { RecoveryView() }
-                Tab("Strain", systemImage: "bolt", value: HomeTab.strain) { StrainView() }
+                Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
+                    NavigationStack { SleepView().appNavigationDestinations() }
+                }
+                Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
+                    NavigationStack { RecoveryView().appNavigationDestinations() }
+                }
+                Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
+                    NavigationStack { StrainView().appNavigationDestinations() }
+                }
             }
         }
         .task {

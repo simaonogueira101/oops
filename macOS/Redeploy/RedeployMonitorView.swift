@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RedeployMonitorView: View {
     @Bindable var service: RedeployService
+    @State private var showLog = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -40,6 +41,28 @@ struct RedeployMonitorView: View {
 
             Text("Needs your iPhone on the same Wi-Fi (or plugged in) when it runs.")
                 .font(.caption2).foregroundStyle(.tertiary)
+
+            Divider()
+
+            HStack {
+                Button(showLog ? "Hide log" : "Show log") { showLog.toggle() }
+                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                Spacer()
+                Button("Open in Console") { service.revealLog() }
+                    .buttonStyle(.plain).foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
+            if showLog {
+                ScrollView {
+                    Text(service.logTail())
+                        .font(.system(.caption2, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .frame(height: 120)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            }
         }
         .padding(14)
         .task { await service.refresh() }

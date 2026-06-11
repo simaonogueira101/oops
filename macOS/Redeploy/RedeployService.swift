@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AppKit
 
 struct RedeployStatus: Codable, Equatable {
     let date: Date
@@ -96,10 +97,18 @@ final class RedeployService {
         SUPPORT="\(supportDir)"
         STATUS="$SUPPORT/status.json"
         LOG="$SUPPORT/redeploy.log"
+        LOCK="$SUPPORT/redeploy.lock"
         exec >> "$LOG" 2>&1
-        echo "=== $(date) redeploy ==="
         write_status() { printf '{"date":"%s","success":%s,"message":"%s"}\\n' "$(date -u +%FT%TZ)" "$1" "$2" > "$STATUS"; }
 
+        # Single-instance lock (atomic mkdir) so a scheduled run and a manual one can't collide.
+        if ! mkdir "$LOCK" 2>/dev/null; then
+          echo "=== $(date) skipped: another redeploy is already running ==="
+          exit 0
+        fi
+        trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+        echo "=== $(date) redeploy ==="
         cd "\(projectDir)" || { write_status false "project missing"; exit 1; }
 
         UDID=$(xcrun xctrace list devices 2>/dev/null | grep -i iphone | grep -v Simulator | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}' | head -1)
@@ -117,14 +126,38 @@ final class RedeployService {
 
         if ! grep -q "BUILD SUCCEEDED" /tmp/oops_redeploy_build.log; then write_status false "Build failed"; exit 0; fi
 
-        if xcrun devicectl device install app --device "$CORE" build_device/Build/Products/Debug-iphoneos/Oops.app; then
-          write_status true "Redeployed"
-          date -u +%FT%TZ > "$SUPPORT/last_success.txt"
+        install_app() { xcrun devicectl device install app --device "$CORE" build_device/Build/Products/Debug-iphoneos/Oops.app; }
+
+        if install_app; then
+          write_status true "Redeployed"; date -u +%FT%TZ > "$SUPPORT/last_success.txt"
         else
-          write_status false "Install failed"
+          echo "install failed (likely device busy); retrying in 5s…"; sleep 5
+          if install_app; then
+            write_status true "Redeployed (after retry)"; date -u +%FT%TZ > "$SUPPORT/last_success.txt"
+          else
+            write_status false "Install failed (after retry)"
+          fi
         fi
         echo "=== done ==="
         """
+    }
+
+    // MARK: Log
+
+    func logTail(_ lines: Int = 60) -> String {
+        let path = (supportDir as NSString).appendingPathComponent("redeploy.log")
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return "No log yet." }
+        let all = content.split(separator: "\n", omittingEmptySubsequences: false)
+        return all.suffix(lines).joined(separator: "\n")
+    }
+
+    func revealLog() {
+        let path = (supportDir as NSString).appendingPathComponent("redeploy.log")
+        if FileManager.default.fileExists(atPath: path) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        } else {
+            NSWorkspace.shared.open(URL(fileURLWithPath: supportDir))
+        }
     }
 
     private var plist: String {

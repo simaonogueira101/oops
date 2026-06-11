@@ -78,7 +78,7 @@ final class RedeployService {
         isRedeploying = true
         defer { isRedeploying = false }
         writeFiles()
-        _ = await Shell.run("/bin/zsh '\(scriptPath)'")
+        _ = await Shell.run("OOPS_SKIP_MAC=1 /bin/zsh '\(scriptPath)'")
         await refresh()
     }
 
@@ -138,6 +138,22 @@ final class RedeployService {
             write_status true "Redeployed (after retry)"; date -u +%FT%TZ > "$SUPPORT/last_success.txt"
           else
             write_status false "Install failed (after retry)"
+          fi
+        fi
+
+        # --- Mac companion: rebuild + relaunch itself (skipped when run from the app,
+        # so a manual "Redeploy now" doesn't kill the app it's running in). ---
+        if [ -z "$OOPS_SKIP_MAC" ]; then
+          xcodebuild -project Oops.xcodeproj -scheme OopsMac -configuration Debug \\
+            -derivedDataPath build_mac CURRENT_PROJECT_VERSION="$BUILD" \\
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO build > /tmp/oops_mac_build.log 2>&1
+          if grep -q "BUILD SUCCEEDED" /tmp/oops_mac_build.log; then
+            mkdir -p "$HOME/Applications"
+            pkill -x OopsMac 2>/dev/null
+            sleep 1
+            rm -rf "$HOME/Applications/Oops.app"
+            cp -R build_mac/Build/Products/Debug/OopsMac.app "$HOME/Applications/Oops.app"
+            open "$HOME/Applications/Oops.app"
           fi
         fi
         echo "=== done ==="

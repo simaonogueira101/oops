@@ -8,6 +8,7 @@ struct MenuBarRootView: View {
     @Bindable var inbox: SyncInbox
     @Environment(\.openWindow) private var openWindow
     @State private var tab = Tab.ring
+    @State private var justUpdated = false
 
     enum Tab { case ring, mac }
 
@@ -33,10 +34,28 @@ struct MenuBarRootView: View {
                     RedeployMonitorView(service: redeploy)
                     Divider().padding(.horizontal, Spacing.md)
                     setupButton
+                    versionFooter
                 }
             }
         }
-        .task { inbox.start() }
+        .task {
+            inbox.start()
+            let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuildMac")
+            if BuildInfo.build > lastSeen, lastSeen > 0 { justUpdated = true }
+            UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuildMac")
+        }
+    }
+
+    private var versionFooter: some View {
+        VStack(spacing: Spacing.xxs) {
+            if justUpdated {
+                Label("Updated to build \(BuildInfo.build)", systemImage: "checkmark.seal.fill")
+                    .font(.caption).foregroundStyle(.green)
+            }
+            Text(BuildInfo.label).font(.caption2).foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, Spacing.sm)
     }
 
     private var syncedSection: some View {

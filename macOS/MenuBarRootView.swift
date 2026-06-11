@@ -1,23 +1,27 @@
 import SwiftUI
 
-/// The menu-bar popover: a "Ring" tab with the shared battery screen, and a "Mac" tab
-/// with synced-from-iPhone data, the auto-redeploy monitor, and access to setup.
+/// The menu-bar popover: the shared screens (Overview · Sleep · Recovery · Strain — the
+/// same views the iPhone uses) plus a Mac-only tab (synced data, auto-redeploy, setup,
+/// launch-at-login, version).
 struct MenuBarRootView: View {
     @Bindable var setup: SetupModel
     @Bindable var redeploy: RedeployService
     @Bindable var inbox: SyncInbox
     @Bindable var login: LoginItem
     @Environment(\.openWindow) private var openWindow
-    @State private var tab = Tab.ring
+    @State private var tab = Tab.overview
     @State private var justUpdated = false
 
-    enum Tab { case ring, mac }
+    enum Tab { case overview, sleep, recovery, strain, mac }
 
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
-                Text("Ring").tag(Tab.ring)
-                Text("Mac").tag(Tab.mac)
+                Image(systemName: "square.grid.2x2").tag(Tab.overview)
+                Image(systemName: "bed.double").tag(Tab.sleep)
+                Image(systemName: "heart").tag(Tab.recovery)
+                Image(systemName: "flame").tag(Tab.strain)
+                Image(systemName: "laptopcomputer").tag(Tab.mac)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -26,19 +30,11 @@ struct MenuBarRootView: View {
             Divider()
 
             switch tab {
-            case .ring:
-                ContentView()
-            case .mac:
-                ScrollView {
-                    syncedSection
-                    Divider().padding(.horizontal, Spacing.md)
-                    RedeployMonitorView(service: redeploy)
-                    Divider().padding(.horizontal, Spacing.md)
-                    setupButton
-                    Divider().padding(.horizontal, Spacing.md)
-                    loginToggle
-                    versionFooter
-                }
+            case .overview: OverviewView(metrics: .sample)
+            case .sleep: SleepView()
+            case .recovery: RecoveryView()
+            case .strain: StrainView()
+            case .mac: macTab
             }
         }
         .task {
@@ -50,26 +46,19 @@ struct MenuBarRootView: View {
         }
     }
 
-    private var loginToggle: some View {
-        Toggle(isOn: Binding(
-            get: { login.isEnabled },
-            set: { on in Task { on ? await login.enable() : await login.disable() } }
-        )) {
-            Label("Launch at login", systemImage: "power")
-        }
-        .padding(Spacing.md)
-    }
+    // MARK: Mac-only tab
 
-    private var versionFooter: some View {
-        VStack(spacing: Spacing.xxs) {
-            if justUpdated {
-                Label("Updated to build \(BuildInfo.build)", systemImage: "checkmark.seal.fill")
-                    .font(.caption).foregroundStyle(.green)
-            }
-            Text(BuildInfo.label).font(.caption2).foregroundStyle(.tertiary)
+    private var macTab: some View {
+        ScrollView {
+            syncedSection
+            Divider().padding(.horizontal, Spacing.md)
+            RedeployMonitorView(service: redeploy)
+            Divider().padding(.horizontal, Spacing.md)
+            setupButton
+            Divider().padding(.horizontal, Spacing.md)
+            loginToggle
+            versionFooter
         }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, Spacing.sm)
     }
 
     private var syncedSection: some View {
@@ -111,5 +100,27 @@ struct MenuBarRootView: View {
         }
         .buttonStyle(.plain)
         .padding(Spacing.md)
+    }
+
+    private var loginToggle: some View {
+        Toggle(isOn: Binding(
+            get: { login.isEnabled },
+            set: { on in Task { on ? await login.enable() : await login.disable() } }
+        )) {
+            Label("Launch at login", systemImage: "power")
+        }
+        .padding(Spacing.md)
+    }
+
+    private var versionFooter: some View {
+        VStack(spacing: Spacing.xxs) {
+            if justUpdated {
+                Label("Updated to build \(BuildInfo.build)", systemImage: "checkmark.seal.fill")
+                    .font(.caption).foregroundStyle(.green)
+            }
+            Text(BuildInfo.label).font(.caption2).foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, Spacing.sm)
     }
 }

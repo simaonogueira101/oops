@@ -1,0 +1,31 @@
+name: Oops
+options:
+  bundleIdPrefix: com.simao
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  Oops:
+    type: application
+    platform: iOS
+    sources:
+      - path: Oops
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.simao.oops
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "Oops uses Bluetooth to connect to your smart ring and read its data."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+schemes:
+  Oops:
+    build:
+      targets:
+        Oops: all
+    run:
+      config: Debug

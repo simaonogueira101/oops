@@ -20,6 +20,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.simao.oops
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "Oops uses Bluetooth to connect to your smart ring and read its data."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
   OopsTests:

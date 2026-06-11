@@ -6,10 +6,11 @@ import SwiftData
 @main
 struct OopsMacApp: App {
     @State private var setup = SetupModel()
+    @State private var redeploy = RedeployService()
 
     var body: some Scene {
         MenuBarExtra("Oops", systemImage: "circle.dashed") {
-            MenuBarRootView(setup: setup)
+            MenuBarRootView(setup: setup, redeploy: redeploy)
                 .frame(width: 340, height: 560)
         }
         .menuBarExtraStyle(.window)

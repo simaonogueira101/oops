@@ -1,0 +1,25 @@
+{
+  "name": "Simão's Apps",
+  "identifier": "com.simao.oops.source",
+  "apps": [
+    {
+      "name": "Oops",
+      "bundleIdentifier": "com.simao.oops",
+      "developerName": "Simão Nogueira",
+      "subtitle": "Colmi smart ring companion",
+      "localizedDescription": "A native companion for the Colmi R09 smart ring. Iteration 0 reads the ring's battery; runs on simulated data until the ring arrives.",
+      "iconURL": "https://raw.githubusercontent.com/simaonogueira101/oops/main/Oops/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+      "tintColor": "007AFF",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "date": "2026-06-11T15:30:00Z",
+          "localizedDescription": "Iteration 0: read the ring's battery (mock transport).",
+          "downloadURL": "https://github.com/simaonogueira101/oops/releases/download/v0.1.0/Oops.ipa",
+          "size": 697926,
+          "minOSVersion": "26.0"
+        }
+      ]
+    }
+  ]
+}

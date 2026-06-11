@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct OopsApp: App {
@@ -6,11 +7,7 @@ struct OopsApp: App {
         WindowGroup {
             ContentView()
         }
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        Text("Oops")
+        // Local-only SwiftData store (no CloudKit, by design).
+        .modelContainer(for: BatteryReading.self)
     }
 }

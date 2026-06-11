@@ -63,8 +63,11 @@ func writePNG(_ image: CGImage, to url: URL) {
     try! rep.representation(using: .png, properties: [:])!.write(to: url)
 }
 
-// iOS: full-bleed white square, smaller glyph anchored bottom-left.
-func renderIOS(side: Int) -> CGImage {
+// One renderer for both platforms: a full-bleed, fully opaque white square with
+// the glyph anchored bottom-left. No rounded corners or transparency are baked
+// in — iOS and macOS 26 mask the icon to the system squircle themselves, exactly
+// like Apple's own icon masters (which are also flat, full-bleed, opaque PNGs).
+func renderTile(side: Int) -> CGImage {
     let ctx = context(side)
     let s = CGFloat(side)
     let full = CGRect(x: 0, y: 0, width: s, height: s)
@@ -75,34 +78,10 @@ func renderIOS(side: Int) -> CGImage {
     return ctx.makeImage()!
 }
 
-// macOS: rounded white squircle inside transparent margins (Apple's icon grid).
-func renderMac(side: Int) -> CGImage {
-    let ctx = context(side)
-    let s = CGFloat(side)
-    let margin = s * 0.0977
-    let body = s - margin * 2
-    let bodyRect = CGRect(x: margin, y: margin, width: body, height: body)
-    let radius = body * 0.2237
-    ctx.saveGState()
-    ctx.setShadow(
-        offset: CGSize(width: 0, height: -s * 0.006),
-        blur: s * 0.01,
-        color: NSColor.black.withAlphaComponent(0.18).cgColor)
-    let path = CGPath(roundedRect: bodyRect, cornerWidth: radius, cornerHeight: radius, transform: nil)
-    ctx.addPath(path)
-    ctx.setFillColor(NSColor.white.cgColor)
-    ctx.fillPath()
-    ctx.restoreGState()
-    // Same composition as iOS, anchored to the bottom-left of the rounded body.
-    let rect = bottomLeftRect(in: bodyRect, diameter: body * 0.38, pad: body * 0.14)
-    drawGlyph(in: ctx, rect: rect, canvas: s)
-    return ctx.makeImage()!
-}
-
 // MARK: - Output
 
 let iosURL = rootURL.appendingPathComponent("iOS/Assets.xcassets/AppIcon.appiconset/icon-1024.png")
-writePNG(renderIOS(side: 1024), to: iosURL)
+writePNG(renderTile(side: 1024), to: iosURL)
 print("wrote \(iosURL.lastPathComponent)")
 
 let macSet = rootURL.appendingPathComponent("macOS/Assets.xcassets/AppIcon.appiconset")
@@ -114,7 +93,7 @@ var images: [String] = []
 for (pt, scale) in macSizes {
     let px = pt * scale
     let name = "icon-\(pt)x\(pt)@\(scale)x.png"
-    writePNG(renderMac(side: px), to: macSet.appendingPathComponent(name))
+    writePNG(renderTile(side: px), to: macSet.appendingPathComponent(name))
     images.append("""
         {
           "filename" : "\(name)",

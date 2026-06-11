@@ -73,7 +73,7 @@ func renderTile(side: Int) -> CGImage {
     let full = CGRect(x: 0, y: 0, width: s, height: s)
     ctx.setFillColor(NSColor.white.cgColor)
     ctx.fill(full)
-    let rect = bottomLeftRect(in: full, diameter: s * 0.38, pad: s * 0.14)
+    let rect = bottomLeftRect(in: full, diameter: s * 0.475, pad: s * 0.14)
     drawGlyph(in: ctx, rect: rect, canvas: s)
     return ctx.makeImage()!
 }

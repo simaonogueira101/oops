@@ -12,17 +12,17 @@ struct TopBar: View {
     let onSync: () -> Void
 
     var body: some View {
-        HStack {
-            Button(action: onProfile) { Avatar(profile: profile) }
-                .buttonStyle(.plain)
-
-            Spacer()
+        ZStack {
+            // Absolutely centred so "Today" stays put regardless of side widths.
             DateSelector(date: $date)
-            Spacer()
-
-            HStack(spacing: Spacing.md) {
-                Button(action: onBattery) { batteryLabel }.buttonStyle(.plain)
-                Button(action: onSync) { syncLabel }.buttonStyle(.plain)
+            HStack {
+                Button(action: onProfile) { Avatar(profile: profile) }
+                    .buttonStyle(.plain)
+                Spacer()
+                HStack(spacing: Spacing.sm) {
+                    Button(action: onBattery) { batteryLabel }.buttonStyle(.plain)
+                    Button(action: onSync) { syncLabel }.buttonStyle(.plain)
+                }
             }
         }
         .padding(.horizontal, Spacing.md)
@@ -32,15 +32,15 @@ struct TopBar: View {
     private var batteryLabel: some View {
         HStack(spacing: Spacing.xxs) {
             if let battery {
-                Text("\(battery.level)%").font(.subheadline.weight(.medium)).monospacedDigit()
+                Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
             }
-            Image(systemName: "circle.dashed")
+            Image(systemName: "circle.dashed").imageScale(.small)
                 .foregroundStyle(battery?.isCharging == true ? .green : .primary)
         }
     }
 
     private var syncLabel: some View {
-        Image(systemName: "laptopcomputer")
+        Image(systemName: "laptopcomputer").imageScale(.small)
             .foregroundStyle(syncState == .sent ? .green : .primary)
     }
 }

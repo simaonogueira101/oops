@@ -31,13 +31,14 @@ struct HomeRootView: View {
 
             TabView(selection: $tab) {
                 Tab("Overview", systemImage: "square.grid.2x2", value: HomeTab.overview) {
-                    OverviewView(metrics: .sample, battery: manager?.batteryStatus, lastSync: sync.lastSync)
+                    OverviewView(metrics: .sample)
                 }
                 Tab("Sleep", systemImage: "bed.double", value: HomeTab.sleep) { SleepView() }
                 Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) { RecoveryView() }
                 Tab("Strain", systemImage: "flame", value: HomeTab.strain) { StrainView() }
             }
         }
+        .background(Color(.systemGroupedBackground))
         .task {
             if manager == nil {
                 let manager = RingManager(transport: MockRingTransport(), modelContext: modelContext)

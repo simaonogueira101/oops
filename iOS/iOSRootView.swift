@@ -12,7 +12,7 @@ struct iOSRootView: View {
     }
 
     private var syncBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: "laptopcomputer.and.iphone")
                 .font(.title3)
                 .foregroundStyle(.secondary)
@@ -33,7 +33,7 @@ struct iOSRootView: View {
             }
             .disabled(readings.isEmpty || sync.state == .searching)
         }
-        .padding(12)
+        .padding(Spacing.sm)
         .background(.bar)
     }
 

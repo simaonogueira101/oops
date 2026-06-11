@@ -9,7 +9,7 @@ struct OnboardingView: View {
             header
             Divider()
             ScrollView {
-                VStack(spacing: 12) {
+                VStack(spacing: Spacing.sm) {
                     ForEach(setup.steps) { step in
                         StepRow(step: step, isBusy: setup.isRunning) {
                             Task { await setup.performAction(step.kind) }
@@ -18,7 +18,7 @@ struct OnboardingView: View {
                         }
                     }
                 }
-                .padding(16)
+                .padding(Spacing.md)
             }
             Divider()
             footer
@@ -28,9 +28,9 @@ struct OnboardingView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Spacing.xs) {
             Image(systemName: setup.isComplete ? "checkmark.seal.fill" : "iphone.gen3.radiowaves.left.and.right")
-                .font(.system(size: 34))
+                .font(.headerGlyph)
                 .foregroundStyle(setup.isComplete ? .green : .blue)
                 .symbolRenderingMode(.hierarchical)
             Text(setup.isComplete ? "Oops is set up 🎉" : "Set up Oops on your iPhone")
@@ -43,13 +43,13 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
             ProgressView(value: Double(setup.completedCount), total: Double(setup.steps.count))
                 .frame(maxWidth: 320)
-                .padding(.top, 4)
+                .padding(.top, Spacing.xxs)
         }
-        .padding(20)
+        .padding(Spacing.lg)
     }
 
     private var footer: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Spacing.xs) {
             HStack {
                 Button {
                     Task { await setup.refresh() }
@@ -77,7 +77,7 @@ struct OnboardingView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
         }
-        .padding(16)
+        .padding(Spacing.md)
     }
 }
 
@@ -88,11 +88,11 @@ private struct StepRow: View {
     let recheck: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: Spacing.sm) {
             statusIcon
                 .frame(width: 24, height: 24)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(step.title).font(.headline)
                 Text(step.summary).font(.subheadline).foregroundStyle(.secondary)
 
@@ -103,31 +103,31 @@ private struct StepRow: View {
                 }
 
                 if isActive, !step.instructions.isEmpty {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
                         ForEach(Array(step.instructions.enumerated()), id: \.offset) { i, line in
                             Label(line, systemImage: "\(i + 1).circle")
                                 .font(.caption)
                                 .labelStyle(.titleAndIcon)
                         }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, Spacing.xxs)
                 }
 
                 if isActive {
-                    HStack(spacing: 8) {
+                    HStack(spacing: Spacing.xs) {
                         if let title = step.actionTitle {
                             Button(title, action: action).buttonStyle(.borderedProminent)
                         }
                         Button("Re-check", action: recheck)
                     }
                     .controlSize(.small)
-                    .padding(.top, 6)
+                    .padding(.top, Spacing.xs)
                     .disabled(isBusy && !isRunningThisStep)
                 }
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(Spacing.md)
         .background(rowBackground, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)

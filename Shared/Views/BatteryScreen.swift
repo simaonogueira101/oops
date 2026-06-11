@@ -7,18 +7,18 @@ struct BatteryScreen: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.lg) {
                 Spacer()
 
                 Image(systemName: batterySymbol)
-                    .font(.system(size: 84))
+                    .font(.heroGlyph)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(accentColor)
                     .contentTransition(.symbolEffect(.replace))
 
                 if let status = manager.batteryStatus {
                     Text("\(status.level)%")
-                        .font(.system(size: 56, weight: .semibold, design: .rounded))
+                        .font(.metricValue)
                         .contentTransition(.numericText())
 
                     Text(status.isCharging ? "Charging" : "Not charging")
@@ -40,7 +40,7 @@ struct BatteryScreen: View {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
                         .foregroundStyle(.orange)
-                        .padding(.top, 4)
+                        .padding(.top, Spacing.xxs)
                 }
 
                 Spacer()

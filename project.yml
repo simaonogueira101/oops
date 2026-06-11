@@ -32,6 +32,16 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: G7998J9BB3
+    preBuildScripts:
+      - name: SwiftLint (design tokens)
+        basedOnDependencyAnalysis: false
+        script: |
+          export PATH="$PATH:/opt/homebrew/bin"
+          if command -v swiftlint >/dev/null 2>&1; then
+            swiftlint lint --config "$SRCROOT/.swiftlint.yml"
+          else
+            echo "warning: swiftlint not installed (brew install swiftlint)"
+          fi
   OopsMac:
     type: application
     platform: macOS
@@ -48,6 +58,16 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.simao.oops.mac
+    preBuildScripts:
+      - name: SwiftLint (design tokens)
+        basedOnDependencyAnalysis: false
+        script: |
+          export PATH="$PATH:/opt/homebrew/bin"
+          if command -v swiftlint >/dev/null 2>&1; then
+            swiftlint lint --config "$SRCROOT/.swiftlint.yml"
+          else
+            echo "warning: swiftlint not installed (brew install swiftlint)"
+          fi
   OopsTests:
     type: bundle.unit-test
     platform: iOS

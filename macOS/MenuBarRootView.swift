@@ -19,7 +19,7 @@ struct MenuBarRootView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .padding(8)
+            .padding(Spacing.xs)
 
             Divider()
 
@@ -29,9 +29,9 @@ struct MenuBarRootView: View {
             case .mac:
                 ScrollView {
                     syncedSection
-                    Divider().padding(.horizontal, 14)
+                    Divider().padding(.horizontal, Spacing.md)
                     RedeployMonitorView(service: redeploy)
-                    Divider().padding(.horizontal, 14)
+                    Divider().padding(.horizontal, Spacing.md)
                     setupButton
                 }
             }
@@ -40,7 +40,7 @@ struct MenuBarRootView: View {
     }
 
     private var syncedSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Label("Synced from iPhone", systemImage: "iphone.gen3")
                 .font(.subheadline.weight(.medium))
             if let payload = inbox.lastPayload {
@@ -59,12 +59,12 @@ struct MenuBarRootView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(Spacing.md)
     }
 
     private var setupButton: some View {
         Button { openWindow(id: "setup") } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: setup.isComplete ? "checkmark.seal.fill" : "iphone.gen3")
                     .foregroundStyle(setup.isComplete ? .green : .blue)
                 Text(setup.isComplete ? "iPhone setup complete" : "Set up iPhone…")
@@ -77,6 +77,6 @@ struct MenuBarRootView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(14)
+        .padding(Spacing.md)
     }
 }

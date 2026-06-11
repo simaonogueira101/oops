@@ -5,7 +5,7 @@ struct RedeployMonitorView: View {
     @State private var showLog = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             expiryHeader
 
             Toggle(isOn: Binding(
@@ -28,7 +28,7 @@ struct RedeployMonitorView: View {
                 Task { await service.redeployNow() }
             } label: {
                 if service.isRedeploying {
-                    HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Redeploying…") }
+                    HStack(spacing: Spacing.xs) { ProgressView().controlSize(.small); Text("Redeploying…") }
                         .frame(maxWidth: .infinity)
                 } else {
                     Label("Redeploy now", systemImage: "arrow.triangle.2.circlepath")
@@ -64,14 +64,14 @@ struct RedeployMonitorView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
         }
-        .padding(14)
+        .padding(Spacing.md)
         .task { await service.refresh() }
     }
 
     private var expiryHeader: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: expiryIcon)
-                .font(.system(size: 28))
+                .font(.sectionGlyph)
                 .foregroundStyle(expiryColor)
                 .symbolRenderingMode(.hierarchical)
             VStack(alignment: .leading, spacing: 1) {

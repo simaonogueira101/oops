@@ -1,0 +1,70 @@
+# Oops — design-token enforcement (the "ESLint rules" for our design system).
+# Scoped to ONLY these custom rules so it enforces the design system, not SwiftLint's
+# full style ruleset. All are errors → they fail the build / CI.
+included:
+  - Shared
+  - iOS
+  - macOS
+excluded:
+  - build_device
+  - build_mac
+  - build_ipa
+  - OopsTests
+  - .build
+
+only_rules:
+  - no_hardcoded_font_size
+  - no_font_system_size_init
+  - no_hardcoded_color_rgb
+  - no_color_literal
+  - no_uicolor_rgb
+  - no_magic_padding
+  - no_magic_padding_edge
+  - no_magic_spacing_arg
+
+custom_rules:
+  # ---- Typography: use Dynamic Type text styles or a Typography token ----
+  no_hardcoded_font_size:
+    name: "No Hardcoded Font Size"
+    regex: '\.system\(\s*size:\s*[0-9]'
+    message: "Use a Dynamic Type text style (.body/.headline) or a Typography token (Font.metricValue) — never a hardcoded size."
+    severity: error
+  no_font_system_size_init:
+    name: "No Font.system(size:)"
+    regex: 'Font\.system\(\s*size:\s*[0-9]'
+    message: "Use a text style or a Typography token instead of Font.system(size:)."
+    severity: error
+
+  # ---- Colors: use semantic / asset colors, never raw RGB ----
+  no_hardcoded_color_rgb:
+    name: "No Hardcoded RGB Color"
+    regex: '\bColor\(\s*(\.sRGB,\s*)?red:\s*[0-9.]'
+    message: "Use a semantic/asset color (Color.primary, Color(\"Brand\"), AppColor.*) — not raw RGB."
+    severity: error
+  no_color_literal:
+    name: "No #colorLiteral"
+    regex: '#colorLiteral\('
+    message: "Use an asset color or a Color token, not #colorLiteral."
+    severity: error
+  no_uicolor_rgb:
+    name: "No Hardcoded UIColor"
+    regex: '\bUIColor\(\s*(displayP3Red|red|white|hue):\s*[0-9.]'
+    message: "Use an asset color or token instead of raw UIColor components."
+    severity: error
+
+  # ---- Spacing: use a Spacing token (literal 0/1 allowed as 'none'/'hairline') ----
+  no_magic_padding:
+    name: "No Magic Padding"
+    regex: '\.padding\(\s*(?:[2-9]|\d\d)'
+    message: "Use a Spacing token (.padding(Spacing.md)) instead of a magic number."
+    severity: error
+  no_magic_padding_edge:
+    name: "No Magic Edge Padding"
+    regex: '\.padding\(\s*\.(top|bottom|leading|trailing|horizontal|vertical),\s*(?:[2-9]|\d\d)'
+    message: "Use a Spacing token for edge padding (.padding(.top, Spacing.sm))."
+    severity: error
+  no_magic_spacing_arg:
+    name: "No Magic Stack Spacing"
+    regex: 'spacing:\s*(?:[2-9]|\d\d)'
+    message: "Use a Spacing token (VStack(spacing: Spacing.sm))."
+    severity: error

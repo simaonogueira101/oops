@@ -53,7 +53,7 @@ struct HomeRootView: View {
             UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
 
             if manager == nil {
-                let manager = RingManager(transport: MockRingTransport(), modelContext: modelContext)
+                let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
                 self.manager = manager
                 await manager.refreshBattery()
             }

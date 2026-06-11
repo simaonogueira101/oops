@@ -36,7 +36,13 @@ struct BatteryScreen: View {
                         .foregroundStyle(.tertiary)
                 }
 
-                if let error = manager.errorMessage {
+                if manager.bluetoothUnavailable {
+                    // Explicit, distinct state: this isn't a "try again" — Bluetooth is off.
+                    Label(manager.errorMessage ?? "Bluetooth is off", systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .padding(.top, Spacing.xxs)
+                } else if let error = manager.errorMessage {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
                         .foregroundStyle(.orange)

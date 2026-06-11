@@ -14,6 +14,9 @@ final class RingManager {
     var lastUpdated: Date?
     var isBusy = false
     var errorMessage: String?
+    /// Distinct from a generic error: Bluetooth itself is off/unauthorized, so the UI can
+    /// point the user at Settings rather than offer a plain "try again".
+    var bluetoothUnavailable = false
 
     init(transport: any RingTransport, modelContext: ModelContext) {
         self.transport = transport
@@ -23,6 +26,7 @@ final class RingManager {
     func refreshBattery() async {
         isBusy = true
         errorMessage = nil
+        bluetoothUnavailable = false
         defer { isBusy = false }
 
         do {
@@ -31,7 +35,7 @@ final class RingManager {
             transport.disconnect()
 
             guard let status = RingProtocol.parseBattery(response) else {
-                errorMessage = "Couldn't read the battery."
+                errorMessage = "Couldn't read the ring's battery."
                 return
             }
 
@@ -42,8 +46,29 @@ final class RingManager {
                 BatteryReading(timestamp: now, level: status.level, isCharging: status.isCharging)
             )
             try? modelContext.save()
+        } catch let error as RingError {
+            transport.disconnect()
+            apply(error)
         } catch {
+            transport.disconnect()
             errorMessage = "Couldn't connect to the ring."
+        }
+    }
+
+    /// Maps a transport error to a specific, user-facing state.
+    private func apply(_ error: RingError) {
+        switch error {
+        case .bluetoothUnavailable:
+            bluetoothUnavailable = true
+            errorMessage = "Bluetooth is off. Turn it on to reach your ring."
+        case .ringNotFound:
+            errorMessage = "Ring not found. Make sure it's nearby and try again."
+        case .timeout:
+            errorMessage = "The ring didn't respond. Try again."
+        case .connectionFailed, .notConnected:
+            errorMessage = "Couldn't connect to the ring. Try again."
+        case .unsupportedCommand:
+            errorMessage = "Couldn't read the ring's battery."
         }
     }
 }

@@ -1,9 +1,18 @@
 import Foundation
 
-/// Errors surfaced by a ring transport.
+/// Errors surfaced by a ring transport. `RingManager` maps each to a distinct,
+/// user-facing state (the spec's "Bluetooth unavailable", "ring not found", etc.).
 enum RingError: Error, Equatable {
     case unsupportedCommand
     case notConnected
+    /// Bluetooth is off, unauthorized, or unsupported on this device.
+    case bluetoothUnavailable
+    /// No ring advertising our service was found within the scan timeout.
+    case ringNotFound
+    /// Connecting to the ring or discovering its characteristics failed.
+    case connectionFailed
+    /// The ring connected but didn't answer the command in time.
+    case timeout
 }
 
 /// The swappable seam between the app and the ring. Implemented by `MockRingTransport`

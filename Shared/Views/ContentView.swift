@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Composition root for the UI: builds the `RingManager` from the environment's model
-/// context, wiring it to the mock transport for now (real BLE arrives with the ring).
+/// Composition root for the battery UI: builds the `RingManager` from the environment's
+/// model context, picking the real or mock transport via `RingTransportFactory` on iOS.
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var manager: RingManager?
@@ -17,10 +17,12 @@ struct ContentView: View {
         }
         .task {
             if manager == nil {
-                manager = RingManager(
-                    transport: MockRingTransport(),
-                    modelContext: modelContext
-                )
+                #if os(iOS)
+                let transport = RingTransportFactory.make()
+                #else
+                let transport: any RingTransport = MockRingTransport()
+                #endif
+                manager = RingManager(transport: transport, modelContext: modelContext)
             }
         }
     }

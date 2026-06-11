@@ -25,6 +25,8 @@ targets:
         NSBonjourServices:
           - _oops._tcp
         UILaunchScreen: {}
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.simao.oops
@@ -55,6 +57,8 @@ targets:
         NSLocalNetworkUsageDescription: "Oops receives your ring data from your iPhone on the same Wi-Fi."
         NSBonjourServices:
           - _oops._tcp
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.simao.oops.mac

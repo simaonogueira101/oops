@@ -33,6 +33,12 @@ struct ProfileView: View {
                     TextField("Your name", text: $name)
                         .textInputAutocapitalization(.words)
                 }
+
+                Section {
+                    LabeledContent("Version", value: BuildInfo.label)
+                } footer: {
+                    Text("Your Mac auto-installs new builds when you commit, so this updates on its own.")
+                }
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)

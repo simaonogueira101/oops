@@ -117,11 +117,13 @@ final class RedeployService {
 
         [ -z "$UDID" ] || [ -z "$CORE" ] && { write_status false "iPhone not reachable"; exit 0; }
         [ -z "$TEAM" ] && { write_status false "No Xcode team"; exit 0; }
+        BUILD=$(git rev-list --count HEAD 2>/dev/null || echo 1)
 
         command -v xcodegen >/dev/null && xcodegen generate >/dev/null 2>&1
 
         xcodebuild -project Oops.xcodeproj -scheme Oops -destination "platform=iOS,id=$UDID" \\
           -configuration Debug -allowProvisioningUpdates DEVELOPMENT_TEAM="$TEAM" \\
+          CURRENT_PROJECT_VERSION="$BUILD" \\
           -derivedDataPath build_device build > /tmp/oops_redeploy_build.log 2>&1
 
         if ! grep -q "BUILD SUCCEEDED" /tmp/oops_redeploy_build.log; then write_status false "Build failed"; exit 0; fi
@@ -171,6 +173,8 @@ final class RedeployService {
           <array><string>/bin/zsh</string><string>\(scriptPath)</string></array>
           <key>StartInterval</key><integer>\(intervalDays * 24 * 3600)</integer>
           <key>RunAtLoad</key><true/>
+          <key>WatchPaths</key>
+          <array><string>\(projectDir)/.git/refs/heads/main</string></array>
           <key>StandardOutPath</key><string>\(supportDir)/launchd.log</string>
           <key>StandardErrorPath</key><string>\(supportDir)/launchd.log</string>
         </dict>

@@ -13,6 +13,7 @@ struct HomeRootView: View {
     @State private var date = Date()
     @State private var tab = HomeTab.overview
     @State private var sheet: HomeSheet?
+    @State private var justUpdated = false
 
     enum HomeTab: Hashable { case overview, sleep, recovery, strain }
     enum HomeSheet: Int, Identifiable { case profile, battery, sync; var id: Int { rawValue } }
@@ -29,6 +30,12 @@ struct HomeRootView: View {
                 onSync: { sheet = .sync }
             )
 
+            if justUpdated {
+                UpdatedBanner(build: BuildInfo.build) {
+                    withAnimation { justUpdated = false }
+                }
+            }
+
             TabView(selection: $tab) {
                 Tab("Overview", systemImage: "square.grid.2x2", value: HomeTab.overview) {
                     OverviewView(metrics: .sample)
@@ -40,6 +47,12 @@ struct HomeRootView: View {
         }
         .background(Color(.systemGroupedBackground))
         .task {
+            let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
+            if BuildInfo.build > lastSeen, lastSeen > 0 {
+                withAnimation { justUpdated = true }
+            }
+            UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
+
             if manager == nil {
                 let manager = RingManager(transport: MockRingTransport(), modelContext: modelContext)
                 self.manager = manager

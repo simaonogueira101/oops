@@ -148,7 +148,7 @@ final class RedeployService {
             -derivedDataPath build_mac CURRENT_PROJECT_VERSION="$BUILD" \\
             CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO build > /tmp/oops_mac_build.log 2>&1
           if grep -q "BUILD SUCCEEDED" /tmp/oops_mac_build.log; then
-            pkill -x OopsMac 2>/dev/null
+            pkill -9 -f "Contents/MacOS/OopsMac" 2>/dev/null
             sleep 1
             rm -rf "/Applications/Oops.app"
             cp -R build_mac/Build/Products/Debug/OopsMac.app "/Applications/Oops.app"

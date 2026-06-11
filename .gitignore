@@ -19,3 +19,4 @@ Payload/
 # local build output
 build_ipa/
 Oops.ipa
+build_mac/

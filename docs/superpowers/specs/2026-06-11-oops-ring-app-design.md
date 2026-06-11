@@ -196,7 +196,23 @@ in mind now (and adopt them when the first health metric lands):
   `.steps → (.stepCount, count)`, `.battery → nil`. The single source of truth for the
   type table; battery and any derived/proprietary scores map to `nil` (SwiftData-only).
 
-Iteration 0 does **not** introduce these — `RingManager` writes `BatteryReading` to
+**Free-tier path into Apple Health (no paid program): the Shortcuts bridge.** A sideloaded
+app can't hold the HealthKit entitlement, but it can expose readings via **App Intents**
+(no entitlement, free-tier OK); a user **Shortcut** then loops them into the **"Log Health
+Sample"** action, run unattended by a Time-of-Day automation. Verified precedent:
+OuraAppleHealth. Honest scope — good for **daily-summary / spot values** (resting HR,
+nightly SpO2 / HRV / temperature, daily steps, a sleep block), **not** real-time HR or
+bulk historical backfill, with these costs: data appears under source "Shortcuts" (not
+Oops); no HealthKit sync-identifier, so **we dedupe via an app-side high-water-mark**;
+Health permission must be re-granted after each ~7-day re-sign; and the `Log Health Sample`
+type field can't be a variable, so the Shortcut needs one loop per metric. This becomes a
+third **`MetricSink`** option — `ShortcutsHealthExport` via App Intents — alongside
+`SwiftDataMetricSink` (always) and full `HealthKitMetricSink` (only if we ever enroll). No
+other free route works (Apple Health has no arbitrary-sample import; LiveContainer doesn't
+grant the entitlement; TrollStore doesn't support iOS 26). This is the strongest argument
+for designing the sink fan-out early — it keeps all three Health paths open at zero cost.
+
+Iteration 0 does **not** introduce any of these — `RingManager` writes `BatteryReading` to
 SwiftData directly. They are captured here so the heart-rate slice slots them in cleanly.
 
 ## Roadmap after iteration 0 (each its own slice; informational)

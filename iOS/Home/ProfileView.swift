@@ -43,11 +43,16 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    NavigationLink("Settings") { SettingsView() }
+                }
+
+                Section {
                     LabeledContent("Version", value: BuildInfo.label)
                 } footer: {
                     Text("Your Mac auto-installs new builds when you commit, so this updates on its own.")
                 }
             }
+            .appNavigationDestinations()
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

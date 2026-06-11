@@ -1,40 +1,183 @@
 import SwiftUI
 
-/// The Overview tab: two concentric rings flanked by four equally-sized stats —
-/// recovery + HRV (green) on the left, strain + sleep (blue) on the right.
+/// The Overview "Today" tab: a scrollable feed of cards. Each card deep-links into its domain
+/// tab or a detail screen. Shared by iPhone and the Mac companion.
 struct OverviewView: View {
     let metrics: DayMetrics
+    @Binding var date: Date
+    var battery: BatteryStatus?
+
+    private var mock: MockHealthData { MockHealthData() }
+    private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
+    private var recoveryBand: ScoreBand { ScoreBand(score: metrics.score) }
 
     var body: some View {
-        VStack {
-            Spacer()
-            ringSection
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var ringSection: some View {
-        HStack(alignment: .center, spacing: Spacing.md) {
-            VStack(spacing: Spacing.lg) {
-                stat("\(percent(metrics.recovery))%", "RECOVERY", .green)
-                stat("\(metrics.hrv)", "HRV", .green)
+        ScrollView {
+            VStack(spacing: Spacing.md) {
+                // iOS shows the day in the persistent TopBar; the Mac companion has no top bar,
+                // so it gets the in-content date scroller instead.
+                #if os(macOS)
+                DateScroller(date: $date)
+                #endif
+                recoveryHero
+                sleepStrainRow
+                stepsCard
+                heartRateCard
+                stressSpo2Row
+                tempRespiratoryRow
+                batteryCard
+                coachCard
+                journalCard
             }
-            MetricRings(recovery: metrics.recovery, strain: metrics.strainFraction, size: 160)
-            VStack(spacing: Spacing.lg) {
-                stat(metrics.strain.formatted(.number.precision(.fractionLength(1))), "STRAIN", .blue)
-                stat("\(percent(metrics.sleepPerformance))%", "SLEEP", .blue)
+            .padding(Spacing.md)
+        }
+        .background(AppColor.background)
+    }
+
+    // MARK: Hero
+
+    private var recoveryHero: some View {
+        Card(label: "Recovery", title: recoveryBand.label, accent: AppColor.recovery, accessory: .chevron) {
+            CompositeHeroRing(
+                score: metrics.score, accent: AppColor.recovery,
+                leading: [HeroStat(value: "\(metrics.hrv)", label: "HRV", color: AppColor.recovery),
+                          HeroStat(value: "\(metrics.restingHR)", label: "RHR", color: AppColor.recovery)],
+                trailing: [HeroStat(value: strainText, label: "Strain", color: AppColor.strain),
+                           HeroStat(value: "\(sleepScore)", label: "Sleep", color: AppColor.sleep)]
+            )
+            .padding(.vertical, Spacing.xs)
+        }
+        .navigates(to: .recovery)
+    }
+
+    // MARK: Rows
+
+    private var sleepStrainRow: some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            Card(label: "Sleep", accent: AppColor.sleep, accessory: .chevron) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    compactValue("\(sleepScore)", color: AppColor.sleep)
+                    Sparkline(samples: mock.hrvSeries(days: 10), color: AppColor.sleep)
+                }
+            }
+            .navigates(to: .sleep)
+
+            Card(label: "Strain", accent: AppColor.strain, accessory: .chevron) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    compactValue(strainText, color: AppColor.strain)
+                    Sparkline(samples: mock.stepsSeries(days: 10), color: AppColor.strain)
+                }
+            }
+            .navigates(to: .strain)
+        }
+    }
+
+    private var stepsCard: some View {
+        Card(label: "Steps", accent: AppColor.strain, accessory: .chevron) {
+            GoalProgress(current: Double(metrics.steps), goal: Double(metrics.stepGoal),
+                         accent: AppColor.strain, unit: "steps")
+        }
+        .navigates(to: .strain)
+    }
+
+    private var heartRateCard: some View {
+        Card(label: "Heart Rate", accent: AppColor.recovery, accessory: .chevron) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Sparkline(samples: mock.restingHRSeries(days: 14), color: AppColor.recovery)
+                Text("Resting \(metrics.restingHR) · now 61 bpm")
+                    .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
             }
         }
-        .padding(.horizontal, Spacing.lg)
+        .navigates(to: .heartRate)
     }
 
-    private func stat(_ value: String, _ label: String, _ color: Color) -> some View {
-        VStack(spacing: Spacing.xxs) {
-            Text(value).font(.title2.weight(.semibold)).foregroundStyle(color)
-            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+    private var stressSpo2Row: some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            Card(label: "Stress", accent: AppColor.strain, accessory: .chevron) {
+                compactValue("\(metrics.stress)", color: AppColor.strain)
+            }
+            .navigates(to: .stress)
+            Card(label: "Blood O₂", accent: AppColor.recovery, accessory: .chevron) {
+                compactValue("\(metrics.spo2)", unit: "%", color: AppColor.recovery)
+            }
+            .navigates(to: .spo2)
         }
     }
 
-    private func percent(_ fraction: Double) -> Int { Int((fraction * 100).rounded()) }
+    private var tempRespiratoryRow: some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            Card(label: "Skin Temp", accent: AppColor.recovery, accessory: .chevron) {
+                compactValue(metrics.bodyTempDelta.formatted(.number.precision(.fractionLength(1))),
+                             unit: "°C", color: AppColor.recovery)
+            }
+            .navigates(to: .bodyTemp)
+            Card(label: "Respiratory", accent: AppColor.recovery, accessory: .chevron) {
+                compactValue(metrics.respiratoryRate.formatted(.number.precision(.fractionLength(1))),
+                             color: AppColor.recovery)
+            }
+            .navigates(to: .respiratory)
+        }
+    }
+
+    private var batteryCard: some View {
+        Card(label: "Ring", title: batteryTitle, accent: AppColor.recovery, accessory: .chevron) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "circle.dashed").foregroundStyle(AppColor.recovery)
+                Text(batterySubtitle).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+            }
+        }
+        .navigates(to: .deviceStatus)
+    }
+
+    private var coachCard: some View {
+        Card(label: "Coach", accent: AppColor.recovery,
+             footer: .text("A great day to push a harder workout.")) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "sparkles").foregroundStyle(AppColor.recovery)
+                Text("You're well recovered").font(.headline)
+                Spacer()
+            }
+        }
+    }
+
+    private var journalCard: some View {
+        Card(label: "Today", accessory: .chevron) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "tag").foregroundStyle(AppColor.accent)
+                Text("Add how you feel & tag your day")
+                    .font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+                Spacer()
+            }
+        }
+        .navigates(to: .journal)
+    }
+
+    // MARK: Helpers
+
+    private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
+
+    private func compactValue(_ text: String, unit: String? = nil, color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+            Text(text).font(.title.weight(.semibold)).foregroundStyle(color)
+            if let unit {
+                Text(unit).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+            }
+        }
+    }
+
+    private var batteryTitle: String {
+        guard let battery else { return "Not connected" }
+        return "\(battery.level)%"
+    }
+    private var batterySubtitle: String {
+        guard let battery else { return "Open Settings to pair your ring." }
+        return battery.isCharging ? "Charging" : "Connected"
+    }
+}
+
+#Preview {
+    NavigationStack {
+        OverviewView(metrics: .sample, date: .constant(.now))
+            .appNavigationDestinations()
+    }
 }

@@ -11,6 +11,7 @@ struct MenuBarRootView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var tab = Tab.overview
     @State private var justUpdated = false
+    @State private var date = Date()
 
     enum Tab { case overview, sleep, recovery, strain, mac }
 
@@ -29,16 +30,19 @@ struct MenuBarRootView: View {
 
             Divider()
 
-            Group {
-                switch tab {
-                case .overview: OverviewView(metrics: .sample)
-                case .sleep: SleepView()
-                case .recovery: RecoveryView()
-                case .strain: StrainView()
-                case .mac: macTab
+            NavigationStack {
+                Group {
+                    switch tab {
+                    case .overview: OverviewView(metrics: .sample, date: $date)
+                    case .sleep: SleepView()
+                    case .recovery: RecoveryView()
+                    case .strain: StrainView()
+                    case .mac: macTab
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .appNavigationDestinations()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(.windowBackgroundColor))
         .task {
@@ -92,7 +96,7 @@ struct MenuBarRootView: View {
         Button { openWindow(id: "setup") } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: setup.isComplete ? "checkmark.seal.fill" : "iphone.gen3")
-                    .foregroundStyle(setup.isComplete ? .green : .blue)
+                    .foregroundStyle(setup.isComplete ? AppColor.positive : AppColor.accent)
                 Text(setup.isComplete ? "iPhone setup complete" : "Set up iPhone…")
                 Spacer()
                 if !setup.isComplete {
@@ -120,7 +124,7 @@ struct MenuBarRootView: View {
         VStack(spacing: Spacing.xxs) {
             if justUpdated {
                 Label("Updated to build \(BuildInfo.build)", systemImage: "checkmark.seal.fill")
-                    .font(.caption).foregroundStyle(.green)
+                    .font(.caption).foregroundStyle(AppColor.positive)
             }
             Text(BuildInfo.label).font(.caption2).foregroundStyle(.tertiary)
         }

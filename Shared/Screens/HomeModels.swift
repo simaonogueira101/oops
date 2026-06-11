@@ -40,16 +40,3 @@ final class ProfileStore {
             .appendingPathComponent("profile.jpg")
     }
 }
-
-/// Placeholder daily metrics until the ring provides real recovery/strain/sleep data.
-struct DayMetrics: Equatable {
-    var recovery: Double          // 0...1
-    var strain: Double            // 0...21 (Whoop-like scale)
-    var hrv: Int                  // ms
-    var sleepPerformance: Double  // 0...1
-
-    /// Strain mapped to 0...1 for the ring.
-    var strainFraction: Double { min(max(strain / 21, 0), 1) }
-
-    static let sample = DayMetrics(recovery: 0.58, strain: 4.9, hrv: 40, sleepPerformance: 0.73)
-}

@@ -1,0 +1,29 @@
+import SwiftUI
+
+/// A score donut with the number (and an optional caption) centered inside it.
+struct ScoreRing: View {
+    var score: Int
+    var accent: Color
+    var caption: String?
+    var size: CGFloat = 120
+
+    var body: some View {
+        ZStack {
+            RingChart(value: Double(score) / 100, color: accent)
+            VStack(spacing: 0) {
+                Text("\(score)")
+                    .font(.metricValue)
+                    .foregroundStyle(AppColor.label)
+                    .minimumScaleFactor(0.5)
+                if let caption {
+                    Text(caption).font(.caption2).foregroundStyle(AppColor.secondaryLabel)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+#Preview {
+    ScoreRing(score: 72, accent: AppColor.recovery, caption: "Good").padding()
+}

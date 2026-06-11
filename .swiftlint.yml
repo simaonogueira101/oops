@@ -21,6 +21,7 @@ only_rules:
   - no_magic_padding
   - no_magic_padding_edge
   - no_magic_spacing_arg
+  - no_system_color_literal
 
 custom_rules:
   # ---- Typography: use Dynamic Type text styles or a Typography token ----
@@ -50,6 +51,11 @@ custom_rules:
     name: "No Hardcoded UIColor"
     regex: '\bUIColor\(\s*(displayP3Red|red|white|hue):\s*[0-9.]'
     message: "Use an asset color or token instead of raw UIColor components."
+    severity: error
+  no_system_color_literal:
+    name: "No System Color Literal"
+    regex: '(Color\.(red|orange|yellow|green|mint|teal|cyan|blue|indigo|purple|pink|brown)\b|(foregroundStyle|foregroundColor|fill|tint|stroke|background)\(\s*\.(red|orange|yellow|green|mint|teal|cyan|blue|indigo|purple|pink|brown)\b)'
+    message: "Use an AppColor token (AppColor.recovery, AppColor.positive) — system color literals are banned to keep the palette small."
     severity: error
 
   # ---- Spacing: use a Spacing token (literal 0/1 allowed as 'none'/'hairline') ----

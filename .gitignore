@@ -24,3 +24,6 @@ build_device/
 iOS/Info.plist
 macOS/Info.plist
 build_sim/
+
+# Brainstorming visual companion
+.superpowers/

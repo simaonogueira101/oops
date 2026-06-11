@@ -62,6 +62,21 @@ Targets: **Oops** (iOS app, `com.simao.oops`), **OopsMac** (macOS menu-bar, `LSU
 
 Code is split by what's shareable: **`Shared/`** (compiled into both apps), **`iOS/`**, **`macOS/`**.
 
+### UI layer (`Shared/DesignSystem/`, `Shared/Screens/`)
+All screens are composed from **one reusable `Card`** (`DesignSystem/Card/`) — header (label/title/
+accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `.navigates(to:)`
+(push), `.cardDrawer` (sheet), or `ExpandableCard`. `Card` is presentation-only; routing lives in
+**`Screens/AppRoute.swift`** (`AppRoute` enum + `RouteDestination` + the `.navigates(to:)` /
+`.appNavigationDestinations()` / `.inlineNavigationTitle()` helpers — the last guards the iOS-only
+`navigationBarTitleDisplayMode` so shared screens compile on macOS). Content blocks live in
+`DesignSystem/Blocks/` (rings, contributor rows, zone scale, sparkline, tag chips, period picker…)
+and Swift Charts primitives in `DesignSystem/Charts/` (line/bar/`RingChart`, and the staggered
+**`SleepStageChart`** hypnogram — note Charts places the first categorical y value at the *top*).
+Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain/Vitals via the
+`MetricDetailScreen` template/Trends/Journal/Settings/Onboarding). Everything is fed by
+**`MockHealthData`** (a seeded, deterministic provider in `Shared/Model/`) — no ring hardware
+needed; screens bind to real data later. Feature coverage is tracked in `FEATURES.md`.
+
 ### Ring data path (the core abstraction — `Shared/Ring/`)
 A transport seam keeps the deterministic protocol/persistence separate from the flaky,
 hardware-bound transport, so we develop against a fake ring today and swap in BLE later:
@@ -106,11 +121,16 @@ bundle; the UI shows an "Updated to build N" banner by comparing against a store
 ## Design tokens (enforced)
 
 Use the tokens in `Shared/DesignSystem/` instead of literals: **`Spacing`** (xxs…xl, 4-pt
-scale), **`Typography`** (`Font.metricValue`, etc.), **`AppColor`** / semantic colors.
-`.swiftlint.yml` is scoped to **only** custom design-token rules (no font `size:`, no raw RGB
-/ `#colorLiteral`, no magic padding/spacing — literal `0`/`1` allowed), all `severity: error`.
-It runs as a **preBuildScript on both app targets** and in CI (`.github/workflows/lint.yml`),
-so a token violation fails the build. Adding a hardcoded size/color/padding will break it.
+scale), **`Typography`** (`Font.metricValue`, etc.), **`AppColor`**. The color palette is a
+**reduced 6-hue set** (Oura-warm dark + light, asset-backed in `Shared/Assets.xcassets/Colors`):
+domain tints `recovery`/`sleep`/`strain` (recovery doubles as the app `accent`) + status
+`positive`/`caution`/`negative`, plus neutrals (`background`/`surface`/`surfaceElevated`/
+`separator`/`track`). Scores take their domain hue; the status trio is reused app-wide for bands,
+deltas, charging, and errors. `.swiftlint.yml` is scoped to **only** custom design-token rules (no
+font `size:`, no raw RGB / `#colorLiteral`, no magic padding/spacing — literal `0`/`1` allowed —
+and **`no_system_color_literal`** bans `Color.blue`/`.green`/… so only `AppColor` tokens compile),
+all `severity: error`. It runs as a **preBuildScript on both app targets** and in CI
+(`.github/workflows/lint.yml`), so a token violation fails the build.
 
 ## Conventions
 

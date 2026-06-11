@@ -40,12 +40,12 @@ struct BatteryScreen: View {
                     // Explicit, distinct state: this isn't a "try again" — Bluetooth is off.
                     Label(manager.errorMessage ?? "Bluetooth is off", systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppColor.negative)
                         .padding(.top, Spacing.xxs)
                 } else if let error = manager.errorMessage {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppColor.caution)
                         .padding(.top, Spacing.xxs)
                 }
 
@@ -79,8 +79,8 @@ struct BatteryScreen: View {
 
     private var accentColor: Color {
         guard let status = manager.batteryStatus else { return .secondary }
-        if status.isCharging { return .green }
-        return status.level <= 20 ? .red : .primary
+        if status.isCharging { return AppColor.positive }
+        return status.level <= 20 ? AppColor.negative : .primary
     }
 
     private var batterySymbol: String {

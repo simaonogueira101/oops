@@ -31,7 +31,7 @@ struct OnboardingView: View {
         VStack(spacing: Spacing.xs) {
             Image(systemName: setup.isComplete ? "checkmark.seal.fill" : "iphone.gen3.radiowaves.left.and.right")
                 .font(.headerGlyph)
-                .foregroundStyle(setup.isComplete ? .green : .blue)
+                .foregroundStyle(setup.isComplete ? AppColor.positive : AppColor.accent)
                 .symbolRenderingMode(.hierarchical)
             Text(setup.isComplete ? "Oops is set up 🎉" : "Set up Oops on your iPhone")
                 .font(.title2.bold())
@@ -143,17 +143,17 @@ private struct StepRow: View {
         switch step.state {
         case .pending: Image(systemName: "circle").foregroundStyle(.tertiary)
         case .checking, .running: ProgressView().controlSize(.small)
-        case .needsAction: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+        case .needsAction: Image(systemName: "exclamationmark.circle.fill").foregroundStyle(AppColor.caution)
+        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(AppColor.positive)
+        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(AppColor.negative)
         }
     }
 
     private var detailColor: Color {
         switch step.state {
-        case .done: return .green
-        case .failed: return .red
-        case .needsAction: return .orange
+        case .done: return AppColor.positive
+        case .failed: return AppColor.negative
+        case .needsAction: return AppColor.caution
         default: return .secondary
         }
     }

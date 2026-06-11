@@ -1,8 +1,7 @@
 import SwiftUI
-import Charts
 
-/// Two concentric progress rings drawn with Swift Charts (SectorMark donuts), styled like
-/// Apple's Activity / Health rings: recovery (outer) and strain (inner).
+/// Two concentric progress rings — recovery (outer) and strain (inner) — styled like Apple's
+/// Activity / Health rings. Built on the shared `RingChart` primitive.
 struct MetricRings: View {
     let recovery: Double   // 0...1
     let strain: Double     // 0...1
@@ -10,8 +9,8 @@ struct MetricRings: View {
 
     var body: some View {
         ZStack {
-            ring(value: recovery, color: .green)
-            ring(value: strain, color: .blue)
+            RingChart(value: recovery, color: AppColor.recovery)
+            RingChart(value: strain, color: AppColor.strain)
                 .scaleEffect(0.72)
             Image(systemName: "circle.dashed")
                 .font(.title)
@@ -19,23 +18,8 @@ struct MetricRings: View {
         }
         .frame(width: size, height: size)
     }
+}
 
-    private func ring(value: Double, color: Color) -> some View {
-        Chart {
-            SectorMark(
-                angle: .value("Value", max(value, 0.0001)),
-                innerRadius: .ratio(0.82),
-                angularInset: 1.5
-            )
-            .cornerRadius(6)
-            .foregroundStyle(color)
-
-            SectorMark(
-                angle: .value("Track", max(1 - value, 0.0001)),
-                innerRadius: .ratio(0.82)
-            )
-            .foregroundStyle(color.opacity(0.15))
-        }
-        .chartLegend(.hidden)
-    }
+#Preview {
+    MetricRings(recovery: 0.72, strain: 0.4).padding().background(AppColor.background)
 }

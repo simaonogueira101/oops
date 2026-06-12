@@ -9,6 +9,15 @@ struct SleepView: View {
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
 
     var body: some View {
+        if session.intervals.isEmpty {
+            ContentUnavailableView("No Sleep Data", systemImage: "moon.zzz",
+                                   description: Text("Wear your ring to bed to track sleep."))
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 scoreHero
@@ -40,6 +49,7 @@ struct SleepView: View {
     private var hypnogramCard: some View {
         Card(label: "Sleep stages") {
             SleepStageChart(session: session)
+                .accessibilityLabel("Chart of sleep stages across the night")
         }
     }
 
@@ -57,6 +67,7 @@ struct SleepView: View {
                         }
                         Text(session.duration(of: stage).formattedDuration).font(.subheadline.weight(.semibold)).monospacedDigit()
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }

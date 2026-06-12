@@ -17,7 +17,7 @@ struct UpdatedBanner: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .background(.regularMaterial, in: Capsule())
+        .glassEffect(.regular, in: .capsule)
         .padding(.horizontal, Spacing.md)
         .padding(.bottom, Spacing.xs)
         .transition(.move(edge: .top).combined(with: .opacity))

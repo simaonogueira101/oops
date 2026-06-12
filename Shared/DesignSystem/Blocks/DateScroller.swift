@@ -9,7 +9,7 @@ struct DateScroller: View {
 
     var body: some View {
         HStack {
-            Button { shift(-1) } label: { Image(systemName: "chevron.left") }
+            Button { shift(-1) } label: { Image(systemName: "chevron.backward").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel("Previous day")
             Spacer()
             VStack(spacing: 0) {
                 Text(isToday ? "Today" : date.formatted(.dateTime.weekday(.wide)))
@@ -18,9 +18,10 @@ struct DateScroller: View {
                     .font(.caption).foregroundStyle(AppColor.secondaryLabel)
             }
             Spacer()
-            Button { shift(1) } label: { Image(systemName: "chevron.right") }.disabled(isToday)
+            Button { shift(1) } label: { Image(systemName: "chevron.forward").frame(minWidth: 44, minHeight: 44) }.disabled(isToday).accessibilityLabel("Next day")
         }
         .tint(AppColor.accent)
+        .sensoryFeedback(.selection, trigger: date)
     }
 
     private func shift(_ days: Int) {

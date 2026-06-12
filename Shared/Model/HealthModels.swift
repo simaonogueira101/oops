@@ -54,7 +54,14 @@ enum SleepStage: String, CaseIterable, Identifiable {
     case awake, rem, light, deep
     var id: String { rawValue }
 
-    var title: String { self == .rem ? "REM" : rawValue.capitalized }
+    /// Apple's sleep-stage vocabulary (iOS 16+): Awake, REM, Core, Deep.
+    var title: String {
+        switch self {
+        case .rem: return "REM"
+        case .light: return "Core"
+        default: return rawValue.capitalized
+        }
+    }
 
     /// A single-hue intensity ramp of the sleep color (deeper = stronger); Awake uses the
     /// app-wide attention color. Keeps hue meaning unambiguous per tab.

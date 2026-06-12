@@ -10,10 +10,14 @@ struct DeltaLabel: View {
             Image(systemName: info.direction.symbol)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(info.direction.color(upIsGood: upIsGood))
-            Text(info.baseline, format: .number.precision(.fractionLength(0)))
+            Text(info.value - info.baseline,
+                 format: .number.sign(strategy: .always()).precision(.fractionLength(0)))
                 .font(.caption)
                 .foregroundStyle(AppColor.secondaryLabel)
+                .monospacedDigit()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(info.direction == .up ? "Up" : info.direction == .down ? "Down" : "Unchanged") \(Int(abs(info.value - info.baseline))) from \(Int(info.baseline))")
     }
 }
 

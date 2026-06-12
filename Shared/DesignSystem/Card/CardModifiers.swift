@@ -35,18 +35,23 @@ struct ExpandableCard<Collapsed: View, Detail: View>: View {
     }
 
     var body: some View {
-        Card(label: label, accent: accent,
-             accessory: .icon(expanded ? "chevron.up" : "chevron.down")) {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                collapsed()
-                if expanded {
-                    detail()
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+        Button {
+            withAnimation(.snappy) { expanded.toggle() }
+        } label: {
+            Card(label: label, accent: accent,
+                 accessory: .icon(expanded ? "chevron.up" : "chevron.down")) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    collapsed()
+                    if expanded {
+                        detail()
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { withAnimation(.snappy) { expanded.toggle() } }
+        .buttonStyle(CardLinkStyle())
+        .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+        .sensoryFeedback(.selection, trigger: expanded)
     }
 }
 

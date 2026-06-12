@@ -48,21 +48,22 @@ struct HomeRootView: View {
 
             TabView(selection: tabSelection) {
                 Tab("Home", systemImage: "circle.grid.2x2", value: HomeTab.home) {
-                    OverviewView(metrics: .sample, date: $date, recorder: recorder)
+                    screen(for: .home)
                 }
                 Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
-                    SleepView()
+                    screen(for: .sleep)
                 }
                 Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
-                    RecoveryView()
+                    screen(for: .recovery)
                 }
                 Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
-                    StrainView()
+                    screen(for: .strain)
                 }
                 Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
-                    // Never shown — selection is intercepted to open the drawer. Painted with
-                    // the app background so the tab system's momentary render doesn't flash black.
-                    AppColor.background.ignoresSafeArea()
+                    // Never the real selection — the tap is intercepted to open the record
+                    // drawer. But the tab system still renders this tab for a frame before the
+                    // selection snaps back, so mirror the active screen to make that invisible.
+                    screen(for: tab)
                 }
             }
         }
@@ -92,6 +93,17 @@ struct HomeRootView: View {
             case .record:
                 RecordWorkoutForm(recorder: recorder)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func screen(for tab: HomeTab) -> some View {
+        switch tab {
+        case .home: OverviewView(metrics: .sample, date: $date, recorder: recorder)
+        case .sleep: SleepView()
+        case .recovery: RecoveryView()
+        case .strain: StrainView()
+        case .record: AppColor.background.ignoresSafeArea() // unreachable
         }
     }
 

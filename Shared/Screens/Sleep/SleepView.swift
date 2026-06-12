@@ -3,6 +3,7 @@ import SwiftUI
 /// The Sleep tab: score, the staggered-stage hypnogram, stage breakdown, contributors, and the
 /// supporting overnight metrics — all composed from `Card`.
 struct SleepView: View {
+    @State private var period: Period = .week
     private var mock: MockHealthData { MockHealthData() }
     private var session: SleepSession { mock.sleepSession() }
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
@@ -115,10 +116,12 @@ struct SleepView: View {
     }
 
     private var trendsCard: some View {
-        Card(label: "Sleep trends", accessory: .chevron) {
-            Text("See your last 30 nights").font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+        Card(label: "Sleep trends") {
+            VStack(spacing: Spacing.sm) {
+                PeriodPicker(period: $period)
+                BarSeriesChart(samples: mock.series(days: 14, base: 86, spread: 16), color: AppColor.sleep)
+            }
         }
-        .navigates(to: .trends)
     }
 
     // MARK: Helpers

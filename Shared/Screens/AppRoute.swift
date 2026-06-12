@@ -4,7 +4,7 @@ import SwiftUI
 enum AppRoute: Hashable {
     case sleep, recovery, strain
     case heartRate, hrv, spo2, stress, bodyTemp, respiratory
-    case workouts, hrZones, trends, journal, settings, deviceStatus
+    case workouts, hrZones
 }
 
 /// Resolves a route to its destination screen. Shared by iOS and macOS.
@@ -25,10 +25,6 @@ struct RouteDestination: View {
         case .respiratory: MetricDetailScreen.respiratory()
         case .workouts: WorkoutsView()
         case .hrZones: HRZonesView()
-        case .trends: TrendsScreen()
-        case .journal: JournalView()
-        case .settings: SettingsView()
-        case .deviceStatus: DeviceStatusView()
         }
     }
 }

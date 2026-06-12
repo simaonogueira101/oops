@@ -38,7 +38,7 @@ struct HomeRootView: View {
             TabView(selection: $tab) {
                 Tab("Overview", systemImage: "circle.grid.2x2", value: HomeTab.overview) {
                     NavigationStack {
-                        OverviewView(metrics: .sample, date: $date, battery: manager?.batteryStatus)
+                        OverviewView(metrics: .sample, date: $date)
                             .appNavigationDestinations()
                     }
                 }

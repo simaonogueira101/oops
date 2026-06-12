@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Trailing header accessory.
 enum CardAccessory {
-    case none, chevron, learnMore
+    case none, chevron
     case value(String)
     case delta(DeltaInfo, upIsGood: Bool)
     case icon(String)
@@ -81,8 +81,6 @@ struct Card<Content: View>: View {
         case .chevron:
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-        case .learnMore:
-            Text("Learn more").font(.footnote.weight(.semibold)).foregroundStyle(AppColor.accent)
         case .value(let value):
             Text(value).font(.headline).foregroundStyle(AppColor.secondaryLabel)
         case .delta(let info, let upIsGood):

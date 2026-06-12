@@ -3,6 +3,7 @@ import SwiftUI
 /// The Recovery tab: the recovery score, its contributors, and the vitals that feed it — each
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
+    @State private var period: Period = .week
     private var mock: MockHealthData { MockHealthData() }
     private var band: ScoreBand { ScoreBand(score: 72) }
 
@@ -16,7 +17,6 @@ struct RecoveryView: View {
                 bodyTempCard
                 respiratoryCard
                 trendsCard
-                educationalCard
             }
             .padding(Spacing.md)
         }
@@ -81,15 +81,12 @@ struct RecoveryView: View {
     }
 
     private var trendsCard: some View {
-        Card(label: "Recovery trends", accessory: .chevron) {
-            Text("See your last 30 days").font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-        }
-        .navigates(to: .trends)
-    }
-
-    private var educationalCard: some View {
-        Card(accessory: .learnMore) {
-            MediaThumbnail(title: "What is Recovery?", symbol: "play.fill")
+        Card(label: "Recovery trends") {
+            VStack(spacing: Spacing.sm) {
+                PeriodPicker(period: $period)
+                LineTrendChart(samples: mock.series(days: 14, base: 70, spread: 24),
+                               color: AppColor.recovery, baseline: nil)
+            }
         }
     }
 }

@@ -19,9 +19,6 @@ struct SettingsView: View {
                 Toggle("Sleep reminders", isOn: $sleepReminders)
                 Toggle("Recovery alerts", isOn: $recoveryAlerts)
             }
-            Section("Ring") {
-                NavigationLink("Device status", value: AppRoute.deviceStatus)
-            }
             Section("About") {
                 LabeledContent("Version", value: BuildInfo.label)
                 NavigationLink("Welcome tour") { WelcomeView() }
@@ -32,5 +29,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    NavigationStack { SettingsView().appNavigationDestinations() }
+    NavigationStack { SettingsView() }
 }

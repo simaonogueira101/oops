@@ -28,7 +28,7 @@ struct MetricDetailScreen: View {
                     }
                 }
 
-                Card(label: "About \(title)", accessory: .learnMore) {
+                Card(label: "About \(title)") {
                     Text(about).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
                 }
             }

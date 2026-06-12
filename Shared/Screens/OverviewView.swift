@@ -5,7 +5,6 @@ import SwiftUI
 struct OverviewView: View {
     let metrics: DayMetrics
     @Binding var date: Date
-    var battery: BatteryStatus?
 
     private var mock: MockHealthData { MockHealthData() }
     private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
@@ -25,9 +24,6 @@ struct OverviewView: View {
                 heartRateCard
                 stressSpo2Row
                 tempRespiratoryRow
-                batteryCard
-                coachCard
-                journalCard
             }
             .padding(Spacing.md)
         }
@@ -119,39 +115,6 @@ struct OverviewView: View {
         }
     }
 
-    private var batteryCard: some View {
-        Card(label: "Ring", title: batteryTitle, accent: AppColor.recovery, accessory: .chevron) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: "circle.dashed").foregroundStyle(AppColor.recovery)
-                Text(batterySubtitle).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-            }
-        }
-        .navigates(to: .deviceStatus)
-    }
-
-    private var coachCard: some View {
-        Card(label: "Coach", accent: AppColor.recovery,
-             footer: .text("A great day to push a harder workout.")) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: "sparkles").foregroundStyle(AppColor.recovery)
-                Text("You're well recovered").font(.headline)
-                Spacer()
-            }
-        }
-    }
-
-    private var journalCard: some View {
-        Card(label: "Today", accessory: .chevron) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: "tag").foregroundStyle(AppColor.accent)
-                Text("Add how you feel & tag your day")
-                    .font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-                Spacer()
-            }
-        }
-        .navigates(to: .journal)
-    }
-
     // MARK: Helpers
 
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
@@ -163,15 +126,6 @@ struct OverviewView: View {
                 Text(unit).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
             }
         }
-    }
-
-    private var batteryTitle: String {
-        guard let battery else { return "Not connected" }
-        return "\(battery.level)%"
-    }
-    private var batterySubtitle: String {
-        guard let battery else { return "Open Settings to pair your ring." }
-        return battery.isCharging ? "Charging" : "Connected"
     }
 }
 

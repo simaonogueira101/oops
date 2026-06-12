@@ -2,6 +2,7 @@ import SwiftUI
 
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
+    @State private var period: Period = .week
     private var metrics: DayMetrics { MockHealthData().dayMetrics }
     private var mock: MockHealthData { MockHealthData() }
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
@@ -110,10 +111,12 @@ struct StrainView: View {
     }
 
     private var trendsCard: some View {
-        Card(label: "Strain trends", accessory: .chevron) {
-            Text("See your last 30 days").font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+        Card(label: "Strain trends") {
+            VStack(spacing: Spacing.sm) {
+                PeriodPicker(period: $period)
+                BarSeriesChart(samples: mock.stepsSeries(days: 14), color: AppColor.strain)
+            }
         }
-        .navigates(to: .trends)
     }
 
     private func hm(_ ti: TimeInterval) -> String {

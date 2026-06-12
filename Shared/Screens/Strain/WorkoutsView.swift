@@ -59,9 +59,9 @@ struct WorkoutDetailView: View {
             VStack(spacing: Spacing.md) {
                 Card(label: workout.name, title: workout.start.formatted(.dateTime.weekday(.wide).day().month())) {
                     HStack {
-                        StatTile(label: "Duration", value: hm(workout.duration), accent: AppColor.strain)
-                        StatTile(label: "Calories", value: "\(workout.activeCalories)")
-                        StatTile(label: "Avg HR", value: "\(workout.avgHR)")
+                        StatTile(label: "Duration", value: hm(workout.duration))
+                        StatTile(label: "Calories", value: "\(workout.activeCalories)", unit: "cal")
+                        StatTile(label: "Avg HR", value: "\(workout.avgHR)", unit: "bpm")
                     }
                 }
                 Card(label: "Heart rate") {

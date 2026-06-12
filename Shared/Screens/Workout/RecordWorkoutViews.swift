@@ -108,10 +108,11 @@ struct ActiveWorkoutDrawer: View {
 
                     HStack(spacing: Spacing.lg) {
                         StatTile(label: "Heart rate",
-                                 value: "\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm",
-                                 accent: AppColor.strain)
+                                 value: "\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate)))",
+                                 unit: "bpm")
                         StatTile(label: "Calories",
-                                 value: "\(workoutLiveCalories(elapsed: context.date.timeIntervalSince(active.startDate)))")
+                                 value: "\(workoutLiveCalories(elapsed: context.date.timeIntervalSince(active.startDate)))",
+                                 unit: "cal")
                     }
                     .padding(.horizontal, Spacing.lg)
 

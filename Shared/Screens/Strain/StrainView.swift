@@ -45,9 +45,9 @@ struct StrainView: View {
     private var activityStats: some View {
         Card(label: "Activity") {
             HStack {
-                StatTile(label: "Steps", value: "\(metrics.steps)", accent: AppColor.strain)
-                StatTile(label: "Distance", value: "6.8 km")
-                StatTile(label: "Calories", value: "\(metrics.activeCalories)")
+                StatTile(label: "Steps", value: metrics.steps.formatted(.number))
+                StatTile(label: "Distance", value: "6.8", unit: "km")
+                StatTile(label: "Calories", value: "\(metrics.activeCalories)", unit: "cal")
             }
         }
     }

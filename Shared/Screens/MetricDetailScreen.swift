@@ -23,8 +23,8 @@ struct MetricDetailScreen: View {
 
                 Card(label: "Statistics") {
                     HStack {
-                        StatTile(label: "Average", value: average, accent: accent)
-                        StatTile(label: "Baseline", value: "\(Int(baseline)) \(unit)")
+                        StatTile(label: "Average", value: average, unit: unit)
+                        StatTile(label: "Baseline", value: Int(baseline).formatted(.number), unit: unit)
                     }
                 }
 
@@ -40,7 +40,7 @@ struct MetricDetailScreen: View {
     private var average: String {
         guard !samples.isEmpty else { return "–" }
         let mean = samples.map(\.value).reduce(0, +) / Double(samples.count)
-        return "\(Int(mean)) \(unit)"
+        return Int(mean).formatted(.number)
     }
 }
 

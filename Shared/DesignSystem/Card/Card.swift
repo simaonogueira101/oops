@@ -6,7 +6,7 @@ enum CardAccessory {
     case value(String)
     case delta(DeltaInfo, upIsGood: Bool)
     case icon(String)
-    case toggle(Binding<Bool>)
+    case toggle(String, Binding<Bool>)
 }
 
 /// Card surface treatment.
@@ -21,11 +21,12 @@ enum CardFooter {
     case cta(title: String, action: () -> Void)
 }
 
-/// The app's one card. Header (label/title/accessory) + a content slot + optional footer, on a
-/// rounded surface. Presentation only — routing is supplied by the consumer (NavigationLink,
-/// `.cardDrawer`, `ExpandableCard`). Use across every screen.
+/// The app's one card, styled like Apple Health's: borderless rounded rect on the grouped
+/// background, sentence-case `Label` header (icon + name in the domain tint), content slot,
+/// optional footer. Presentation only — routing is supplied by the consumer.
 struct Card<Content: View>: View {
     var label: String?
+    var systemImage: String?
     var title: String?
     var accent: Color?
     var accessory: CardAccessory = .none
@@ -44,11 +45,7 @@ struct Card<Content: View>: View {
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { background }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(AppColor.separator, lineWidth: 0.5)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var hasHeaderAccessory: Bool {
@@ -60,10 +57,15 @@ struct Card<Content: View>: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 if let label {
-                    Text(label.uppercased())
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(accent ?? AppColor.secondaryLabel)
-                        .tracking(0.8)
+                    Group {
+                        if let systemImage {
+                            Label(label, systemImage: systemImage)
+                        } else {
+                            Text(label)
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(accent ?? AppColor.secondaryLabel)
                 }
                 if let title {
                     Text(title).font(.headline)
@@ -79,16 +81,16 @@ struct Card<Content: View>: View {
         case .none:
             EmptyView()
         case .chevron:
-            Image(systemName: "chevron.right")
+            Image(systemName: "chevron.forward")
                 .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         case .value(let value):
-            Text(value).font(.headline).foregroundStyle(AppColor.secondaryLabel)
+            Text(value).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
         case .delta(let info, let upIsGood):
             DeltaLabel(info: info, upIsGood: upIsGood)
         case .icon(let name):
             Image(systemName: name).foregroundStyle(accent ?? AppColor.secondaryLabel)
-        case .toggle(let binding):
-            Toggle("", isOn: binding).labelsHidden()
+        case .toggle(let title, let binding):
+            Toggle(title, isOn: binding).labelsHidden()
         }
     }
 
@@ -97,12 +99,11 @@ struct Card<Content: View>: View {
         case .none:
             EmptyView()
         case .text(let string):
-            Divider().overlay(AppColor.separator)
             Text(string).font(.footnote).foregroundStyle(AppColor.secondaryLabel)
         case .cta(let title, let action):
             Button(action: action) { Text(title).frame(maxWidth: .infinity) }
-                .buttonStyle(.borderedProminent).controlSize(.regular)
-                .tint(accent ?? AppColor.accent)
+                .buttonStyle(.borderedProminent).controlSize(.large)
+                .tint(AppColor.accent)
         }
     }
 
@@ -111,8 +112,7 @@ struct Card<Content: View>: View {
         case .plain:
             AppColor.surface
         case .tinted(let color):
-            LinearGradient(colors: [color.opacity(0.18), AppColor.surface],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            color.opacity(0.12)
         }
     }
 }
@@ -120,9 +120,9 @@ struct Card<Content: View>: View {
 #Preview("Card") {
     ScrollView {
         VStack(spacing: Spacing.md) {
-            Card(label: "Recovery", title: "Good to go", accent: AppColor.recovery,
-                 accessory: .chevron, footer: .text("Higher than yesterday.")) {
-                Text("72").font(.metricValue).foregroundStyle(AppColor.recovery)
+            Card(label: "Recovery", systemImage: "heart.fill", title: "Good",
+                 accent: AppColor.recovery, accessory: .chevron) {
+                Text("72").font(.metricValue).foregroundStyle(AppColor.label)
             }
             Card(label: "HRV", accent: AppColor.recovery,
                  accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true)) {

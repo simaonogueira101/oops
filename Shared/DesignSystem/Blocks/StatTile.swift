@@ -1,26 +1,31 @@
 import SwiftUI
 
-/// A compact label + value, used in stat grids inside cards.
+/// A compact stat: sentence-case secondary label over a primary-color value, with an optional
+/// small-baseline unit ("118" + "bpm") — Apple Health's stat idiom.
 struct StatTile: View {
     var label: String
     var value: String
-    var accent: Color = AppColor.label
+    var unit: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(AppColor.secondaryLabel)
-            Text(value).font(.title2.weight(.semibold)).foregroundStyle(accent)
+            Text(label).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+                Text(value).font(.title3.weight(.semibold)).monospacedDigit()
+                if let unit {
+                    Text(unit).font(.footnote).foregroundStyle(AppColor.secondaryLabel)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
 #Preview {
     HStack {
-        StatTile(label: "Resting HR", value: "54 bpm", accent: AppColor.recovery)
-        StatTile(label: "Calories", value: "430", accent: AppColor.strain)
+        StatTile(label: "Resting HR", value: "54", unit: "bpm")
+        StatTile(label: "Calories", value: "430", unit: "cal")
     }
     .padding()
 }

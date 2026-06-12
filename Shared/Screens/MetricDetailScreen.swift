@@ -61,8 +61,8 @@ extension MetricDetailScreen {
               about: "Heart-rate variability reflects how recovered and adaptable your nervous system is.")
     }
     static func heartRate() -> MetricDetailScreen {
-        .init(title: "Heart Rate", accent: AppColor.recovery, unit: "bpm", currentValue: "61 bpm",
-              baseline: 54, series: { MockHealthData().restingHRSeries(days: $0) },
+        .init(title: "Resting Heart Rate", accent: AppColor.recovery, unit: "bpm", currentValue: "54 bpm",
+              baseline: 56, series: { MockHealthData().restingHRSeries(days: $0) },
               about: "Your resting heart rate is a window into cardiovascular health and recovery.")
     }
     static func bodyTemp() -> MetricDetailScreen {

@@ -9,41 +9,28 @@ struct RecordWorkoutForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Workout") {
+                Picker("Workout", selection: $selected) {
                     ForEach(WorkoutType.allCases) { type in
-                        Button {
-                            selected = type
-                        } label: {
-                            HStack(spacing: Spacing.sm) {
-                                Image(systemName: type.symbol)
-                                    .foregroundStyle(AppColor.strain)
-                                    .frame(width: 28)
-                                Text(type.rawValue).foregroundStyle(AppColor.label)
-                                Spacer()
-                                if type == selected {
-                                    Image(systemName: "checkmark")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppColor.accent)
-                                }
-                            }
-                        }
+                        Label(type.rawValue, systemImage: type.symbol).tag(type)
                     }
                 }
-                Section {
-                    Button {
-                        recorder.start(selected)
-                        dismiss()
-                    } label: {
-                        Text("Start Workout")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(AppColor.strain)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            .tint(AppColor.strain)
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    recorder.start(selected)
+                    dismiss()
+                } label: {
+                    Text("Start Workout")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .tint(AppColor.strain)
+                .padding(Spacing.md)
             }
             .drawerTitle("Record Workout")
             .toolbar {
@@ -126,6 +113,7 @@ struct ActiveWorkoutBanner: View {
 struct ActiveWorkoutDrawer: View {
     let recorder: WorkoutRecorder
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmEnd = false
 
     var body: some View {
         if let active = recorder.active {
@@ -149,19 +137,26 @@ struct ActiveWorkoutDrawer: View {
                     }
                     .padding(.horizontal, Spacing.lg)
 
-                    Button(role: .destructive) {
-                        recorder.end()
-                        dismiss()
-                    } label: {
-                        Text("End Workout").font(.headline).frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.horizontal, Spacing.lg)
-
                     Spacer()
                 }
                 .padding(.top, Spacing.lg)
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button(role: .destructive) {
+                    confirmEnd = true
+                } label: {
+                    Text("End Workout").font(.headline).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(Spacing.md)
+            }
+            .confirmationDialog("End this workout?", isPresented: $confirmEnd, titleVisibility: .visible) {
+                Button("End Workout", role: .destructive) {
+                    recorder.end()
+                    dismiss()
+                }
+                Button("Keep Going", role: .cancel) {}
             }
         }
     }

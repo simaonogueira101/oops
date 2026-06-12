@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// Heart-rate (or stress) zones: a labelled row per zone plus a gradient legend bar.
+/// Heart-rate zones: a labelled row per zone plus a proportional time-in-zone bar — segment
+/// widths encode minutes spent (the bar carries data, not decoration).
 struct ZoneScale: View {
     var zones: [HRZone]
+
+    private var totalMinutes: Int { max(1, zones.reduce(0) { $0 + $1.minutes }) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -13,12 +16,23 @@ struct ZoneScale: View {
                     Spacer()
                     Text("\(zone.lowerBPM)–\(zone.upperBPM) bpm")
                         .font(.caption).foregroundStyle(AppColor.secondaryLabel)
-                    Text("\(zone.minutes)m").font(.caption.weight(.semibold)).monospacedDigit()
+                    Text((TimeInterval(zone.minutes) * 60).formattedDuration)
+                        .font(.caption.weight(.semibold)).monospacedDigit()
+                }
+                .accessibilityElement(children: .combine)
+            }
+            GeometryReader { geo in
+                HStack(spacing: Spacing.xxs / 2) {
+                    ForEach(zones) { zone in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(zone.color)
+                            .frame(width: max(4, (geo.size.width - CGFloat(zones.count - 1) * Spacing.xxs / 2)
+                                                 * CGFloat(zone.minutes) / CGFloat(totalMinutes)))
+                    }
                 }
             }
-            LinearGradient(colors: zones.map(\.color), startPoint: .leading, endPoint: .trailing)
-                .frame(height: 8)
-                .clipShape(Capsule())
+            .frame(height: 8)
+            .accessibilityHidden(true)
         }
     }
 }

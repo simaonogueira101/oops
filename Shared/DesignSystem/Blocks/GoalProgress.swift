@@ -16,10 +16,13 @@ struct GoalProgress: View {
     var body: some View {
         switch style {
         case .ring:
-            ZStack {
-                RingChart(value: fraction, color: accent)
-                Text(fraction, format: .percent.precision(.fractionLength(0))).font(.headline)
+            Gauge(value: fraction) {
+                Text(unit)
+            } currentValueLabel: {
+                Text(fraction, format: .percent.precision(.fractionLength(0)))
             }
+            .gaugeStyle(.accessoryCircularCapacity)
+            .tint(accent)
             .frame(width: ringSize, height: ringSize)
         case .bar:
             VStack(alignment: .leading, spacing: Spacing.xs) {

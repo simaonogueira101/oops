@@ -66,7 +66,7 @@ struct RecoveryView: View {
     }
 
     private var bodyTempCard: some View {
-        Card(label: "Body temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C")) {
+        Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C")) {
             Sparkline(samples: mock.series(days: 14, base: 0, spread: 0.8), color: AppColor.recovery)
         }
         .navigates(to: .bodyTemp)

@@ -126,7 +126,7 @@ struct OverviewView: View {
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
 
     private func compactValue(_ text: String) -> some View {
-        Text(text).font(.title.weight(.semibold)).foregroundStyle(AppColor.label).monospacedDigit()
+        Text(text).font(.cardValue).foregroundStyle(AppColor.label).monospacedDigit()
     }
 }
 

@@ -1,24 +1,22 @@
 import SwiftUI
-import Charts
 
-/// A single progress donut (Swift Charts), styled like Apple's Activity rings. Reused by
-/// `ScoreRing`, `GoalProgress`, and `MetricRings`.
+/// A single progress ring — `Circle().trim` with round caps (no SectorMark seams), styled like
+/// Apple's Activity rings. Reused by `ScoreRing`, `GoalProgress`, and `MetricRings`.
 struct RingChart: View {
     var value: Double        // 0...1
     var color: Color
-    var lineRatio: CGFloat = 0.82
+    var lineWidth: CGFloat = 12
 
     var body: some View {
-        Chart {
-            SectorMark(angle: .value("Value", max(value, 0.0001)),
-                       innerRadius: .ratio(lineRatio), angularInset: 1.5)
-                .cornerRadius(6)
-                .foregroundStyle(color)
-            SectorMark(angle: .value("Track", max(1 - value, 0.0001)),
-                       innerRadius: .ratio(lineRatio))
-                .foregroundStyle(AppColor.track)
+        ZStack {
+            Circle()
+                .stroke(AppColor.track, lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: max(0.001, min(value, 1)))
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
         }
-        .chartLegend(.hidden)
+        .padding(lineWidth / 2)
     }
 }
 

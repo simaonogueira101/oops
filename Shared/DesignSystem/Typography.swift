@@ -29,6 +29,10 @@ extension View {
 }
 
 extension Font {
+    /// Prominent in-card value (e.g. the big number on a summary card).
+    static let cardValue = Font.title.weight(.semibold)
+    /// Secondary in-card value (stat tiles, list values).
+    static let cardValueSecondary = Font.title3.weight(.semibold)
     /// Large header glyph (onboarding) — the system large-title style.
     static let headerGlyph = Font.largeTitle
     /// Medium header glyph (redeploy monitor) — the system title style.

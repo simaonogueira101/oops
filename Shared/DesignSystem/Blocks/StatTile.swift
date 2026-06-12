@@ -11,7 +11,7 @@ struct StatTile: View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(label).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-                Text(value).font(.title3.weight(.semibold)).monospacedDigit()
+                Text(value).font(.cardValueSecondary).monospacedDigit()
                 if let unit {
                     Text(unit).font(.footnote).foregroundStyle(AppColor.secondaryLabel)
                 }

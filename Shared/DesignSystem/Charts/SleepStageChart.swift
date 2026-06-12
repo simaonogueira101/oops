@@ -31,11 +31,27 @@ struct SleepStageChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: .hour, count: 2)) {
+            AxisMarks(values: .stride(by: .hour, count: 2)) { _ in
+                AxisGridLine()
+                AxisTick()
                 AxisValueLabel(format: .dateTime.hour())
             }
         }
+        .modifier(SleepXDomain(start: session.start, end: session.end))
         .frame(height: chartHeight)
+    }
+}
+
+/// Pins the x-axis to the exact night (no auto-padding past bedtime/wake).
+private struct SleepXDomain: ViewModifier {
+    var start: Date?
+    var end: Date?
+    func body(content: Content) -> some View {
+        if let start, let end, start < end {
+            content.chartXScale(domain: start...end)
+        } else {
+            content
+        }
     }
 }
 

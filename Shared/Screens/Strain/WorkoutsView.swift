@@ -14,34 +14,27 @@ struct WorkoutsView: View {
                     description: Text("Tap + on the tab bar to record one.")
                 )
             } else {
-                ScrollView {
-                    VStack(spacing: Spacing.md) {
-                        ForEach(workouts) { workout in
-                            NavigationLink {
-                                WorkoutDetailView(workout: workout)
-                            } label: {
-                                Card(accent: AppColor.strain, accessory: .chevron) {
-                                    HStack(spacing: Spacing.sm) {
-                                        Image(systemName: workout.symbol)
-                                            .foregroundStyle(AppColor.strain)
-                                            .frame(width: 36, height: 36)
-                                            .background(AppColor.strain.opacity(0.15),
-                                                        in: RoundedRectangle(cornerRadius: 9))
-                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                            Text(workout.name).font(.headline)
-                                            Text(workout.start.formatted(.dateTime.weekday().day().month().hour().minute()))
-                                                .font(.caption).foregroundStyle(AppColor.secondaryLabel)
-                                        }
-                                        Spacer()
-                                        Text(workout.duration.formattedDuration)
-                                            .font(.subheadline.weight(.semibold)).monospacedDigit()
-                                    }
-                                }
+                List(workouts) { workout in
+                    NavigationLink {
+                        WorkoutDetailView(workout: workout)
+                    } label: {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: workout.symbol)
+                                .foregroundStyle(AppColor.strain)
+                                .frame(width: 36, height: 36)
+                                .background(AppColor.strain.opacity(0.15),
+                                            in: RoundedRectangle(cornerRadius: 9))
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(workout.name).font(.headline)
+                                Text(workout.start.formatted(.dateTime.weekday().day().month().hour().minute()))
+                                    .font(.caption).foregroundStyle(AppColor.secondaryLabel)
                             }
-                            .buttonStyle(CardLinkStyle())
+                            Spacer()
+                            Text(workout.duration.formattedDuration)
+                                .font(.subheadline.weight(.semibold)).monospacedDigit()
                         }
+                        .accessibilityElement(children: .combine)
                     }
-                    .padding(Spacing.md)
                 }
             }
         }
@@ -66,8 +59,11 @@ struct WorkoutDetailView: View {
                     }
                 }
                 Card(label: "Heart rate") {
-                    LineTrendChart(samples: mock.series(days: 20, base: Double(workout.avgHR), spread: 30),
-                                   color: AppColor.strain, baseline: Double(workout.avgHR))
+                    LineTrendChart(
+                        samples: mock.workoutHRSeries(start: workout.start, duration: workout.duration,
+                                                      avgHR: workout.avgHR),
+                        color: AppColor.strain, baseline: Double(workout.avgHR),
+                        xDomain: workout.start...workout.start.addingTimeInterval(max(60, workout.duration)))
                 }
             }
             .padding(Spacing.md)

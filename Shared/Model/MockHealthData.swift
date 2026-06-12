@@ -60,6 +60,18 @@ struct MockHealthData {
         return SleepSession(intervals: intervals)
     }
 
+    /// Minute-spaced HR samples across a workout's actual window (≤60 samples).
+    func workoutHRSeries(start: Date, duration: TimeInterval, avgHR: Int) -> [MetricSample] {
+        var gen = LCG(seed: seed &+ UInt64(max(0, Int(start.timeIntervalSince1970))))
+        let count = max(2, min(60, Int(duration / 60)))
+        let step = duration / Double(count - 1)
+        return (0..<count).map { index in
+            let jitter = (gen.nextUnit() - 0.5) * 30
+            return MetricSample(date: start.addingTimeInterval(Double(index) * step),
+                                value: Double(avgHR) + jitter)
+        }
+    }
+
     // MARK: Zones, workouts, tags
 
     func hrZones() -> [HRZone] {

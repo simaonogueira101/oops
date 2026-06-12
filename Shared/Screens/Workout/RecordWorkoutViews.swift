@@ -71,9 +71,8 @@ struct ActiveWorkoutAccessory: View {
                             .foregroundStyle(AppColor.strain)
                         Text(active.type.rawValue).font(.subheadline.weight(.semibold))
                         Spacer()
-                        Text(elapsedText(at: context.date, since: active.startDate))
+                        Text(timerInterval: active.startDate...Date.distantFuture, countsDown: false)
                             .font(.subheadline.weight(.semibold)).monospacedDigit()
-                            .contentTransition(.numericText())
                         Text("\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm")
                             .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
                     }
@@ -106,7 +105,7 @@ struct ActiveWorkoutBanner: View {
                                 .foregroundStyle(AppColor.strain)
                             Text(active.type.rawValue).font(.subheadline.weight(.semibold))
                             Spacer()
-                            Text(elapsedText(at: context.date, since: active.startDate))
+                            Text(timerInterval: active.startDate...Date.distantFuture, countsDown: false)
                                 .font(.subheadline.weight(.semibold)).monospacedDigit()
                             Text("\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm")
                                 .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
@@ -137,9 +136,8 @@ struct ActiveWorkoutDrawer: View {
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(AppColor.strain)
                     Text(active.type.rawValue).font(.title2.weight(.semibold))
-                    Text(elapsedText(at: context.date, since: active.startDate))
+                    Text(timerInterval: active.startDate...Date.distantFuture, countsDown: false)
                         .metricValueStyle()
-                        .contentTransition(.numericText())
 
                     HStack(spacing: Spacing.lg) {
                         StatTile(label: "Heart rate",
@@ -167,12 +165,6 @@ struct ActiveWorkoutDrawer: View {
             }
         }
     }
-}
-
-private func elapsedText(at now: Date, since start: Date) -> String {
-    let seconds = max(0, Int(now.timeIntervalSince(start)))
-    let (h, m, s) = (seconds / 3600, (seconds % 3600) / 60, seconds % 60)
-    return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
 }
 
 #Preview("Form") {

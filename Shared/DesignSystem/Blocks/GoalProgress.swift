@@ -18,12 +18,13 @@ struct GoalProgress: View {
         case .ring:
             ZStack {
                 RingChart(value: fraction, color: accent)
-                Text("\(Int(fraction * 100))%").font(.headline)
+                Text(fraction, format: .percent.precision(.fractionLength(0))).font(.headline)
             }
             .frame(width: ringSize, height: ringSize)
         case .bar:
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("\(Int(current)) / \(Int(goal)) \(unit)").font(.subheadline.weight(.semibold))
+                Text("\(Int(current).formatted(.number)) / \(Int(goal).formatted(.number)) \(unit)")
+                    .font(.subheadline.weight(.semibold)).monospacedDigit()
                 ProgressView(value: fraction).tint(accent)
             }
         }

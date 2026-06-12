@@ -33,7 +33,7 @@ struct WorkoutsView: View {
                                                 .font(.caption).foregroundStyle(AppColor.secondaryLabel)
                                         }
                                         Spacer()
-                                        Text(hm(workout.duration))
+                                        Text(workout.duration.formattedDuration)
                                             .font(.subheadline.weight(.semibold)).monospacedDigit()
                                     }
                                 }
@@ -60,7 +60,7 @@ struct WorkoutDetailView: View {
             VStack(spacing: Spacing.md) {
                 Card(label: workout.name, title: workout.start.formatted(.dateTime.weekday(.wide).day().month())) {
                     HStack {
-                        StatTile(label: "Duration", value: hm(workout.duration))
+                        StatTile(label: "Duration", value: workout.duration.formattedDuration)
                         StatTile(label: "Calories", value: "\(workout.activeCalories)", unit: "cal")
                         StatTile(label: "Avg HR", value: "\(workout.avgHR)", unit: "bpm")
                     }
@@ -75,12 +75,6 @@ struct WorkoutDetailView: View {
         .background(AppColor.background)
         .drawerTitle(workout.name)
     }
-}
-
-private func hm(_ ti: TimeInterval) -> String {
-    let minutes = Int(ti / 60)
-    if minutes < 1 { return "\(Int(ti))s" }
-    return minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(minutes % 60)m"
 }
 
 #Preview {

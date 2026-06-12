@@ -12,10 +12,10 @@ struct LineTrendChart: View {
         Chart {
             ForEach(samples) { sample in
                 LineMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                     .foregroundStyle(color)
                 AreaMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                     .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
                                                     startPoint: .top, endPoint: .bottom))
             }
@@ -29,7 +29,6 @@ struct LineTrendChart: View {
                     .foregroundStyle(color)
             }
         }
-        .chartYAxis { AxisMarks(position: .leading) }
         .frame(height: chartHeight)
     }
 }

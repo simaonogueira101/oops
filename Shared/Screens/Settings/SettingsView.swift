@@ -10,7 +10,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Goals") {
-                Stepper("Step goal: \(stepGoal)", value: $stepGoal, in: 2000...30000, step: 1000)
+                Stepper("Step goal: \(stepGoal.formatted(.number))", value: $stepGoal, in: 2000...30000, step: 1000)
             }
             Section("Units") {
                 Toggle("Metric units", isOn: $useMetric)

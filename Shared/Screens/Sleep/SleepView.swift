@@ -30,7 +30,7 @@ struct SleepView: View {
             HStack(spacing: Spacing.lg) {
                 ScoreRing(score: 86, accent: AppColor.sleep, caption: ScoreBand(score: 86).label, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(hm(session.totalAsleep)).font(.title.weight(.semibold))
+                    Text(session.totalAsleep.formattedDuration).font(.title.weight(.semibold))
                     Text("asleep").font(.caption).foregroundStyle(AppColor.secondaryLabel)
                 }
             }
@@ -55,7 +55,7 @@ struct SleepView: View {
                             Text("\(session.percentage(of: stage))%")
                                 .font(.caption.weight(.semibold)).foregroundStyle(AppColor.secondaryLabel)
                         }
-                        Text(hm(session.duration(of: stage))).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        Text(session.duration(of: stage).formattedDuration).font(.subheadline.weight(.semibold)).monospacedDigit()
                     }
                 }
             }
@@ -94,17 +94,14 @@ struct SleepView: View {
         Card(label: "Sleep trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                BarSeriesChart(samples: mock.series(days: 14, base: 86, spread: 16), color: AppColor.sleep)
+                BarSeriesChart(samples: mock.series(days: period.days, base: 86, spread: 16), color: AppColor.sleep)
+                    .animation(.snappy, value: period)
             }
         }
     }
 
     // MARK: Helpers
 
-    private func hm(_ ti: TimeInterval) -> String {
-        let minutes = Int(ti / 60)
-        return "\(minutes / 60)h \(minutes % 60)m"
-    }
     private func timeText(_ date: Date?) -> String {
         date?.formatted(.dateTime.hour().minute()) ?? "–"
     }

@@ -10,7 +10,7 @@ struct Sparkline: View {
     var body: some View {
         Chart(samples) { sample in
             LineMark(x: .value("t", sample.date), y: .value("v", sample.value))
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(color)
         }
         .chartXAxis(.hidden)

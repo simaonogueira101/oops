@@ -74,7 +74,7 @@ struct StrainView: View {
                             Spacer()
                             Text(workout.start, format: .dateTime.weekday().hour().minute())
                                 .font(.caption).foregroundStyle(AppColor.secondaryLabel)
-                            Text(hm(workout.duration)).font(.caption.weight(.semibold)).monospacedDigit()
+                            Text(workout.duration.formattedDuration).font(.caption.weight(.semibold)).monospacedDigit()
                         }
                     }
                 }
@@ -87,16 +87,12 @@ struct StrainView: View {
         Card(label: "Strain trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                BarSeriesChart(samples: mock.stepsSeries(days: 14), color: AppColor.strain)
+                BarSeriesChart(samples: mock.stepsSeries(days: period.days), color: AppColor.strain)
+                    .animation(.snappy, value: period)
             }
         }
     }
 
-    private func hm(_ ti: TimeInterval) -> String {
-        let minutes = Int(ti / 60)
-        if minutes < 1 { return "\(Int(ti))s" }
-        return minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(minutes % 60)m"
-    }
 }
 
 #Preview {

@@ -1,6 +1,14 @@
 import Foundation
 import SwiftUI
 
+extension TimeInterval {
+    /// "7 hr 32 min" / "45 sec" — Apple's duration vocabulary via Foundation format styles.
+    var formattedDuration: String {
+        Duration.seconds(self).formatted(
+            .units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2))
+    }
+}
+
 /// A single timestamped metric reading (used by trends, sparklines, charts).
 struct MetricSample: Identifiable, Equatable {
     let id = UUID()

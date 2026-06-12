@@ -13,7 +13,7 @@ struct MacSyncView: View {
         NavigationStack {
             VStack(spacing: Spacing.md) {
                 Image(systemName: "laptopcomputer.and.iphone")
-                    .font(.heroGlyph)
+                    .heroGlyphStyle()
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(sync.state == .sent ? AppColor.positive : AppColor.accent)
                     .padding(.top, Spacing.lg)

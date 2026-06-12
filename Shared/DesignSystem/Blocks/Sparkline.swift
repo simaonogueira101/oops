@@ -5,6 +5,7 @@ import Charts
 struct Sparkline: View {
     var samples: [MetricSample]
     var color: Color
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 40
 
     var body: some View {
         Chart(samples) { sample in
@@ -14,7 +15,7 @@ struct Sparkline: View {
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
-        .frame(height: 40)
+        .frame(height: chartHeight)
     }
 }
 

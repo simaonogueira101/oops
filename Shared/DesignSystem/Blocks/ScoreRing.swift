@@ -6,13 +6,14 @@ struct ScoreRing: View {
     var accent: Color
     var caption: String?
     var size: CGFloat = 120
+    @ScaledMetric(relativeTo: .largeTitle) private var typeScale: CGFloat = 1
 
     var body: some View {
         ZStack {
             RingChart(value: Double(score) / 100, color: accent)
             VStack(spacing: 0) {
                 Text("\(score)")
-                    .font(.metricValue)
+                    .metricValueStyle()
                     .foregroundStyle(AppColor.label)
                     .minimumScaleFactor(0.5)
                 if let caption {
@@ -20,7 +21,9 @@ struct ScoreRing: View {
                 }
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: size * typeScale, height: size * typeScale)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Score \(score) out of 100\(caption.map { ", " + $0 } ?? "")")
     }
 }
 

@@ -122,7 +122,7 @@ struct Card<Content: View>: View {
         VStack(spacing: Spacing.md) {
             Card(label: "Recovery", systemImage: "heart.fill", title: "Good",
                  accent: AppColor.recovery, accessory: .chevron) {
-                Text("72").font(.metricValue).foregroundStyle(AppColor.label)
+                Text("72").metricValueStyle().foregroundStyle(AppColor.label)
             }
             Card(label: "HRV", accent: AppColor.recovery,
                  accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true)) {

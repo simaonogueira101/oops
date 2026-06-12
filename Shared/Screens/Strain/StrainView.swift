@@ -30,7 +30,7 @@ struct StrainView: View {
                 ZStack {
                     RingChart(value: metrics.strainFraction, color: AppColor.strain)
                     VStack(spacing: 0) {
-                        Text(strainText).font(.metricValue).foregroundStyle(AppColor.label).minimumScaleFactor(0.5)
+                        Text(strainText).metricValueStyle().foregroundStyle(AppColor.label).minimumScaleFactor(0.5)
                         Text("of 21").font(.caption2).foregroundStyle(AppColor.secondaryLabel)
                     }
                 }

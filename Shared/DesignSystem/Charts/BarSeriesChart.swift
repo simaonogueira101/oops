@@ -5,6 +5,7 @@ import Charts
 struct BarSeriesChart: View {
     var samples: [MetricSample]
     var color: Color
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 160
 
     var body: some View {
         Chart(samples) { sample in
@@ -12,7 +13,7 @@ struct BarSeriesChart: View {
                 .cornerRadius(4)
                 .foregroundStyle(color)
         }
-        .frame(height: 160)
+        .frame(height: chartHeight)
     }
 }
 

@@ -6,6 +6,7 @@ struct LineTrendChart: View {
     var samples: [MetricSample]
     var color: Color
     var baseline: Double?
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
 
     var body: some View {
         Chart {
@@ -29,7 +30,7 @@ struct LineTrendChart: View {
             }
         }
         .chartYAxis { AxisMarks(position: .leading) }
-        .frame(height: 180)
+        .frame(height: chartHeight)
     }
 }
 

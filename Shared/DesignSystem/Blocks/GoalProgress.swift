@@ -9,6 +9,7 @@ struct GoalProgress: View {
     var style: Style = .bar
 
     enum Style { case ring, bar }
+    @ScaledMetric(relativeTo: .largeTitle) private var ringSize: CGFloat = 96
 
     private var fraction: Double { goal > 0 ? min(current / goal, 1) : 0 }
 
@@ -19,7 +20,7 @@ struct GoalProgress: View {
                 RingChart(value: fraction, color: accent)
                 Text("\(Int(fraction * 100))%").font(.headline)
             }
-            .frame(width: 96, height: 96)
+            .frame(width: ringSize, height: ringSize)
         case .bar:
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("\(Int(current)) / \(Int(goal)) \(unit)").font(.subheadline.weight(.semibold))

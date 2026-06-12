@@ -11,14 +11,14 @@ struct BatteryScreen: View {
                 Spacer()
 
                 Image(systemName: batterySymbol)
-                    .font(.heroGlyph)
+                    .heroGlyphStyle()
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(accentColor)
                     .contentTransition(.symbolEffect(.replace))
 
                 if let status = manager.batteryStatus {
                     Text("\(status.level)%")
-                        .font(.metricValue)
+                        .metricValueStyle()
                         .contentTransition(.numericText())
 
                     Text(status.isCharging ? "Charging" : "Not charging")

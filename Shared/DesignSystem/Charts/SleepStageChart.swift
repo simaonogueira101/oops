@@ -5,6 +5,7 @@ import Charts
 /// row (Awake on top → Deep at the bottom), so segments stagger across rows over the night.
 struct SleepStageChart: View {
     var session: SleepSession
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 160
 
     /// Top-to-bottom display order.
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
@@ -34,7 +35,7 @@ struct SleepStageChart: View {
                 AxisValueLabel(format: .dateTime.hour())
             }
         }
-        .frame(height: 160)
+        .frame(height: chartHeight)
     }
 }
 

@@ -138,7 +138,7 @@ struct ActiveWorkoutDrawer: View {
                         .foregroundStyle(AppColor.strain)
                     Text(active.type.rawValue).font(.title2.weight(.semibold))
                     Text(elapsedText(at: context.date, since: active.startDate))
-                        .font(.metricValue).monospacedDigit()
+                        .metricValueStyle()
                         .contentTransition(.numericText())
 
                     HStack(spacing: Spacing.lg) {

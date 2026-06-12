@@ -16,7 +16,7 @@ struct MockHealthData {
     // MARK: Scores
 
     var dayMetrics: DayMetrics {
-        DayMetrics(score: 72, recovery: 0.72, strain: 8.4, hrv: 48, restingHR: 54,
+        DayMetrics(score: 72, recovery: 0.72, strain: 8.4, hrv: 48, restingHR: 54, currentHR: 61,
                    bodyTempDelta: -0.2, respiratoryRate: 14.1, sleepPerformance: 0.86,
                    steps: 9240, stepGoal: 12000, activeCalories: 430, stress: 32, spo2: 97)
     }
@@ -26,7 +26,8 @@ struct MockHealthData {
     func hrvSeries(days: Int) -> [MetricSample] { series(days: days, base: 45, spread: 18) }
     func restingHRSeries(days: Int) -> [MetricSample] { series(days: days, base: 55, spread: 6) }
     func stepsSeries(days: Int) -> [MetricSample] { series(days: days, base: 9000, spread: 4000) }
-    func stressSeries() -> [MetricSample] { series(days: 24, base: 1.0, spread: 1.6) }
+    func sleepScoreSeries(days: Int) -> [MetricSample] { series(days: days, base: 84, spread: 14) }
+    func strainSeries(days: Int) -> [MetricSample] { series(days: days, base: 9, spread: 8) }
 
     /// `days` daily samples ending at `referenceDate`, jittered deterministically around `base`.
     func series(days: Int, base: Double, spread: Double) -> [MetricSample] {

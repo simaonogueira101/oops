@@ -25,7 +25,8 @@ struct OverviewView: View {
                 ActiveWorkoutBanner(recorder: recorder)
                 #endif
                 recoveryHero
-                sleepStrainRow
+                sleepCard
+                strainCard
                 stepsCard
                 heartRateCard
             }
@@ -62,43 +63,47 @@ struct OverviewView: View {
     // MARK: Hero
 
     private var recoveryHero: some View {
-        Card(label: "Recovery", title: recoveryBand.label, accent: AppColor.recovery, accessory: .chevron) {
-            CompositeHeroRing(
-                score: metrics.score, accent: AppColor.recovery,
-                leading: [HeroStat(value: "\(metrics.hrv)", label: "HRV", color: AppColor.recovery),
-                          HeroStat(value: "\(metrics.restingHR)", label: "RHR", color: AppColor.recovery)],
-                trailing: [HeroStat(value: strainText, label: "Strain", color: AppColor.strain),
-                           HeroStat(value: "\(sleepScore)", label: "Sleep", color: AppColor.sleep)]
-            )
+        Card(label: "Recovery", systemImage: "gauge.with.needle", title: recoveryBand.label,
+             accent: AppColor.recovery, accessory: .chevron) {
+            ScoreHero(score: metrics.score, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
+                HeroStat(label: "HRV", value: "\(metrics.hrv) ms",
+                         symbol: "waveform.path.ecg", color: AppColor.recovery),
+                HeroStat(label: "Resting HR", value: "\(metrics.restingHR) bpm",
+                         symbol: "heart.fill", color: AppColor.recovery),
+                HeroStat(label: "Strain", value: strainText,
+                         symbol: "flame.fill", color: AppColor.strain),
+                HeroStat(label: "Sleep", value: "\(sleepScore)",
+                         symbol: "bed.double.fill", color: AppColor.sleep)
+            ])
             .padding(.vertical, Spacing.xs)
         }
         .domainButton(.recovery, openDomain)
     }
 
-    // MARK: Rows
+    // MARK: Cards
 
-    private var sleepStrainRow: some View {
-        HStack(alignment: .top, spacing: Spacing.md) {
-            Card(label: "Sleep", accent: AppColor.sleep, accessory: .chevron) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    compactValue("\(sleepScore)")
-                    Sparkline(samples: mock.hrvSeries(days: 10), color: AppColor.sleep)
-                }
+    private var sleepCard: some View {
+        Card(label: "Sleep", systemImage: "bed.double.fill", accent: AppColor.sleep, accessory: .chevron) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
+                compactValue("\(sleepScore)")
+                Sparkline(samples: mock.sleepScoreSeries(days: 14), color: AppColor.sleep)
             }
-            .domainButton(.sleep, openDomain)
-
-            Card(label: "Strain", accent: AppColor.strain, accessory: .chevron) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    compactValue(strainText)
-                    Sparkline(samples: mock.stepsSeries(days: 10), color: AppColor.strain)
-                }
-            }
-            .domainButton(.strain, openDomain)
         }
+        .domainButton(.sleep, openDomain)
+    }
+
+    private var strainCard: some View {
+        Card(label: "Strain", systemImage: "flame.fill", accent: AppColor.strain, accessory: .chevron) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
+                compactValue(strainText)
+                Sparkline(samples: mock.strainSeries(days: 14), color: AppColor.strain)
+            }
+        }
+        .domainButton(.strain, openDomain)
     }
 
     private var stepsCard: some View {
-        Card(label: "Steps", accent: AppColor.strain, accessory: .chevron) {
+        Card(label: "Steps", systemImage: "figure.walk", accent: AppColor.strain, accessory: .chevron) {
             GoalProgress(current: Double(metrics.steps), goal: Double(metrics.stepGoal),
                          accent: AppColor.strain, unit: "steps")
         }
@@ -106,10 +111,10 @@ struct OverviewView: View {
     }
 
     private var heartRateCard: some View {
-        Card(label: "Heart Rate", accent: AppColor.recovery, accessory: .chevron) {
+        Card(label: "Heart Rate", systemImage: "heart.fill", accent: AppColor.recovery, accessory: .chevron) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Sparkline(samples: mock.restingHRSeries(days: 14), color: AppColor.recovery)
-                Text("Resting \(metrics.restingHR) · now 61 bpm")
+                Text("Resting \(metrics.restingHR) · now \(metrics.currentHR) bpm")
                     .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
             }
         }

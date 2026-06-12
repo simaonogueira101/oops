@@ -8,6 +8,7 @@ struct DayMetrics: Equatable {
     var strain: Double            // 0...21 (Whoop-like scale)
     var hrv: Int                  // ms
     var restingHR: Int            // bpm
+    var currentHR: Int            // bpm, latest reading
     var bodyTempDelta: Double     // °C deviation from baseline
     var respiratoryRate: Double   // breaths / min
     var sleepPerformance: Double  // 0...1

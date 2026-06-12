@@ -21,7 +21,7 @@ struct StrainView: View {
             }
             .padding(Spacing.md)
         }
-        .screenBackground(AppColor.strain)
+        .background(AppColor.background)
     }
 
     private var strainHero: some View {

@@ -27,7 +27,7 @@ struct OverviewView: View {
             }
             .padding(Spacing.md)
         }
-        .screenBackground(AppColor.recovery)
+        .background(AppColor.background)
     }
 
     // MARK: Hero
@@ -87,5 +87,5 @@ private extension View {
 
 #Preview {
     OverviewView(metrics: .sample, date: .now, recorder: WorkoutRecorder())
-        .screenBackground(AppColor.recovery)
+        .background(AppColor.background)
 }

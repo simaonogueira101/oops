@@ -25,7 +25,7 @@ struct HRZonesView: View {
                 .padding(.bottom, Spacing.xs)
         }
         .sensoryFeedback(.selection, trigger: period)
-        .screenBackground(AppColor.strain)
+        .background(AppColor.background)
         .drawerTitle("Heart Rate Zones")
     }
 }

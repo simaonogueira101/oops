@@ -44,7 +44,8 @@ struct Card<Content: View>: View {
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(glass, in: .rect(cornerRadius: 16, style: .continuous))
+        .background { background }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var hasHeaderAccessory: Bool {
@@ -106,17 +107,12 @@ struct Card<Content: View>: View {
         }
     }
 
-    /// Interactive Liquid Glass for the card, tinted by its domain accent so the material reads
-    /// as colored glass over the screen's tinted background.
-    private var glass: Glass {
+    @ViewBuilder private var background: some View {
         switch style {
         case .plain:
-            if let accent {
-                return .regular.tint(accent.opacity(0.28)).interactive()
-            }
-            return .regular.interactive()
+            AppColor.surface
         case .tinted(let color):
-            return .regular.tint(color.opacity(0.4)).interactive()
+            color.opacity(0.12)
         }
     }
 }

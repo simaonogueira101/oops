@@ -21,7 +21,7 @@ struct RecoveryView: View {
             }
             .padding(Spacing.md)
         }
-        .screenBackground(AppColor.recovery)
+        .background(AppColor.background)
     }
 
     private var scoreHero: some View {

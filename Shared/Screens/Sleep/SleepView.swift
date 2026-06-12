@@ -31,7 +31,7 @@ struct SleepView: View {
             }
             .padding(Spacing.md)
         }
-        .screenBackground(AppColor.sleep)
+        .background(AppColor.background)
     }
 
     private var scoreHero: some View {

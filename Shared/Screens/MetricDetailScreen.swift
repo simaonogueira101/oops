@@ -43,7 +43,7 @@ struct MetricDetailScreen: View {
                 .padding(.bottom, Spacing.xs)
         }
         .sensoryFeedback(.selection, trigger: period)
-        .screenBackground(accent)
+        .background(AppColor.background)
         .drawerTitle(title)
     }
 

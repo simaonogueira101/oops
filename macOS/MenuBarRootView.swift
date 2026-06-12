@@ -48,7 +48,6 @@ struct MenuBarRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .environment(\.displayDate, date)
         }
         .background(Color(.windowBackgroundColor))
         .task {

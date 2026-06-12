@@ -4,14 +4,13 @@ import SwiftUI
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
     @State private var period: Period = .week
-    @Environment(\.displayDate) private var displayDate
     private var mock: MockHealthData { MockHealthData() }
     private var band: ScoreBand { ScoreBand(score: 72) }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
-                PageHeader(title: "Recovery", date: displayDate)
+                PageHeader(title: "Recovery")
                 scoreHero
                 contributorsCard
                 hrvCard

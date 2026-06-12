@@ -17,7 +17,7 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
-                PageHeader(title: "Summary", date: date)
+                PageHeader(title: "Summary")
                 #if os(macOS)
                 ActiveWorkoutBanner(recorder: recorder)
                 #endif

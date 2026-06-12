@@ -109,10 +109,13 @@ struct HomeRootView: View {
 
     @ViewBuilder private func screen(for tab: HomeTab) -> some View {
         switch tab {
-        case .summary: SummaryPager(date: $date, recorder: recorder, openDomain: openDomain)
-        case .sleep: SleepView()
-        case .recovery: RecoveryView()
-        case .strain: StrainView()
+        case .summary:
+            DayPager(date: $date) { day in
+                OverviewView(metrics: .sample, date: day, recorder: recorder, openDomain: openDomain)
+            }
+        case .sleep: DayPager(date: $date) { _ in SleepView() }
+        case .recovery: DayPager(date: $date) { _ in RecoveryView() }
+        case .strain: DayPager(date: $date) { _ in StrainView() }
         case .record: Color.clear
         }
     }

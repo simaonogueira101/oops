@@ -38,7 +38,7 @@ struct WorkoutsView: View {
                 }
             }
         }
-        .background(AppColor.background)
+        .screenBackground(AppColor.strain)
         .drawerTitle("Workouts")
     }
 }
@@ -68,7 +68,7 @@ struct WorkoutDetailView: View {
             }
             .padding(Spacing.md)
         }
-        .background(AppColor.background)
+        .screenBackground(AppColor.strain)
         .drawerTitle(workout.name)
     }
 }

@@ -22,6 +22,7 @@ struct TopBar: View {
                     batteryLabel
                     Button(action: onSync) {
                         Image(systemName: "laptopcomputer")
+                            .imageScale(.small)
                             .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
                     }
                     .buttonStyle(.plain)

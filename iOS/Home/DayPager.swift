@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// Summary as a full-view horizontal pager: swipe between days (a window ending today), like a
-/// paged dot-indicator menu. The selected day drives `date` (and every page header).
-struct SummaryPager: View {
+/// Full-view horizontal pager over a window of days (ending today). Swiping changes `date`
+/// (synced to the top-bar date control). Used by every main tab so they all page by day.
+struct DayPager<Content: View>: View {
     @Binding var date: Date
-    let recorder: WorkoutRecorder
-    let openDomain: (Domain) -> Void
+    @ViewBuilder var content: (Date) -> Content
 
     /// Last 14 days, oldest → today (today is the last page, so you can't swipe past it).
     private var days: [Date] {
@@ -17,8 +16,7 @@ struct SummaryPager: View {
     var body: some View {
         TabView(selection: $date) {
             ForEach(days, id: \.self) { day in
-                OverviewView(metrics: .sample, date: day, recorder: recorder, openDomain: openDomain)
-                    .tag(day)
+                content(day).tag(day)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))

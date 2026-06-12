@@ -106,13 +106,17 @@ struct Card<Content: View>: View {
         }
     }
 
-    /// Liquid Glass material for the card; tinted variants pick up a faint domain wash.
+    /// Interactive Liquid Glass for the card, tinted by its domain accent so the material reads
+    /// as colored glass over the screen's tinted background.
     private var glass: Glass {
         switch style {
         case .plain:
-            return .regular
+            if let accent {
+                return .regular.tint(accent.opacity(0.28)).interactive()
+            }
+            return .regular.interactive()
         case .tinted(let color):
-            return .regular.tint(color.opacity(0.18))
+            return .regular.tint(color.opacity(0.4)).interactive()
         }
     }
 }

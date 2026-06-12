@@ -6,9 +6,11 @@ struct OverviewView: View {
     let metrics: DayMetrics
     @Binding var date: Date
 
+    @State private var swipeEdge: Edge = .trailing
     private var mock: MockHealthData { MockHealthData() }
     private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
     private var recoveryBand: ScoreBand { ScoreBand(score: metrics.score) }
+    private var dayKey: Date { Calendar.current.startOfDay(for: date) }
 
     var body: some View {
         ScrollView {
@@ -22,12 +24,34 @@ struct OverviewView: View {
                 sleepStrainRow
                 stepsCard
                 heartRateCard
-                stressSpo2Row
-                tempRespiratoryRow
             }
             .padding(Spacing.md)
+            .id(dayKey)
+            .transition(.push(from: swipeEdge))
         }
         .background(AppColor.background)
+        .simultaneousGesture(daySwipe)
+        .sensoryFeedback(.selection, trigger: dayKey)
+    }
+
+    /// Horizontal swipe pages between days (left = forward, capped at today) with a visible
+    /// push transition; vertical drags still scroll the feed.
+    private var daySwipe: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                let dx = value.translation.width
+                guard abs(dx) > abs(value.translation.height) * 1.5, abs(dx) > 48 else { return }
+                let cal = Calendar.current
+                if dx < 0 {
+                    guard !cal.isDateInToday(date),
+                          let next = cal.date(byAdding: .day, value: 1, to: date) else { return }
+                    swipeEdge = .trailing
+                    withAnimation(.snappy) { date = next }
+                } else if let previous = cal.date(byAdding: .day, value: -1, to: date) {
+                    swipeEdge = .leading
+                    withAnimation(.snappy) { date = previous }
+                }
+            }
     }
 
     // MARK: Hero
@@ -87,45 +111,12 @@ struct OverviewView: View {
         .navigates(to: .heartRate)
     }
 
-    private var stressSpo2Row: some View {
-        HStack(alignment: .top, spacing: Spacing.md) {
-            Card(label: "Stress", accent: AppColor.strain, accessory: .chevron) {
-                compactValue("\(metrics.stress)", color: AppColor.strain)
-            }
-            .navigates(to: .stress)
-            Card(label: "Blood O₂", accent: AppColor.recovery, accessory: .chevron) {
-                compactValue("\(metrics.spo2)", unit: "%", color: AppColor.recovery)
-            }
-            .navigates(to: .spo2)
-        }
-    }
-
-    private var tempRespiratoryRow: some View {
-        HStack(alignment: .top, spacing: Spacing.md) {
-            Card(label: "Skin Temp", accent: AppColor.recovery, accessory: .chevron) {
-                compactValue(metrics.bodyTempDelta.formatted(.number.precision(.fractionLength(1))),
-                             unit: "°C", color: AppColor.recovery)
-            }
-            .navigates(to: .bodyTemp)
-            Card(label: "Respiratory", accent: AppColor.recovery, accessory: .chevron) {
-                compactValue(metrics.respiratoryRate.formatted(.number.precision(.fractionLength(1))),
-                             color: AppColor.recovery)
-            }
-            .navigates(to: .respiratory)
-        }
-    }
-
     // MARK: Helpers
 
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
 
-    private func compactValue(_ text: String, unit: String? = nil, color: Color) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-            Text(text).font(.title.weight(.semibold)).foregroundStyle(color)
-            if let unit {
-                Text(unit).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-            }
-        }
+    private func compactValue(_ text: String, color: Color) -> some View {
+        Text(text).font(.title.weight(.semibold)).foregroundStyle(color)
     }
 }
 

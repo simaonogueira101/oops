@@ -56,16 +56,6 @@ extension MetricDetailScreen {
               baseline: 54, samples: MockHealthData().restingHRSeries(days: 14),
               about: "Your resting heart rate is a window into cardiovascular health and recovery.")
     }
-    static func spo2() -> MetricDetailScreen {
-        .init(title: "Blood Oxygen", accent: AppColor.recovery, unit: "%", currentValue: "97%",
-              baseline: 96, samples: MockHealthData().series(days: 14, base: 96, spread: 3),
-              about: "Blood-oxygen (SpO₂) shows how well your blood carries oxygen overnight.")
-    }
-    static func stress() -> MetricDetailScreen {
-        .init(title: "Stress", accent: AppColor.strain, unit: "", currentValue: "Low",
-              baseline: 1, samples: MockHealthData().stressSeries(),
-              about: "Daytime stress is estimated from heart-rate and HRV patterns.")
-    }
     static func bodyTemp() -> MetricDetailScreen {
         .init(title: "Skin Temperature", accent: AppColor.recovery, unit: "°C", currentValue: "−0.2 °C",
               baseline: 0, samples: MockHealthData().series(days: 14, base: 0, spread: 0.8),

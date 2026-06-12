@@ -15,7 +15,7 @@ struct TopBar: View {
             // Absolutely centred; the date label itself has a fixed width (below).
             DateSelector(date: $date)
             HStack {
-                Button(action: onProfile) { Avatar(profile: profile, size: 30) }
+                Button(action: onProfile) { Avatar(profile: profile, size: 26) }
                     .buttonStyle(.plain)
                 Spacer()
                 HStack(spacing: Spacing.md) {
@@ -72,10 +72,10 @@ struct DateSelector: View {
     @Binding var date: Date
 
     var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Button { shift(-1) } label: { Image(systemName: "chevron.left") }
-            Text(label).font(.headline).lineLimit(1).frame(width: 110)
-            Button { shift(1) } label: { Image(systemName: "chevron.right") }
+        HStack(spacing: Spacing.xs) {
+            Button { shift(-1) } label: { Image(systemName: "chevron.left").imageScale(.small) }
+            Text(label).font(.subheadline.weight(.semibold)).lineLimit(1).frame(width: 96)
+            Button { shift(1) } label: { Image(systemName: "chevron.right").imageScale(.small) }
                 .disabled(Calendar.current.isDateInToday(date))
         }
         .buttonStyle(.plain)

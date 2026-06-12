@@ -53,6 +53,8 @@ struct HomeRootView: View {
                 }
             }
         }
+        .background(AppColor.background.ignoresSafeArea())
+        .tint(AppColor.accent)
         .task {
             sync.modelContext = modelContext
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")

@@ -42,10 +42,7 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Strain summary card | Day strain + sparkline → Strain | ✅ | ⬜ |
 | Steps goal card | Progress toward step goal | ✅ | ⬜ |
 | Heart-rate card | Resting/now + sparkline → Heart Rate | ✅ | ⬜ |
-| Stress card | Daytime stress → Stress | ✅ | ⬜ |
-| Blood oxygen card | SpO₂ → Blood Oxygen | ✅ | ⬜ |
-| Skin temperature card | Nightly deviation → Skin Temp | ✅ | ⬜ |
-| Respiratory rate card | Breaths/min → Respiratory | ✅ | ⬜ |
+| Day swipe paging | Swipe left/right on the feed to change day (push transition + haptic) | ✅ | ✅ |
 
 ## Sleep
 
@@ -97,8 +94,8 @@ One `MetricDetailScreen` template — trend + stats + explainer — per metric.
 |---|---|---|---|
 | Heart rate | Trend + stats | ✅ | ⬜ |
 | HRV | Trend + stats | ✅ | ⬜ |
-| Blood oxygen (SpO₂) | Trend + stats | ✅ | ⬜ |
-| Stress | Trend + stats | ✅ | ⬜ |
+| Blood oxygen (SpO₂) | Trend + stats (cut for now; re-add with real SpO₂ data) | ⬜ | ⬜ |
+| Stress | Trend + stats (cut for now; re-add with real stress data) | ⬜ | ⬜ |
 | Skin temperature | Trend + stats | ✅ | ⬜ |
 | Respiratory rate | Trend + stats | ✅ | ⬜ |
 

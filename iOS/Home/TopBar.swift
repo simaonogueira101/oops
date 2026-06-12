@@ -46,12 +46,19 @@ struct TopBar: View {
 
     private var datePill: some View {
         Button { withAnimation(.snappy) { date = Calendar.current.startOfDay(for: .now) } } label: {
-            Text(dateLabel)
-                .font(.caption.weight(.medium)).monospacedDigit()
-                .frame(minWidth: 64)
-                .padding(.horizontal, Spacing.sm)
-                .frame(height: pillHeight)
-                .contentShape(Capsule())
+            HStack(spacing: Spacing.xs) {
+                // Decorative swipe indicators — day changes are swipes on the views.
+                Image(systemName: "chevron.backward")
+                    .imageScale(.small).foregroundStyle(.secondary)
+                Text(dateLabel)
+                    .font(.caption.weight(.medium)).monospacedDigit()
+                    .frame(minWidth: 48)
+                Image(systemName: "chevron.forward")
+                    .imageScale(.small).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, Spacing.sm)
+            .frame(height: pillHeight)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
@@ -62,12 +69,14 @@ struct TopBar: View {
     private var syncPill: some View {
         Button(action: onSync) {
             HStack(spacing: Spacing.sm) {
-                if let battery {
-                    Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
+                HStack(spacing: Spacing.xxs) {
+                    if let battery {
+                        Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
+                    }
+                    Image(systemName: batterySymbol)
+                        .imageScale(.small)
+                        .foregroundStyle(battery?.isCharging == true ? AppColor.positive : .primary)
                 }
-                Image(systemName: batterySymbol)
-                    .imageScale(.small)
-                    .foregroundStyle(battery?.isCharging == true ? AppColor.positive : .primary)
                 Image(systemName: "laptopcomputer")
                     .imageScale(.small)
                     .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)

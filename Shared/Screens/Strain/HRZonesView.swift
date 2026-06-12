@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Heart-rate zones: the gradient scale plus one card per zone (range + time in zone).
 struct HRZonesView: View {
-    @State private var period: Period = .day
+    @State private var period: Period = .week
     /// Mock minutes scale with the selected window until real per-period data exists.
     private var zones: [HRZone] {
         MockHealthData().hrZones().map { zone in

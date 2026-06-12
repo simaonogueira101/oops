@@ -22,10 +22,10 @@ struct LineTrendChart: View {
         Chart {
             ForEach(samples) { sample in
                 LineMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(color)
                 AreaMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
                                                     startPoint: .top, endPoint: .bottom))
             }

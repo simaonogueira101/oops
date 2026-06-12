@@ -34,7 +34,7 @@ struct MenuBarRootView: View {
             Group {
                 switch tab {
                 case .overview:
-                    OverviewView(metrics: .sample, date: $date, recorder: recorder) { domain in
+                    OverviewView(metrics: .sample, date: date, recorder: recorder) { domain in
                         switch domain {
                         case .sleep: tab = .sleep
                         case .recovery: tab = .recovery
@@ -48,6 +48,7 @@ struct MenuBarRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environment(\.displayDate, date)
         }
         .background(Color(.windowBackgroundColor))
         .task {

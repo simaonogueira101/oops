@@ -2,13 +2,12 @@ import SwiftUI
 
 /// Time window for trends and detail screens.
 enum Period: String, CaseIterable, Identifiable {
-    case day = "Day", week = "Week", month = "Month", year = "Year"
+    case week = "Week", month = "Month", year = "Year"
     var id: String { rawValue }
 
     /// Days of data the window covers — every chart derives its series from this.
     var days: Int {
         switch self {
-        case .day: return 1
         case .week: return 7
         case .month: return 30
         case .year: return 365

@@ -4,12 +4,14 @@ import SwiftUI
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
     @State private var period: Period = .week
+    @Environment(\.displayDate) private var displayDate
     private var mock: MockHealthData { MockHealthData() }
     private var band: ScoreBand { ScoreBand(score: 72) }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
+                PageHeader(title: "Recovery", date: displayDate)
                 scoreHero
                 contributorsCard
                 hrvCard
@@ -21,7 +23,6 @@ struct RecoveryView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .navigationTitle("Recovery")
     }
 
     private var scoreHero: some View {
@@ -38,7 +39,7 @@ struct RecoveryView: View {
 
     private var contributorsCard: some View {
         Card(label: "Contributors") {
-            ContributorRows(contributors: [
+            ContributorRows(tint: AppColor.recovery, contributors: [
                 Contributor(name: "HRV balance", fraction: 0.8, band: .good),
                 Contributor(name: "Resting heart rate", fraction: 0.9, band: .optimal),
                 Contributor(name: "Body temperature", fraction: 0.5, band: .fair),

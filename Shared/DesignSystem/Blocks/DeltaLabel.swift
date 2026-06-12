@@ -4,12 +4,15 @@ import SwiftUI
 struct DeltaLabel: View {
     var info: DeltaInfo
     var upIsGood: Bool = true
+    /// When set, the arrow uses this hue (so a domain view stays single-color); the signed
+    /// number still carries the direction. Defaults to the semantic up-good/down-bad color.
+    var tint: Color?
 
     var body: some View {
         HStack(spacing: Spacing.xxs) {
             Image(systemName: info.direction.symbol)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(info.direction.color(upIsGood: upIsGood))
+                .foregroundStyle(tint ?? info.direction.color(upIsGood: upIsGood))
             Text(info.value - info.baseline,
                  format: .number.sign(strategy: .always()).precision(.fractionLength(0)))
                 .font(.caption)

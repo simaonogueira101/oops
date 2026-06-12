@@ -67,24 +67,31 @@ Styled to read as **stock Apple (Health-like)** after a 23-agent HIG audit (repo
 `docs/design-audit/`). All screens compose **one reusable `Card`** (`DesignSystem/Card/`) —
 Health-style borderless 12-pt rounded rect on the system grouped background, sentence-case
 `Label` header (optional `systemImage`, domain tint), content slot, optional footer. Tap
-behavior via `.navigates(to:)`: a **bottom drawer** (`[.medium, .large]`, system material,
+behavior via `.navigates(to:)`: a **full-height bottom drawer** (`[.large]`, system material,
 title + close button via `DrawerRoot`) at top level, a **push inside** an open drawer (the
 `isInsideDrawer` environment flag — never sheet-on-sheet). Summary's domain cards **switch
-tabs** (`openDomain`) instead of presenting duplicates. Each iOS tab is a `NavigationStack`
-with a **large title** and a shared toolbar (battery → `BatteryScreen` sheet, Mac-sync, "+"
-record, avatar); there is no custom top bar. Workout recording (`Screens/Workout/`): toolbar
-"+" opens `RecordWorkoutForm` (inline `Picker`, pinned glass Start); the active session shows
-as a `tabViewBottomAccessory` bar on iOS (Card banner on macOS); ending (confirmation-gated)
-persists a `WorkoutRecord` read live via `@Query`. Blocks in `DesignSystem/Blocks/` (ScoreHero
+tabs** (`openDomain`) instead of presenting duplicates. iOS uses a persistent **`TopBar`**
+(avatar · battery → `BatteryScreen` · Mac-sync · "+" record) above the `TabView`; each screen
+carries its own scrolling **`PageHeader`** (title + the selected day, from the `displayDate`
+environment). Summary is a **`SummaryPager`** — a `.page`-style `TabView` that swipes between
+days (window ending today), driving `displayDate`. Workout recording (`Screens/Workout/`): the
+TopBar "+" opens `RecordWorkoutForm` (inline `Picker`, pinned glass Start); the active session
+shows as a `tabViewBottomAccessory` bar **only while recording** (no empty bar) and opens a
+compact medium drawer; ending (confirmation-gated) persists a `WorkoutRecord` read live via
+`@Query`. Blocks in `DesignSystem/Blocks/` (ScoreHero
 = ring + `LabeledContent` rows — values always in label color, hue only in headers/rings/
 charts), charts in `DesignSystem/Charts/` (`RingChart` = `Circle().trim`; `LineTrendChart` has
 `chartXSelection` scrubbing; the staggered **`SleepStageChart`** hypnogram pins its night
 domain — Charts puts the first categorical y value at the *top*; sleep stages use Apple's
-Awake/REM/Core/Deep vocabulary as a single sleep-hue ramp). Hero type and chart heights scale
-via `@ScaledMetric` (`metricValueStyle()`); durations/numbers go through Foundation format
-styles; the period picker (pinned via `safeAreaInset`) drives every series via `Period.days`.
+Awake/REM/Core/Deep vocabulary). **Each domain screen is a single hue**: Sleep/Recovery/Strain
+render scores, contributor bands (`ScoreBand.tinted(_:)`), zones, and stages as shades of the
+page tint — not green/amber/red (the status trio is only for charging/errors). Line charts use
+`.linear` interpolation; `Period` is Week/Month/Year. Hero/ring numbers and chart heights scale
+via `@ScaledMetric`; durations/numbers go through Foundation format styles; the period picker
+(pinned via `safeAreaInset`) drives every series via `Period.days`. Settings live in
+**`ProfileView`** (goals/units/notifications/about) — there is no separate Settings screen.
 Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain, the
-`MetricDetailScreen` template, Settings/Onboarding); per-domain trends are inline cards. All
+`MetricDetailScreen` template, Onboarding); per-domain trends are inline cards. All
 data comes from **`MockHealthData`** (seeded, deterministic) until the ring lands. Feature
 coverage is tracked in `FEATURES.md`.
 

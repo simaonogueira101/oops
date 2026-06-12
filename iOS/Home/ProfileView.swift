@@ -1,8 +1,8 @@
 import SwiftUI
 import PhotosUI
 
-/// Profile page: set a photo (PhotosPicker) and name, stored locally. iOS exposes no
-/// "me" card / Apple Account photo to third-party apps, so this is how the avatar is set.
+/// Profile + preferences: photo & name (stored locally), appearance, goals, units,
+/// notifications, and about. The app's single settings surface.
 struct ProfileView: View {
     let profile: ProfileStore
 
@@ -10,6 +10,10 @@ struct ProfileView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var name = ""
     @AppStorage("appTheme") private var theme: AppTheme = .system
+    @AppStorage("useMetric") private var useMetric = true
+    @AppStorage("stepGoal") private var stepGoal = 12000
+    @AppStorage("sleepReminders") private var sleepReminders = true
+    @AppStorage("recoveryAlerts") private var recoveryAlerts = true
 
     var body: some View {
         NavigationStack {
@@ -42,12 +46,25 @@ struct ProfileView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section {
-                    NavigationLink("Settings") { SettingsView() }
+                Section("Goals") {
+                    Stepper("Step goal: \(stepGoal.formatted(.number))",
+                            value: $stepGoal, in: 2000...30000, step: 1000)
+                }
+
+                Section("Units") {
+                    Toggle("Metric units", isOn: $useMetric)
+                }
+
+                Section("Notifications") {
+                    Toggle("Sleep reminders", isOn: $sleepReminders)
+                    Toggle("Recovery alerts", isOn: $recoveryAlerts)
                 }
 
                 Section {
                     LabeledContent("Version", value: BuildInfo.label)
+                    NavigationLink("Welcome tour") { WelcomeView() }
+                } header: {
+                    Text("About")
                 } footer: {
                     Text("Your Mac auto-installs new builds when you commit, so this updates on its own.")
                 }

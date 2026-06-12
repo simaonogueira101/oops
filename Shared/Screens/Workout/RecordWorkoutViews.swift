@@ -68,7 +68,7 @@ struct ActiveWorkoutAccessory: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Workout in progress: \(active.type.rawValue)")
-            .cardDrawer(isPresented: $showDrawer, detents: [.medium, .large]) {
+            .cardDrawer(isPresented: $showDrawer, detents: [.medium]) {
                 ActiveWorkoutDrawer(recorder: recorder)
             }
         }
@@ -102,7 +102,7 @@ struct ActiveWorkoutBanner: View {
             }
             .buttonStyle(CardLinkStyle())
             // The one drawer that stays half-height: glanceable live stats over the feed.
-            .cardDrawer(isPresented: $showDrawer, detents: [.medium, .large]) {
+            .cardDrawer(isPresented: $showDrawer, detents: [.medium]) {
                 ActiveWorkoutDrawer(recorder: recorder)
             }
         }
@@ -118,39 +118,35 @@ struct ActiveWorkoutDrawer: View {
     var body: some View {
         if let active = recorder.active {
             TimelineView(.periodic(from: active.startDate, by: 1)) { context in
-                VStack(spacing: Spacing.lg) {
-                    Image(systemName: active.type.symbol)
-                        .font(.headerGlyph)
-                        .symbolRenderingMode(.hierarchical)
+                let elapsed = context.date.timeIntervalSince(active.startDate)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Label(active.type.rawValue, systemImage: active.type.symbol)
+                        .font(.headline)
                         .foregroundStyle(AppColor.strain)
-                    Text(active.type.rawValue).font(.title2.weight(.semibold))
+
                     Text(timerInterval: active.startDate...Date.distantFuture, countsDown: false)
-                        .metricValueStyle()
+                        .font(.system(.largeTitle, design: .rounded, weight: .semibold))
+                        .monospacedDigit()
 
                     HStack(spacing: Spacing.lg) {
-                        StatTile(label: "Heart rate",
-                                 value: "\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate)))",
-                                 unit: "bpm")
-                        StatTile(label: "Calories",
-                                 value: "\(workoutLiveCalories(elapsed: context.date.timeIntervalSince(active.startDate)))",
-                                 unit: "cal")
+                        StatTile(label: "Heart rate", value: "\(workoutLiveHR(elapsed: elapsed))", unit: "bpm")
+                        StatTile(label: "Calories", value: "\(workoutLiveCalories(elapsed: elapsed))", unit: "cal")
                     }
-                    .padding(.horizontal, Spacing.lg)
 
-                    Spacer()
+                    Button(role: .destructive) {
+                        confirmEnd = true
+                    } label: {
+                        Text("End Workout").font(.headline).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(AppColor.strain)
+                    .padding(.top, Spacing.xs)
                 }
-                .padding(.top, Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Spacing.lg)
             }
-            .safeAreaInset(edge: .bottom) {
-                Button(role: .destructive) {
-                    confirmEnd = true
-                } label: {
-                    Text("End Workout").font(.headline).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .padding(Spacing.md)
-            }
+            .presentationDragIndicator(.visible)
             .confirmationDialog("End this workout?", isPresented: $confirmEnd, titleVisibility: .visible) {
                 Button("End Workout", role: .destructive) {
                     recorder.end()

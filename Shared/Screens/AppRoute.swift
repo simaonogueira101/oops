@@ -34,6 +34,18 @@ private struct InsideDrawerKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct DisplayDateKey: EnvironmentKey {
+    static let defaultValue = Date.now
+}
+
+extension EnvironmentValues {
+    /// The day currently selected on Summary — every screen's `PageHeader` shows it.
+    var displayDate: Date {
+        get { self[DisplayDateKey.self] }
+        set { self[DisplayDateKey.self] = newValue }
+    }
+}
+
 extension EnvironmentValues {
     /// True inside a presented drawer — nested `navigates(to:)` push within the drawer's own
     /// `NavigationStack` (with a back button) instead of stacking another sheet.

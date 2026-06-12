@@ -4,6 +4,7 @@ import SwiftUI
 /// supporting overnight metrics — all composed from `Card`.
 struct SleepView: View {
     @State private var period: Period = .week
+    @Environment(\.displayDate) private var displayDate
     private var mock: MockHealthData { MockHealthData() }
     private var session: SleepSession { mock.sleepSession() }
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
@@ -20,6 +21,7 @@ struct SleepView: View {
     private var content: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
+                PageHeader(title: "Sleep", date: displayDate)
                 scoreHero
                 hypnogramCard
                 breakdownCard
@@ -31,7 +33,6 @@ struct SleepView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .navigationTitle("Sleep")
     }
 
     private var scoreHero: some View {
@@ -75,7 +76,7 @@ struct SleepView: View {
 
     private var contributorsCard: some View {
         Card(label: "Contributors") {
-            ContributorRows(contributors: [
+            ContributorRows(tint: AppColor.sleep, contributors: [
                 Contributor(name: "Total sleep", fraction: 0.86, band: .optimal),
                 Contributor(name: "Efficiency", fraction: 0.92, band: .optimal),
                 Contributor(name: "Restfulness", fraction: 0.6, band: .good),

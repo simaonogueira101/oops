@@ -30,4 +30,15 @@ enum ScoreBand: CaseIterable {
         case .good, .optimal: return AppColor.positive
         }
     }
+
+    /// A shade of `base` for this band — used so a domain view stays a single hue
+    /// (stronger = better) instead of mixing in green/amber/red.
+    func tinted(_ base: Color) -> Color {
+        switch self {
+        case .optimal: return base
+        case .good: return base.opacity(0.72)
+        case .fair: return base.opacity(0.5)
+        case .poor: return base.opacity(0.34)
+        }
+    }
 }

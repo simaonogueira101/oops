@@ -1,11 +1,11 @@
 import SwiftUI
 
 extension View {
-    /// Present a bottom drawer (sheet) from a tapped card. Glanceable medium detent first,
-    /// expandable to full — with the system's sheet material and chrome (no overrides).
+    /// Present a bottom drawer (sheet) from a tapped card. Full-height by default; the active
+    /// workout drawer is the one caller that passes a smaller detent. System material + chrome.
     func cardDrawer<DrawerContent: View>(
         isPresented: Binding<Bool>,
-        detents: Set<PresentationDetent> = [.medium, .large],
+        detents: Set<PresentationDetent> = [.large],
         @ViewBuilder content: @escaping () -> DrawerContent
     ) -> some View {
         sheet(isPresented: isPresented) {

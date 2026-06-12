@@ -8,8 +8,10 @@ struct Contributor: Identifiable {
     let band: ScoreBand
 }
 
-/// A list of contributor rows (label + progress + band label), as on a recovery/readiness screen.
+/// A list of contributor rows (label + progress + band label). Colors are shades of the
+/// domain `tint` (stronger = better), keeping each screen a single hue.
 struct ContributorRows: View {
+    var tint: Color
     var contributors: [Contributor]
 
     var body: some View {
@@ -21,17 +23,18 @@ struct ContributorRows: View {
                         Spacer()
                         Text(contributor.band.label)
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(contributor.band.color)
+                            .foregroundStyle(AppColor.secondaryLabel)
                     }
-                    ProgressView(value: contributor.fraction).tint(contributor.band.color)
+                    ProgressView(value: contributor.fraction).tint(contributor.band.tinted(tint))
                 }
+                .accessibilityElement(children: .combine)
             }
         }
     }
 }
 
 #Preview {
-    ContributorRows(contributors: [
+    ContributorRows(tint: AppColor.recovery, contributors: [
         Contributor(name: "HRV balance", fraction: 0.8, band: .good),
         Contributor(name: "Resting heart rate", fraction: 0.65, band: .optimal),
         Contributor(name: "Body temperature", fraction: 0.4, band: .poor)

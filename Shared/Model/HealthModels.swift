@@ -63,13 +63,13 @@ enum SleepStage: String, CaseIterable, Identifiable {
         }
     }
 
-    /// A single-hue intensity ramp of the sleep color (deeper = stronger); Awake uses the
-    /// app-wide attention color. Keeps hue meaning unambiguous per tab.
+    /// A single-hue intensity ramp of the sleep color (deeper sleep = stronger), so the whole
+    /// Sleep tab stays one hue. Awake is the lightest shade.
     var color: Color {
         switch self {
-        case .awake: return AppColor.caution
-        case .rem:   return AppColor.sleep.opacity(0.45)
-        case .light: return AppColor.sleep.opacity(0.7)
+        case .awake: return AppColor.sleep.opacity(0.3)
+        case .rem:   return AppColor.sleep.opacity(0.5)
+        case .light: return AppColor.sleep.opacity(0.72)
         case .deep:  return AppColor.sleep
         }
     }

@@ -4,6 +4,7 @@ import SwiftData
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
     @State private var period: Period = .week
+    @Environment(\.displayDate) private var displayDate
     @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
     private var metrics: DayMetrics { MockHealthData().dayMetrics }
     private var mock: MockHealthData { MockHealthData() }
@@ -12,6 +13,7 @@ struct StrainView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
+                PageHeader(title: "Strain", date: displayDate)
                 strainHero
                 activityStats
                 zonesCard
@@ -21,7 +23,6 @@ struct StrainView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .navigationTitle("Strain")
     }
 
     private var strainHero: some View {

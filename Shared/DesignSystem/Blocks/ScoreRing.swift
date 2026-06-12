@@ -13,7 +13,7 @@ struct ScoreRing: View {
             RingChart(value: Double(score) / 100, color: accent)
             VStack(spacing: 0) {
                 Text("\(score)")
-                    .metricValueStyle()
+                    .font(.system(.largeTitle, design: .rounded, weight: .semibold))
                     .foregroundStyle(AppColor.label)
                     .minimumScaleFactor(0.5)
                 if let caption {

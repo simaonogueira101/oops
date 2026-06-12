@@ -86,7 +86,7 @@ struct Card<Content: View>: View {
         case .value(let value):
             Text(value).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
         case .delta(let info, let upIsGood):
-            DeltaLabel(info: info, upIsGood: upIsGood)
+            DeltaLabel(info: info, upIsGood: upIsGood, tint: accent)
         case .icon(let name):
             Image(systemName: name).foregroundStyle(accent ?? AppColor.secondaryLabel)
         case .toggle(let title, let binding):

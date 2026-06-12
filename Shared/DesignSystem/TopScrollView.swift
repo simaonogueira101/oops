@@ -18,7 +18,7 @@ struct TopScrollView<Content: View>: View {
     @ViewBuilder var content: () -> Content
     private let topID = "screen-top"
 
-    /// Height of the floating top-bar pills + breathing room (iOS only; macOS has no top bar).
+    /// Clearance so content starts below the floating top-bar pills at rest (iOS only).
     #if os(iOS)
     private let topClearance: CGFloat = 52
     #else

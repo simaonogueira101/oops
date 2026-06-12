@@ -10,13 +10,24 @@ struct HomeRootView: View {
     @State private var manager: RingManager?
     @State private var sync = SyncCoordinator()
     @State private var profile = ProfileStore()
+    @State private var recorder = WorkoutRecorder()
     @State private var date = Date()
-    @State private var tab = HomeTab.overview
+    @State private var tab = HomeTab.home
     @State private var sheet: HomeSheet?
     @State private var justUpdated = false
 
-    enum HomeTab: Hashable { case overview, sleep, recovery, strain }
-    enum HomeSheet: Int, Identifiable { case profile, sync; var id: Int { rawValue } }
+    enum HomeTab: Hashable { case home, sleep, recovery, strain, record }
+    enum HomeSheet: Int, Identifiable { case profile, sync, record; var id: Int { rawValue } }
+
+    /// Selecting the trailing "+" opens the record drawer instead of switching tabs.
+    private var tabSelection: Binding<HomeTab> {
+        Binding(
+            get: { tab },
+            set: { selected in
+                if selected == .record { sheet = .record } else { tab = selected }
+            }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,21 +46,23 @@ struct HomeRootView: View {
                 }
             }
 
-            TabView(selection: $tab) {
-                Tab("Overview", systemImage: "circle.grid.2x2", value: HomeTab.overview) {
+            TabView(selection: tabSelection) {
+                Tab("Home", systemImage: "house", value: HomeTab.home) {
                     NavigationStack {
-                        OverviewView(metrics: .sample, date: $date)
-                            .appNavigationDestinations()
+                        OverviewView(metrics: .sample, date: $date, recorder: recorder)
                     }
                 }
                 Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
-                    NavigationStack { SleepView().appNavigationDestinations() }
+                    NavigationStack { SleepView() }
                 }
                 Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
-                    NavigationStack { RecoveryView().appNavigationDestinations() }
+                    NavigationStack { RecoveryView() }
                 }
                 Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
-                    NavigationStack { StrainView().appNavigationDestinations() }
+                    NavigationStack { StrainView() }
+                }
+                Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
+                    Color.clear // never shown — selection is intercepted to open the drawer
                 }
             }
         }
@@ -75,6 +88,10 @@ struct HomeRootView: View {
                 ProfileView(profile: profile)
             case .sync:
                 MacSyncView(sync: sync, onSyncNow: pushSync)
+            case .record:
+                RecordWorkoutForm(recorder: recorder)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }

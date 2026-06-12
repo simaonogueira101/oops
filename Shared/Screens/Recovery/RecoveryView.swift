@@ -92,5 +92,5 @@ struct RecoveryView: View {
 }
 
 #Preview {
-    NavigationStack { RecoveryView().appNavigationDestinations() }
+    NavigationStack { RecoveryView() }
 }

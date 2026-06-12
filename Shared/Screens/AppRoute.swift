@@ -28,14 +28,9 @@ struct RouteDestination: View {
 }
 
 extension View {
-    /// Registers the app's route destinations on an enclosing `NavigationStack`.
-    func appNavigationDestinations() -> some View {
-        navigationDestination(for: AppRoute.self) { RouteDestination(route: $0) }
-    }
-
-    /// Wrap any view (e.g. a `Card`) so tapping it pushes the given route.
+    /// Wrap any view (e.g. a `Card`) so tapping it opens the route in a bottom drawer.
     func navigates(to route: AppRoute) -> some View {
-        NavigationLink(value: route) { self }.buttonStyle(CardLinkStyle())
+        DrawerLink(route: route) { self }
     }
 
     /// Cross-platform inline navigation title (macOS has no title display mode).
@@ -46,6 +41,22 @@ extension View {
         #else
         navigationTitle(title)
         #endif
+    }
+}
+
+/// A tappable label that presents its route in a bottom drawer (cards open drawers, not pushes).
+/// The drawer gets its own `NavigationStack` so inner links (e.g. workout rows) push within it.
+struct DrawerLink<Label: View>: View {
+    let route: AppRoute
+    @ViewBuilder var label: () -> Label
+    @State private var presented = false
+
+    var body: some View {
+        Button { presented = true } label: { label() }
+            .buttonStyle(CardLinkStyle())
+            .cardDrawer(isPresented: $presented) {
+                NavigationStack { RouteDestination(route: route) }
+            }
     }
 }
 

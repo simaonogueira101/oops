@@ -5,6 +5,7 @@ import SwiftUI
 struct OverviewView: View {
     let metrics: DayMetrics
     @Binding var date: Date
+    let recorder: WorkoutRecorder
 
     @State private var swipeEdge: Edge = .trailing
     private var mock: MockHealthData { MockHealthData() }
@@ -21,6 +22,7 @@ struct OverviewView: View {
                 DateScroller(date: $date)
                 #endif
                 recoveryHero
+                ActiveWorkoutBanner(recorder: recorder)
                 sleepStrainRow
                 stepsCard
                 heartRateCard
@@ -121,8 +123,9 @@ struct OverviewView: View {
 }
 
 #Preview {
-    NavigationStack {
-        OverviewView(metrics: .sample, date: .constant(.now))
-            .appNavigationDestinations()
+    let recorder = WorkoutRecorder()
+    let _ = recorder.start(.run)
+    return NavigationStack {
+        OverviewView(metrics: .sample, date: .constant(.now), recorder: recorder)
     }
 }

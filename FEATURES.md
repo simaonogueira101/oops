@@ -19,6 +19,7 @@ Feature set for the app (modeled on Whoop + Oura, rendered stock-Apple).
 | SwiftLint palette enforcement | Bans SwiftUI system color literals so only `AppColor` tokens compile | ✅ | ✅ |
 | Card component | One container: header (label/title/accessory) + content slot + footer, tap → push/drawer/expand | ✅ | ✅ |
 | Card drawer | Bottom-sheet presentation from a card (`.cardDrawer`) | ✅ | ✅ |
+| Drawer navigation | Every tappable card opens a bottom drawer (no pushed views) | ✅ | ✅ |
 | Expandable card | Accordion that discloses detail in place | ✅ | ✅ |
 | Score ring / composite hero ring | Score donut + satellite stats | ✅ | ✅ |
 | Goal progress (ring/bar) | Progress toward a target | ✅ | ✅ |
@@ -43,6 +44,7 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Steps goal card | Progress toward step goal | ✅ | ⬜ |
 | Heart-rate card | Resting/now + sparkline → Heart Rate | ✅ | ⬜ |
 | Day swipe paging | Swipe left/right on the feed to change day (push transition + haptic) | ✅ | ✅ |
+| Active workout banner | Thin live banner below the hero while recording; opens the live drawer | ✅ | ⬜ |
 
 ## Sleep
 
@@ -76,6 +78,8 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Steps / distance / calories | Activity stat grid | ✅ | ⬜ |
 | Heart-rate zones | Zone scale → HR Zones | ✅ | ⬜ |
 | Workouts list + detail | List → detail (map, summary, HR trace) | ✅ | ⬜ |
+| Record workout | Separated "+" tab button → type picker drawer → start/end recording | ✅ | ⬜ |
+| Live workout stats | Elapsed time real; HR/calories mocked until the ring streams them | ✅ | ⬜ |
 | Cardio fitness (VO₂max) | Estimated fitness (cut — not measurable by the R09) | ⬜ | ⬜ |
 | Strain trends | Inline period selector + trend chart | ✅ | ⬜ |
 | HR zones screen | Period picker + per-zone cards | ✅ | ⬜ |

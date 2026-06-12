@@ -112,5 +112,5 @@ struct SleepView: View {
 }
 
 #Preview {
-    NavigationStack { SleepView().appNavigationDestinations() }
+    NavigationStack { SleepView() }
 }

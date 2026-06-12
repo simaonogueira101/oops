@@ -12,6 +12,7 @@ struct MenuBarRootView: View {
     @State private var tab = Tab.overview
     @State private var justUpdated = false
     @State private var date = Date()
+    @State private var recorder = WorkoutRecorder()
 
     enum Tab { case overview, sleep, recovery, strain, mac }
 
@@ -33,7 +34,7 @@ struct MenuBarRootView: View {
             NavigationStack {
                 Group {
                     switch tab {
-                    case .overview: OverviewView(metrics: .sample, date: $date)
+                    case .overview: OverviewView(metrics: .sample, date: $date, recorder: recorder)
                     case .sleep: SleepView()
                     case .recovery: RecoveryView()
                     case .strain: StrainView()
@@ -41,7 +42,6 @@ struct MenuBarRootView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .appNavigationDestinations()
             }
         }
         .background(Color(.windowBackgroundColor))

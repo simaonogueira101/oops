@@ -65,10 +65,13 @@ Code is split by what's shareable: **`Shared/`** (compiled into both apps), **`i
 ### UI layer (`Shared/DesignSystem/`, `Shared/Screens/`)
 All screens are composed from **one reusable `Card`** (`DesignSystem/Card/`) — header (label/title/
 accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `.navigates(to:)`
-(push), `.cardDrawer` (sheet), or `ExpandableCard`. `Card` is presentation-only; routing lives in
-**`Screens/AppRoute.swift`** (`AppRoute` enum + `RouteDestination` + the `.navigates(to:)` /
-`.appNavigationDestinations()` / `.inlineNavigationTitle()` helpers — the last guards the iOS-only
-`navigationBarTitleDisplayMode` so shared screens compile on macOS). Content blocks live in
+(opens the route in a **bottom drawer** — cards never push), `.cardDrawer` (sheet), or
+`ExpandableCard`. `Card` is presentation-only; routing lives in **`Screens/AppRoute.swift`**
+(`AppRoute` enum + `RouteDestination` + `DrawerLink` + the `.inlineNavigationTitle()` helper,
+which guards the iOS-only `navigationBarTitleDisplayMode` so shared screens compile on macOS).
+Workout recording (`Screens/Workout/`): the tab bar's separated trailing "+" (a `Tab` with
+`role: .search` whose selection is intercepted) opens `RecordWorkoutForm`; `WorkoutRecorder`
+holds the active session and `ActiveWorkoutBanner` surfaces it on Home. Content blocks live in
 `DesignSystem/Blocks/` (rings, contributor rows, zone scale, sparkline, tag chips, period picker…)
 and Swift Charts primitives in `DesignSystem/Charts/` (line/bar/`RingChart`, and the staggered
 **`SleepStageChart`** hypnogram — note Charts places the first categorical y value at the *top*).

@@ -91,5 +91,5 @@ struct StrainView: View {
 }
 
 #Preview {
-    NavigationStack { StrainView().appNavigationDestinations() }
+    NavigationStack { StrainView() }
 }

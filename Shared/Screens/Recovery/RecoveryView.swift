@@ -51,7 +51,8 @@ struct RecoveryView: View {
 
     private var hrvCard: some View {
         Card(label: "HRV", accent: AppColor.recovery,
-             accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true)) {
+             accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true),
+             showsChevron: true) {
             Sparkline(samples: mock.hrvSeries(days: 14), color: AppColor.recovery)
         }
         .navigates(to: .hrv)
@@ -59,21 +60,22 @@ struct RecoveryView: View {
 
     private var restingHRCard: some View {
         Card(label: "Resting heart rate", accent: AppColor.recovery,
-             accessory: .delta(DeltaInfo(value: 54, baseline: 56), upIsGood: false)) {
+             accessory: .delta(DeltaInfo(value: 54, baseline: 56), upIsGood: false),
+             showsChevron: true) {
             Sparkline(samples: mock.restingHRSeries(days: 14), color: AppColor.recovery)
         }
         .navigates(to: .heartRate)
     }
 
     private var bodyTempCard: some View {
-        Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C")) {
+        Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C"), showsChevron: true) {
             Sparkline(samples: mock.series(days: 14, base: 0, spread: 0.8), color: AppColor.recovery)
         }
         .navigates(to: .bodyTemp)
     }
 
     private var respiratoryCard: some View {
-        Card(label: "Respiratory rate", accent: AppColor.recovery, accessory: .value("14.1")) {
+        Card(label: "Respiratory rate", accent: AppColor.recovery, accessory: .value("14.1"), showsChevron: true) {
             Sparkline(samples: mock.series(days: 14, base: 14, spread: 2), color: AppColor.recovery)
         }
         .navigates(to: .respiratory)

@@ -96,6 +96,8 @@ struct ActiveWorkoutBanner: View {
                                 .font(.subheadline.weight(.semibold)).monospacedDigit()
                             Text("\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm")
                                 .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
+                            Image(systemName: "chevron.forward")
+                                .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
                     }
                 }

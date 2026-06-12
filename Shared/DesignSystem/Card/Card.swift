@@ -30,6 +30,9 @@ struct Card<Content: View>: View {
     var title: String?
     var accent: Color?
     var accessory: CardAccessory = .none
+    /// Set on tappable cards whose accessory slot holds a value/delta — renders the chevron
+    /// affordance after it (every clickable card must show a chevron).
+    var showsChevron: Bool = false
     var style: CardStyle = .plain
     var footer: CardFooter?
     @ViewBuilder var content: () -> Content
@@ -73,7 +76,16 @@ struct Card<Content: View>: View {
             }
             Spacer(minLength: Spacing.xs)
             accessoryView
+            if showsChevron, !hasChevronAccessory {
+                Image(systemName: "chevron.forward")
+                    .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
         }
+    }
+
+    private var hasChevronAccessory: Bool {
+        if case .chevron = accessory { return true }
+        return false
     }
 
     @ViewBuilder private var accessoryView: some View {

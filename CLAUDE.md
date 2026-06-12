@@ -63,26 +63,30 @@ Targets: **Oops** (iOS app, `com.simao.oops`), **OopsMac** (macOS menu-bar, `LSU
 Code is split by what's shareable: **`Shared/`** (compiled into both apps), **`iOS/`**, **`macOS/`**.
 
 ### UI layer (`Shared/DesignSystem/`, `Shared/Screens/`)
-All screens are composed from **one reusable `Card`** (`DesignSystem/Card/`) — header (label/title/
-accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `.navigates(to:)`
-(opens the route in a **bottom drawer** — cards never push), `.cardDrawer` (sheet), or
-`ExpandableCard`. `Card` is presentation-only; routing lives in **`Screens/AppRoute.swift`**
-(`AppRoute` enum + `RouteDestination` + `DrawerLink`). Screens and drawers carry **no
-navigation titles** (card labels identify content); `NavigationStack` exists only where
-something pushes or hosts a toolbar (inside drawers, the record form, Profile).
-Workout recording (`Screens/Workout/`): the tab bar's separated trailing "+" (a `Tab` with
-`role: .search` whose selection is intercepted) opens `RecordWorkoutForm`; `WorkoutRecorder`
-holds the active session, `ActiveWorkoutBanner` surfaces it on Home, and ending a workout
-persists a `WorkoutRecord` that Strain's history reads live via `@Query`. Drawers open
-full-height by default; the active-workout drawer is the one medium-detent exception. Content blocks live in
-`DesignSystem/Blocks/` (rings, contributor rows, zone scale, sparkline, tag chips, period picker…)
-and Swift Charts primitives in `DesignSystem/Charts/` (line/bar/`RingChart`, and the staggered
-**`SleepStageChart`** hypnogram — note Charts places the first categorical y value at the *top*).
-Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain, the per-metric
-`MetricDetailScreen` template, plus Settings/Onboarding; per-domain trends are an inline
-period-selector card, not a separate screen). Everything is fed by
-**`MockHealthData`** (a seeded, deterministic provider in `Shared/Model/`) — no ring hardware
-needed; screens bind to real data later. Feature coverage is tracked in `FEATURES.md`.
+Styled to read as **stock Apple (Health-like)** after a 23-agent HIG audit (report in
+`docs/design-audit/`). All screens compose **one reusable `Card`** (`DesignSystem/Card/`) —
+Health-style borderless 12-pt rounded rect on the system grouped background, sentence-case
+`Label` header (optional `systemImage`, domain tint), content slot, optional footer. Tap
+behavior via `.navigates(to:)`: a **bottom drawer** (`[.medium, .large]`, system material,
+title + close button via `DrawerRoot`) at top level, a **push inside** an open drawer (the
+`isInsideDrawer` environment flag — never sheet-on-sheet). Summary's domain cards **switch
+tabs** (`openDomain`) instead of presenting duplicates. Each iOS tab is a `NavigationStack`
+with a **large title** and a shared toolbar (battery → `BatteryScreen` sheet, Mac-sync, "+"
+record, avatar); there is no custom top bar. Workout recording (`Screens/Workout/`): toolbar
+"+" opens `RecordWorkoutForm` (inline `Picker`, pinned glass Start); the active session shows
+as a `tabViewBottomAccessory` bar on iOS (Card banner on macOS); ending (confirmation-gated)
+persists a `WorkoutRecord` read live via `@Query`. Blocks in `DesignSystem/Blocks/` (ScoreHero
+= ring + `LabeledContent` rows — values always in label color, hue only in headers/rings/
+charts), charts in `DesignSystem/Charts/` (`RingChart` = `Circle().trim`; `LineTrendChart` has
+`chartXSelection` scrubbing; the staggered **`SleepStageChart`** hypnogram pins its night
+domain — Charts puts the first categorical y value at the *top*; sleep stages use Apple's
+Awake/REM/Core/Deep vocabulary as a single sleep-hue ramp). Hero type and chart heights scale
+via `@ScaledMetric` (`metricValueStyle()`); durations/numbers go through Foundation format
+styles; the period picker (pinned via `safeAreaInset`) drives every series via `Period.days`.
+Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain, the
+`MetricDetailScreen` template, Settings/Onboarding); per-domain trends are inline cards. All
+data comes from **`MockHealthData`** (seeded, deterministic) until the ring lands. Feature
+coverage is tracked in `FEATURES.md`.
 
 ### Ring data path (the core abstraction — `Shared/Ring/`)
 A transport seam keeps the deterministic protocol/persistence separate from the flaky,
@@ -128,12 +132,14 @@ bundle; the UI shows an "Updated to build N" banner by comparing against a store
 ## Design tokens (enforced)
 
 Use the tokens in `Shared/DesignSystem/` instead of literals: **`Spacing`** (xxs…xl, 4-pt
-scale), **`Typography`** (`Font.metricValue`, etc.), **`AppColor`**. The color palette is a
-**reduced 6-hue set** (Oura-warm dark + light, asset-backed in `Shared/Assets.xcassets/Colors`):
-domain tints `recovery`/`sleep`/`strain` (recovery doubles as the app `accent`) + status
-`positive`/`caution`/`negative`, plus neutrals (`background`/`surface`/`surfaceElevated`/
-`separator`/`track`). Scores take their domain hue; the status trio is reused app-wide for bands,
-deltas, charging, and errors. `.swiftlint.yml` is scoped to **only** custom design-token rules (no
+scale), **`Typography`** (`metricValueStyle()`/`cardValue` — `@ScaledMetric`-backed), **`AppColor`**.
+The color palette is a **reduced 6-hue set** asset-backed in `Shared/Assets.xcassets/Colors`:
+domain tints `recovery`/`sleep`/`strain` (recovery is also the `AccentColor` asset → app tint) +
+status `positive`/`caution`/`negative`. The five neutrals (`background`/`surface`/
+`surfaceElevated`/`separator`/`track`) are **dynamic system grouped colors** (UIColor/NSColor
+conditional in `AppColor.swift`) for free dark-mode elevation and Increase Contrast. Values
+render in label color — domain hue appears only in headers, rings, and chart marks; the status
+trio means good/warn/bad app-wide. `.swiftlint.yml` is scoped to **only** custom design-token rules (no
 font `size:`, no raw RGB / `#colorLiteral`, no magic padding/spacing — literal `0`/`1` allowed —
 and **`no_system_color_literal`** bans `Color.blue`/`.green`/… so only `AppColor` tokens compile),
 all `severity: error`. It runs as a **preBuildScript on both app targets** and in CI

@@ -43,14 +43,15 @@ struct RecordWorkoutForm: View {
 }
 
 /// Compact ongoing-workout bar for the iOS 26 tab-bar bottom accessory (Now-Playing style).
-/// Tapping opens the live drawer.
+/// The whole bar is tappable; the live drawer is owned by the root (so a tab-bar rebuild can't
+/// dismiss it), opened via `onOpen`.
 struct ActiveWorkoutAccessory: View {
     let recorder: WorkoutRecorder
-    @State private var showDrawer = false
+    var onOpen: () -> Void
 
     var body: some View {
         if let active = recorder.active {
-            Button { showDrawer = true } label: {
+            Button(action: onOpen) {
                 TimelineView(.periodic(from: active.startDate, by: 1)) { context in
                     HStack(spacing: Spacing.sm) {
                         Image(systemName: "record.circle")
@@ -64,13 +65,12 @@ struct ActiveWorkoutAccessory: View {
                             .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
                     }
                     .padding(.horizontal, Spacing.md)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Workout in progress: \(active.type.rawValue)")
-            .cardDrawer(isPresented: $showDrawer, detents: [.medium]) {
-                ActiveWorkoutDrawer(recorder: recorder)
-            }
+            .accessibilityLabel("Workout in progress: \(active.type.rawValue). Opens live stats.")
         }
     }
 }

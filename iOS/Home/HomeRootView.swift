@@ -18,7 +18,7 @@ struct HomeRootView: View {
     @State private var justUpdated = false
 
     enum HomeTab: Hashable { case summary, sleep, recovery, strain, record }
-    enum HomeSheet: Int, Identifiable { case profile, sync, record; var id: Int { rawValue } }
+    enum HomeSheet: Int, Identifiable { case profile, sync, record, activeWorkout; var id: Int { rawValue } }
 
     /// Selecting the separated "+" opens the record drawer instead of switching tabs, so the
     /// real selection never lands on `.record` (no content flash).
@@ -72,6 +72,9 @@ struct HomeRootView: View {
             case .profile: ProfileView(profile: profile)
             case .sync: MacSyncView(sync: sync, onSyncNow: pushSync)
             case .record: RecordWorkoutForm(recorder: recorder)
+            case .activeWorkout:
+                ActiveWorkoutDrawer(recorder: recorder)
+                    .presentationDetents([.medium])
             }
         }
     }
@@ -80,7 +83,9 @@ struct HomeRootView: View {
     /// empty bar shows otherwise. The "+" is a `.search`-role tab (separated, trailing).
     @ViewBuilder private var tabs: some View {
         if recorder.isRecording {
-            tabView.tabViewBottomAccessory { ActiveWorkoutAccessory(recorder: recorder) }
+            tabView.tabViewBottomAccessory {
+                ActiveWorkoutAccessory(recorder: recorder) { sheet = .activeWorkout }
+            }
         } else {
             tabView
         }

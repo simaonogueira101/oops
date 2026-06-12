@@ -62,10 +62,11 @@ struct MockHealthData {
     // MARK: Zones, workouts, tags
 
     func hrZones() -> [HRZone] {
-        [HRZone(name: "Light", lowerBPM: 95, upperBPM: 114, minutes: 38, color: AppColor.recovery),
-         HRZone(name: "Moderate", lowerBPM: 115, upperBPM: 132, minutes: 17, color: AppColor.positive),
-         HRZone(name: "Hard", lowerBPM: 133, upperBPM: 151, minutes: 9, color: AppColor.caution),
-         HRZone(name: "Peak", lowerBPM: 152, upperBPM: 200, minutes: 3, color: AppColor.negative)]
+        // A strain-hue intensity ramp — the status trio keeps meaning good/warn/bad app-wide.
+        [HRZone(name: "Light", lowerBPM: 95, upperBPM: 114, minutes: 38, color: AppColor.strain.opacity(0.35)),
+         HRZone(name: "Moderate", lowerBPM: 115, upperBPM: 132, minutes: 17, color: AppColor.strain.opacity(0.55)),
+         HRZone(name: "Hard", lowerBPM: 133, upperBPM: 151, minutes: 9, color: AppColor.strain.opacity(0.75)),
+         HRZone(name: "Peak", lowerBPM: 152, upperBPM: 200, minutes: 3, color: AppColor.strain)]
     }
 
 }

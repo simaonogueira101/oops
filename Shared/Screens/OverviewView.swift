@@ -81,7 +81,7 @@ struct OverviewView: View {
         HStack(alignment: .top, spacing: Spacing.md) {
             Card(label: "Sleep", accent: AppColor.sleep, accessory: .chevron) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    compactValue("\(sleepScore)", color: AppColor.sleep)
+                    compactValue("\(sleepScore)")
                     Sparkline(samples: mock.hrvSeries(days: 10), color: AppColor.sleep)
                 }
             }
@@ -89,7 +89,7 @@ struct OverviewView: View {
 
             Card(label: "Strain", accent: AppColor.strain, accessory: .chevron) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    compactValue(strainText, color: AppColor.strain)
+                    compactValue(strainText)
                     Sparkline(samples: mock.stepsSeries(days: 10), color: AppColor.strain)
                 }
             }
@@ -120,8 +120,8 @@ struct OverviewView: View {
 
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
 
-    private func compactValue(_ text: String, color: Color) -> some View {
-        Text(text).font(.title.weight(.semibold)).foregroundStyle(color)
+    private func compactValue(_ text: String) -> some View {
+        Text(text).font(.title.weight(.semibold)).foregroundStyle(AppColor.label).monospacedDigit()
     }
 }
 

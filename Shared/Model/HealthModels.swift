@@ -48,11 +48,13 @@ enum SleepStage: String, CaseIterable, Identifiable {
 
     var title: String { self == .rem ? "REM" : rawValue.capitalized }
 
+    /// A single-hue intensity ramp of the sleep color (deeper = stronger); Awake uses the
+    /// app-wide attention color. Keeps hue meaning unambiguous per tab.
     var color: Color {
         switch self {
-        case .awake: return AppColor.strain            // attention
-        case .rem:   return AppColor.sleep.opacity(0.7)
-        case .light: return AppColor.recovery
+        case .awake: return AppColor.caution
+        case .rem:   return AppColor.sleep.opacity(0.45)
+        case .light: return AppColor.sleep.opacity(0.7)
         case .deep:  return AppColor.sleep
         }
     }

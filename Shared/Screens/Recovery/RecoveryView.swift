@@ -8,7 +8,7 @@ struct RecoveryView: View {
     private var band: ScoreBand { ScoreBand(score: 72) }
 
     var body: some View {
-        ScrollView {
+        TopScrollView {
             VStack(spacing: Spacing.md) {
                 PageHeader(title: "Recovery")
                 scoreHero
@@ -25,7 +25,7 @@ struct RecoveryView: View {
     }
 
     private var scoreHero: some View {
-        Card(label: "Recovery", title: band.label, accent: AppColor.recovery) {
+        Card(label: "Recovery", accent: AppColor.recovery) {
             HStack(spacing: Spacing.lg) {
                 ScoreRing(score: 72, accent: AppColor.recovery, caption: band.label, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {

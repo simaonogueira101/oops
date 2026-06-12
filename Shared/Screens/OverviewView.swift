@@ -15,7 +15,7 @@ struct OverviewView: View {
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
 
     var body: some View {
-        ScrollView {
+        TopScrollView {
             VStack(spacing: Spacing.md) {
                 PageHeader(title: "Summary")
                 #if os(macOS)
@@ -33,7 +33,7 @@ struct OverviewView: View {
     // MARK: Hero
 
     private var recoveryHero: some View {
-        Card(label: "Recovery", systemImage: "gauge.with.needle", title: recoveryBand.label,
+        Card(label: "Recovery", systemImage: "gauge.with.needle",
              accent: AppColor.recovery, accessory: .chevron) {
             ScoreHero(score: metrics.score, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
                 HeroStat(label: "HRV", value: "\(metrics.hrv) ms",

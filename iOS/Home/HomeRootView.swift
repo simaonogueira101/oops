@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// iPhone root: a persistent top bar (avatar · date · battery · sync) above four domain tabs,
-/// with a separated "+" record button on the trailing side of the tab bar. An active workout
-/// shows as a bottom accessory above the tab bar.
+/// iPhone root: the `TabView` is the root (so the bottom nav floats translucently over content
+/// and tab taps reach the screens); a persistent `TopBar` rides the top safe area, and a
+/// separated "+" record button sits on the trailing side of the bottom nav.
 struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \BatteryReading.timestamp, order: .reverse) private var readings: [BatteryReading]
@@ -16,22 +16,64 @@ struct HomeRootView: View {
     @State private var tab = HomeTab.summary
     @State private var sheet: HomeSheet?
     @State private var justUpdated = false
+    @State private var scrollSignal = 0
 
     enum HomeTab: Hashable { case summary, sleep, recovery, strain, record }
     enum HomeSheet: Int, Identifiable { case profile, sync, record, activeWorkout; var id: Int { rawValue } }
 
-    /// Selecting the separated "+" opens the record drawer instead of switching tabs, so the
-    /// real selection never lands on `.record` (no content flash).
+    /// Selecting the separated "+" opens the record drawer; any real tab change scrolls the new
+    /// screen to its top.
     private var tabSelection: Binding<HomeTab> {
         Binding(
             get: { tab },
             set: { selected in
-                if selected == .record { sheet = .record } else { tab = selected }
+                if selected == .record {
+                    sheet = .record
+                } else {
+                    tab = selected
+                    scrollSignal += 1
+                }
             }
         )
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            topChrome
+            tabs
+        }
+            .environment(\.scrollToTopSignal, scrollSignal)
+            .sensoryFeedback(.success, trigger: recorder.isRecording)
+            .task {
+                sync.modelContext = modelContext
+                recorder.modelContext = modelContext
+                let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
+                if BuildInfo.build > lastSeen, lastSeen > 0 {
+                    withAnimation { justUpdated = true }
+                }
+                UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
+
+                if manager == nil {
+                    let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
+                    self.manager = manager
+                    await manager.refreshBattery()
+                }
+            }
+            .sheet(item: $sheet) { which in
+                switch which {
+                case .profile: ProfileView(profile: profile)
+                case .sync: MacSyncView(sync: sync, onSyncNow: pushSync)
+                case .record: RecordWorkoutForm(recorder: recorder)
+                case .activeWorkout:
+                    ActiveWorkoutDrawer(recorder: recorder)
+                        .presentationDetents([.medium])
+                }
+            }
+    }
+
+    /// Translucent top chrome (avatar · date · battery · sync) that reserves its own space and
+    /// extends the bar material up into the status-bar area — no flat-black nav strip.
+    private var topChrome: some View {
         VStack(spacing: 0) {
             TopBar(
                 profile: profile,
@@ -41,46 +83,16 @@ struct HomeRootView: View {
                 onProfile: { sheet = .profile },
                 onSync: { sheet = .sync }
             )
-
             if justUpdated {
                 UpdatedBanner(build: BuildInfo.build) {
                     withAnimation { justUpdated = false }
                 }
             }
-
-            tabs
         }
-        .background(AppColor.background.ignoresSafeArea())
-        .sensoryFeedback(.success, trigger: recorder.isRecording)
-        .task {
-            sync.modelContext = modelContext
-            recorder.modelContext = modelContext
-            let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
-            if BuildInfo.build > lastSeen, lastSeen > 0 {
-                withAnimation { justUpdated = true }
-            }
-            UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
-
-            if manager == nil {
-                let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
-                self.manager = manager
-                await manager.refreshBattery()
-            }
-        }
-        .sheet(item: $sheet) { which in
-            switch which {
-            case .profile: ProfileView(profile: profile)
-            case .sync: MacSyncView(sync: sync, onSyncNow: pushSync)
-            case .record: RecordWorkoutForm(recorder: recorder)
-            case .activeWorkout:
-                ActiveWorkoutDrawer(recorder: recorder)
-                    .presentationDetents([.medium])
-            }
-        }
+        .background(.bar, ignoresSafeAreaEdges: .top)
     }
 
-    /// The tab bar. The active-workout bottom accessory is attached only while recording, so no
-    /// empty bar shows otherwise. The "+" is a `.search`-role tab (separated, trailing).
+    /// The active-workout bottom accessory is attached only while recording (no empty bar).
     @ViewBuilder private var tabs: some View {
         if recorder.isRecording {
             tabView.tabViewBottomAccessory {
@@ -98,9 +110,7 @@ struct HomeRootView: View {
             Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) { screen(for: .recovery) }
             Tab("Strain", systemImage: "bolt", value: HomeTab.strain) { screen(for: .strain) }
             Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
-                // Never actually selected (tap is intercepted); mirrors the active screen so the
-                // momentary tab render is pixel-identical — no flash.
-                screen(for: tab)
+                screen(for: tab) // mirrors the active screen; the tap is intercepted
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -126,6 +136,7 @@ struct HomeRootView: View {
         case .recovery: tab = .recovery
         case .strain: tab = .strain
         }
+        scrollSignal += 1
     }
 
     private func pushSync() {

@@ -10,7 +10,7 @@ struct StrainView: View {
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
 
     var body: some View {
-        ScrollView {
+        TopScrollView {
             VStack(spacing: Spacing.md) {
                 PageHeader(title: "Strain")
                 strainHero

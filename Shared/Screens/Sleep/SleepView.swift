@@ -18,7 +18,7 @@ struct SleepView: View {
     }
 
     private var content: some View {
-        ScrollView {
+        TopScrollView {
             VStack(spacing: Spacing.md) {
                 PageHeader(title: "Sleep")
                 scoreHero
@@ -55,22 +55,38 @@ struct SleepView: View {
 
     private var breakdownCard: some View {
         Card(label: "Time in each stage") {
-            VStack(spacing: Spacing.sm) {
-                ForEach(order) { stage in
-                    HStack(spacing: Spacing.sm) {
-                        RoundedRectangle(cornerRadius: 3).fill(stage.color).frame(width: 10, height: 10)
-                        Text(stage.title).font(.subheadline)
-                        Spacer()
-                        if stage != .awake {
-                            Text("\(session.percentage(of: stage))%")
-                                .font(.caption.weight(.semibold)).foregroundStyle(AppColor.secondaryLabel)
-                        }
-                        Text(session.duration(of: stage).formattedDuration).font(.subheadline.weight(.semibold)).monospacedDigit()
+            GeometryReader { geo in
+                VStack(spacing: Spacing.sm) {
+                    ForEach(order) { stage in
+                        stageRow(stage, fullWidth: geo.size.width)
                     }
-                    .accessibilityElement(children: .combine)
                 }
             }
+            .frame(height: CGFloat(order.count) * 26 + CGFloat(order.count - 1) * Spacing.sm)
         }
+    }
+
+    /// One proportional bar (width ∝ the stage's share of the night) followed by its name,
+    /// duration, and percentage — Apple Health's stage legend.
+    private func stageRow(_ stage: SleepStage, fullWidth: CGFloat) -> some View {
+        let maxDuration = order.map { session.duration(of: $0) }.max() ?? 1
+        let fraction = maxDuration > 0 ? session.duration(of: stage) / maxDuration : 0
+        let width = max(26, fullWidth * 0.55 * fraction)
+        return HStack(spacing: Spacing.sm) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(stage.color)
+                .frame(width: width, height: 22)
+            Text(stage.title).font(.subheadline.weight(.semibold))
+            Text(session.duration(of: stage).formattedDuration)
+                .font(.caption).foregroundStyle(AppColor.secondaryLabel).monospacedDigit()
+            if stage != .awake {
+                Text("\(session.percentage(of: stage))%")
+                    .font(.caption).foregroundStyle(.tertiary).monospacedDigit()
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: 26)
+        .accessibilityElement(children: .combine)
     }
 
     private var contributorsCard: some View {

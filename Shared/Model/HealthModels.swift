@@ -63,14 +63,13 @@ enum SleepStage: String, CaseIterable, Identifiable {
         }
     }
 
-    /// A single-hue intensity ramp of the sleep color (deeper sleep = stronger), so the whole
-    /// Sleep tab stays one hue. Awake is the lightest shade.
+    /// Apple-Health-style stage colors: white Awake → light/medium blue → dark navy Deep.
     var color: Color {
         switch self {
-        case .awake: return AppColor.sleep.opacity(0.3)
-        case .rem:   return AppColor.sleep.opacity(0.5)
-        case .light: return AppColor.sleep.opacity(0.72)
-        case .deep:  return AppColor.sleep
+        case .awake: return Color("StageAwake")
+        case .rem:   return Color("StageREM")
+        case .light: return Color("StageLight")
+        case .deep:  return Color("StageDeep")
         }
     }
 
@@ -81,6 +80,27 @@ enum SleepStage: String, CaseIterable, Identifiable {
         case .rem: return 1
         case .light: return 2
         case .deep: return 3
+        }
+    }
+
+    /// Stacked-area height: Deep is the shortest column (1) … Awake the tallest (4).
+    var stackHeight: Int {
+        switch self {
+        case .deep: return 1
+        case .light: return 2
+        case .rem: return 3
+        case .awake: return 4
+        }
+    }
+
+    /// Color of the horizontal band at `level` in the stacked-area chart (0 = Deep band at the
+    /// bottom … 3 = Awake band on top).
+    static func bandColor(_ level: Int) -> Color {
+        switch level {
+        case 0: return SleepStage.deep.color
+        case 1: return SleepStage.light.color
+        case 2: return SleepStage.rem.color
+        default: return SleepStage.awake.color
         }
     }
 }

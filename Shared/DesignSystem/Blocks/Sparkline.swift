@@ -12,6 +12,10 @@ struct Sparkline: View {
             LineMark(x: .value("t", sample.date), y: .value("v", sample.value))
                 .interpolationMethod(.linear)
                 .foregroundStyle(color)
+            AreaMark(x: .value("t", sample.date), y: .value("v", sample.value))
+                .interpolationMethod(.linear)
+                .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
+                                                startPoint: .top, endPoint: .bottom))
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)

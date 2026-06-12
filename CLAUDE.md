@@ -72,8 +72,9 @@ accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `
 `DesignSystem/Blocks/` (rings, contributor rows, zone scale, sparkline, tag chips, period picker…)
 and Swift Charts primitives in `DesignSystem/Charts/` (line/bar/`RingChart`, and the staggered
 **`SleepStageChart`** hypnogram — note Charts places the first categorical y value at the *top*).
-Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain/Vitals via the
-`MetricDetailScreen` template/Trends/Journal/Settings/Onboarding). Everything is fed by
+Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain, the per-metric
+`MetricDetailScreen` template, plus Settings/Onboarding; per-domain trends are an inline
+period-selector card, not a separate screen). Everything is fed by
 **`MockHealthData`** (a seeded, deterministic provider in `Shared/Model/`) — no ring hardware
 needed; screens bind to real data later. Feature coverage is tracked in `FEATURES.md`.
 

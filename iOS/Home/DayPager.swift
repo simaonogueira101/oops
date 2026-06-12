@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Full-view horizontal pager over a window of days (ending today). Swiping changes `date`
-/// (synced to the top-bar date control). Used by every main tab so they all page by day.
+/// Full-view horizontal pager over a window of days (ending today). Implemented as a paging
+/// `ScrollView` — NOT a nested `TabView(.page)` — so the bottom tab bar still observes the
+/// inner scroll views (transparency + minimize-on-scroll keep working).
 struct DayPager<Content: View>: View {
     @Binding var date: Date
     @ViewBuilder var content: (Date) -> Content
+    @State private var position: Date?
 
     /// Last 14 days, oldest → today (today is the last page, so you can't swipe past it).
     private var days: [Date] {
@@ -14,12 +16,27 @@ struct DayPager<Content: View>: View {
     }
 
     var body: some View {
-        TabView(selection: $date) {
-            ForEach(days, id: \.self) { day in
-                content(day).tag(day)
+        GeometryReader { geo in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(days, id: \.self) { day in
+                        content(day)
+                            .frame(width: geo.size.width)
+                    }
+                }
+                .scrollTargetLayout()
             }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $position)
+            .scrollIndicators(.hidden)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .onAppear { position = date }
+        .onChange(of: position) { _, new in
+            if let new, new != date { date = new }
+        }
+        .onChange(of: date) { _, new in
+            if position != new { withAnimation(.snappy) { position = new } }
+        }
         .sensoryFeedback(.selection, trigger: date)
     }
 }

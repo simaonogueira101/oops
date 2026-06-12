@@ -11,12 +11,12 @@ struct TopBar: View {
     let onSync: () -> Void
 
     var body: some View {
-        GlassEffectContainer(spacing: Spacing.md) {
+        GlassEffectContainer(spacing: Spacing.xxs) {
             ZStack {
                 DateNav(date: $date)
-                    .padding(.horizontal, Spacing.sm)
+                    .padding(.horizontal, Spacing.xs)
                     .padding(.vertical, Spacing.xs)
-                    .glassEffect(.regular, in: .capsule)
+                    .glassEffect(.regular.interactive(), in: .capsule)
 
                 HStack {
                     Button(action: onProfile) {
@@ -41,7 +41,7 @@ struct TopBar: View {
                     }
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xs)
-                    .glassEffect(.regular, in: .capsule)
+                    .glassEffect(.regular.interactive(), in: .capsule)
                 }
             }
         }
@@ -91,12 +91,12 @@ private struct DateNav: View {
     private var atEarliest: Bool { cal.startOfDay(for: date) <= earliest }
 
     var body: some View {
-        HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.xxs) {
             Button { step(-1) } label: { Image(systemName: "chevron.backward").imageScale(.small) }
                 .disabled(atEarliest)
                 .accessibilityLabel("Previous day")
             Button { date = today } label: {
-                Text(label).font(.caption.weight(.medium)).monospacedDigit().frame(minWidth: 56)
+                Text(label).font(.caption.weight(.medium)).monospacedDigit().frame(minWidth: 44)
             }
             .accessibilityLabel(isToday ? "Today" : label)
             .accessibilityHint("Go to today")

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The persistent top bar: avatar (left), a centered day navigator (‹ date ›, tap the date to
-/// jump to today), and the ring battery + Mac-sync status (right).
+/// The persistent top bar as three floating Liquid Glass pills over the (transparent) nav:
+/// avatar (left), a centered day navigator, and the ring battery + Mac-sync status (right).
 struct TopBar: View {
     let profile: ProfileStore
     @Binding var date: Date
@@ -11,22 +11,37 @@ struct TopBar: View {
     let onSync: () -> Void
 
     var body: some View {
-        ZStack {
-            DateNav(date: $date)
-            HStack {
-                Button(action: onProfile) { Avatar(profile: profile, size: 30) }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Profile")
-                Spacer()
-                HStack(spacing: Spacing.sm) {
-                    batteryLabel
-                    Button(action: onSync) {
-                        Image(systemName: "laptopcomputer")
-                            .imageScale(.small)
-                            .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
+        GlassEffectContainer(spacing: Spacing.md) {
+            ZStack {
+                DateNav(date: $date)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .glassEffect(.regular, in: .capsule)
+
+                HStack {
+                    Button(action: onProfile) {
+                        Avatar(profile: profile, size: 28)
+                            .padding(Spacing.xxs)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Mac sync")
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel("Profile")
+
+                    Spacer()
+
+                    HStack(spacing: Spacing.sm) {
+                        batteryLabel
+                        Button(action: onSync) {
+                            Image(systemName: "laptopcomputer")
+                                .imageScale(.small)
+                                .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Mac sync")
+                    }
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .glassEffect(.regular, in: .capsule)
                 }
             }
         }
@@ -65,7 +80,7 @@ struct TopBar: View {
 }
 
 /// ‹ date › — arrows step a day (within the last two weeks, capped at today), the centered
-/// label taps back to today. Sized to match the battery indicator.
+/// label taps back to today.
 private struct DateNav: View {
     @Binding var date: Date
 
@@ -81,7 +96,7 @@ private struct DateNav: View {
                 .disabled(atEarliest)
                 .accessibilityLabel("Previous day")
             Button { date = today } label: {
-                Text(label).font(.caption.weight(.medium)).monospacedDigit().frame(minWidth: 64)
+                Text(label).font(.caption.weight(.medium)).monospacedDigit().frame(minWidth: 56)
             }
             .accessibilityLabel(isToday ? "Today" : label)
             .accessibilityHint("Go to today")

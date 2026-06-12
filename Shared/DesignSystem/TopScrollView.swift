@@ -10,17 +10,25 @@ extension EnvironmentValues {
     }
 }
 
-/// A `ScrollView` that returns to the top whenever the bottom-nav signal changes (so tapping a
-/// tab shows its view from the top, like a native tab bar).
+/// A `ScrollView` that (1) clears the floating top-bar pills so content starts below them at
+/// rest but scrolls *under* them (transparent nav + glass refraction), and (2) returns to the
+/// top whenever the bottom-nav signal changes (tapping a tab shows its view from the top).
 struct TopScrollView<Content: View>: View {
     @Environment(\.scrollToTopSignal) private var signal
     @ViewBuilder var content: () -> Content
     private let topID = "screen-top"
 
+    /// Height of the floating top-bar pills + breathing room (iOS only; macOS has no top bar).
+    #if os(iOS)
+    private let topClearance: CGFloat = 52
+    #else
+    private let topClearance: CGFloat = 0
+    #endif
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                Color.clear.frame(height: 0).id(topID)
+                Color.clear.frame(height: topClearance).id(topID)
                 content()
             }
             .onChange(of: signal) { _, _ in

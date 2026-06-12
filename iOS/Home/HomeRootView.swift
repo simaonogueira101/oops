@@ -38,10 +38,8 @@ struct HomeRootView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topChrome
-            tabs
-        }
+        tabs
+            .overlay(alignment: .top) { topChrome }
             .environment(\.scrollToTopSignal, scrollSignal)
             .sensoryFeedback(.success, trigger: recorder.isRecording)
             .task {
@@ -71,8 +69,8 @@ struct HomeRootView: View {
             }
     }
 
-    /// Translucent top chrome (avatar · date · battery · sync) that reserves its own space and
-    /// extends the bar material up into the status-bar area — no flat-black nav strip.
+    /// The glass top bar floats over the content (the nav itself is transparent, so the app
+    /// scrolls visibly beneath the pills).
     private var topChrome: some View {
         VStack(spacing: 0) {
             TopBar(
@@ -89,7 +87,6 @@ struct HomeRootView: View {
                 }
             }
         }
-        .background(.bar, ignoresSafeAreaEdges: .top)
     }
 
     /// The active-workout bottom accessory is attached only while recording (no empty bar).

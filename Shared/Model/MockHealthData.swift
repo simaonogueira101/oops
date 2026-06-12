@@ -68,16 +68,6 @@ struct MockHealthData {
          HRZone(name: "Peak", lowerBPM: 152, upperBPM: 200, minutes: 3, color: AppColor.negative)]
     }
 
-    func workouts() -> [Workout] {
-        [Workout(name: "Outdoor Walk", symbol: "figure.walk", start: referenceDate.addingTimeInterval(-3 * 3600),
-                 duration: 90 * 60, activeCalories: 147, avgHR: 93),
-         Workout(name: "Strength", symbol: "dumbbell", start: referenceDate.addingTimeInterval(-26 * 3600),
-                 duration: 45 * 60, activeCalories: 210, avgHR: 110)]
-    }
-
-    func suggestedTags() -> [String] {
-        ["Caffeine", "Late meal", "Stress", "Travel", "Alcohol", "Workout", "Screen time", "Nap"]
-    }
 }
 
 /// Tiny deterministic PRNG (value type, no Foundation randomness).

@@ -47,7 +47,7 @@ struct HomeRootView: View {
             }
 
             TabView(selection: tabSelection) {
-                Tab("Home", systemImage: "house", value: HomeTab.home) {
+                Tab("Home", systemImage: "circle.grid.2x2", value: HomeTab.home) {
                     NavigationStack {
                         OverviewView(metrics: .sample, date: $date, recorder: recorder)
                     }
@@ -62,7 +62,9 @@ struct HomeRootView: View {
                     NavigationStack { StrainView() }
                 }
                 Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
-                    Color.clear // never shown — selection is intercepted to open the drawer
+                    // Never shown — selection is intercepted to open the drawer. Painted with
+                    // the app background so the tab system's momentary render doesn't flash black.
+                    AppColor.background.ignoresSafeArea()
                 }
             }
         }
@@ -70,6 +72,7 @@ struct HomeRootView: View {
         .tint(AppColor.accent)
         .task {
             sync.modelContext = modelContext
+            recorder.modelContext = modelContext
             let lastSeen = UserDefaults.standard.integer(forKey: "lastSeenBuild")
             if BuildInfo.build > lastSeen, lastSeen > 0 {
                 withAnimation { justUpdated = true }
@@ -90,8 +93,6 @@ struct HomeRootView: View {
                 MacSyncView(sync: sync, onSyncNow: pushSync)
             case .record:
                 RecordWorkoutForm(recorder: recorder)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
             }
         }
     }

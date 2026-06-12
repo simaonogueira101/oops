@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
     @State private var period: Period = .week
+    @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
     private var metrics: DayMetrics { MockHealthData().dayMetrics }
     private var mock: MockHealthData { MockHealthData() }
     private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
@@ -61,13 +63,20 @@ struct StrainView: View {
 
     private var workoutsCard: some View {
         Card(label: "Workouts", accessory: .chevron) {
-            VStack(spacing: Spacing.sm) {
-                ForEach(mock.workouts()) { workout in
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: workout.symbol).foregroundStyle(AppColor.strain).frame(width: 24)
-                        Text(workout.name).font(.subheadline)
-                        Spacer()
-                        Text(hm(workout.duration)).font(.caption.weight(.semibold)).monospacedDigit()
+            if workouts.isEmpty {
+                Text("No workouts yet — tap + to record one.")
+                    .font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+            } else {
+                VStack(spacing: Spacing.sm) {
+                    ForEach(workouts.prefix(3)) { workout in
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: workout.symbol).foregroundStyle(AppColor.strain).frame(width: 24)
+                            Text(workout.name).font(.subheadline)
+                            Spacer()
+                            Text(workout.start, format: .dateTime.weekday().hour().minute())
+                                .font(.caption).foregroundStyle(AppColor.secondaryLabel)
+                            Text(hm(workout.duration)).font(.caption.weight(.semibold)).monospacedDigit()
+                        }
                     }
                 }
             }
@@ -86,7 +95,8 @@ struct StrainView: View {
 
     private func hm(_ ti: TimeInterval) -> String {
         let minutes = Int(ti / 60)
-        return "\(minutes / 60)h \(minutes % 60)m"
+        if minutes < 1 { return "\(Int(ti))s" }
+        return minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(minutes % 60)m"
     }
 }
 

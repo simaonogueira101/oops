@@ -29,7 +29,7 @@ Feature set for the app (modeled on Whoop + Oura, rendered stock-Apple).
 | Sparkline / line-trend / bar-series charts | Inline + full trend charts | ✅ | ✅ |
 | Staggered sleep-stage hypnogram | Awake→Deep staggered horizontal columns | ✅ | ✅ |
 | Period picker / date scroller | Day/Week/Month/Year + day stepping | ✅ | ✅ |
-| Workout map snapshot | Non-interactive route map (placeholder; no GPS yet) | ✅ | ⬜ |
+| Workout map | Route map (cut — the R09 has no GPS) | ⬜ | ⬜ |
 
 ## Overview (Today)
 
@@ -44,7 +44,7 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Steps goal card | Progress toward step goal | ✅ | ⬜ |
 | Heart-rate card | Resting/now + sparkline → Heart Rate | ✅ | ⬜ |
 | Day swipe paging | Swipe left/right on the feed to change day (push transition + haptic) | ✅ | ✅ |
-| Active workout banner | Thin live banner below the hero while recording; opens the live drawer | ✅ | ⬜ |
+| Active workout banner | Thin live banner below the hero while recording; opens the live drawer | ✅ | ✅ |
 
 ## Sleep
 
@@ -77,8 +77,9 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Day strain hero | Strain ring (0–21) + calories/steps | ✅ | ⬜ |
 | Steps / distance / calories | Activity stat grid | ✅ | ⬜ |
 | Heart-rate zones | Zone scale → HR Zones | ✅ | ⬜ |
-| Workouts list + detail | List → detail (map, summary, HR trace) | ✅ | ⬜ |
-| Record workout | Separated "+" tab button → type picker drawer → start/end recording | ✅ | ⬜ |
+| Workouts list + detail | Live recorded history → detail (summary, HR trace) | ✅ | ✅ |
+| Workout history persistence | Ending a recording saves a `WorkoutRecord` to the local SwiftData store | ✅ | ✅ |
+| Record workout | Separated "+" tab button → type picker drawer → start/end recording | ✅ | ✅ |
 | Live workout stats | Elapsed time real; HR/calories mocked until the ring streams them | ✅ | ⬜ |
 | Cardio fitness (VO₂max) | Estimated fitness (cut — not measurable by the R09) | ⬜ | ⬜ |
 | Strain trends | Inline period selector + trend chart | ✅ | ⬜ |

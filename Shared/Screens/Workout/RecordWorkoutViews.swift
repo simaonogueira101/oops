@@ -73,14 +73,15 @@ struct ActiveWorkoutBanner: View {
                             Spacer()
                             Text(elapsedText(at: context.date, since: active.startDate))
                                 .font(.subheadline.weight(.semibold)).monospacedDigit()
-                            Text("\(liveHR(at: context.date, since: active.startDate)) bpm")
+                            Text("\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm")
                                 .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
                         }
                     }
                 }
             }
             .buttonStyle(CardLinkStyle())
-            .cardDrawer(isPresented: $showDrawer) {
+            // The one drawer that stays half-height: glanceable live stats over the feed.
+            .cardDrawer(isPresented: $showDrawer, detents: [.medium, .large]) {
                 ActiveWorkoutDrawer(recorder: recorder)
             }
         }
@@ -108,10 +109,10 @@ struct ActiveWorkoutDrawer: View {
 
                     HStack(spacing: Spacing.lg) {
                         StatTile(label: "Heart rate",
-                                 value: "\(liveHR(at: context.date, since: active.startDate)) bpm",
+                                 value: "\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm",
                                  accent: AppColor.strain)
                         StatTile(label: "Calories",
-                                 value: "\(liveCalories(at: context.date, since: active.startDate))")
+                                 value: "\(workoutLiveCalories(elapsed: context.date.timeIntervalSince(active.startDate)))")
                     }
                     .padding(.horizontal, Spacing.lg)
 
@@ -133,21 +134,10 @@ struct ActiveWorkoutDrawer: View {
     }
 }
 
-// MARK: Live mock stats (replaced by ring data later)
-
 private func elapsedText(at now: Date, since start: Date) -> String {
     let seconds = max(0, Int(now.timeIntervalSince(start)))
     let (h, m, s) = (seconds / 3600, (seconds % 3600) / 60, seconds % 60)
     return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
-}
-
-private func liveHR(at now: Date, since start: Date) -> Int {
-    let elapsed = now.timeIntervalSince(start)
-    return 105 + Int(20 * (sin(elapsed / 45) + 1) / 2)   // gentle 105–125 sweep
-}
-
-private func liveCalories(at now: Date, since start: Date) -> Int {
-    Int(now.timeIntervalSince(start) / 60 * 6)           // ~6 cal/min
 }
 
 #Preview("Form") {

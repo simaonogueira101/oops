@@ -1,58 +1,64 @@
 import SwiftUI
+import SwiftData
 
-/// A list of workouts; each row pushes a detail with a map, summary, and HR chart.
+/// Recorded-workout history (live from the local store); each row pushes a summary.
 struct WorkoutsView: View {
-    private var workouts: [Workout] { MockHealthData().workouts() }
+    @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: Spacing.md) {
-                ForEach(workouts) { workout in
-                    NavigationLink {
-                        WorkoutDetailView(workout: workout)
-                    } label: {
-                        Card(accent: AppColor.strain, accessory: .chevron) {
-                            HStack(spacing: Spacing.sm) {
-                                Image(systemName: workout.symbol)
-                                    .foregroundStyle(AppColor.strain)
-                                    .frame(width: 36, height: 36)
-                                    .background(AppColor.strain.opacity(0.15),
-                                                in: RoundedRectangle(cornerRadius: 9))
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(workout.name).font(.headline)
-                                    Text(workout.start.formatted(.dateTime.weekday().hour().minute()))
-                                        .font(.caption).foregroundStyle(AppColor.secondaryLabel)
+        Group {
+            if workouts.isEmpty {
+                ContentUnavailableView(
+                    "No Workouts",
+                    systemImage: "figure.run",
+                    description: Text("Tap + on the tab bar to record one.")
+                )
+            } else {
+                ScrollView {
+                    VStack(spacing: Spacing.md) {
+                        ForEach(workouts) { workout in
+                            NavigationLink {
+                                WorkoutDetailView(workout: workout)
+                            } label: {
+                                Card(accent: AppColor.strain, accessory: .chevron) {
+                                    HStack(spacing: Spacing.sm) {
+                                        Image(systemName: workout.symbol)
+                                            .foregroundStyle(AppColor.strain)
+                                            .frame(width: 36, height: 36)
+                                            .background(AppColor.strain.opacity(0.15),
+                                                        in: RoundedRectangle(cornerRadius: 9))
+                                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                            Text(workout.name).font(.headline)
+                                            Text(workout.start.formatted(.dateTime.weekday().day().month().hour().minute()))
+                                                .font(.caption).foregroundStyle(AppColor.secondaryLabel)
+                                        }
+                                        Spacer()
+                                        Text(hm(workout.duration))
+                                            .font(.subheadline.weight(.semibold)).monospacedDigit()
+                                    }
                                 }
-                                Spacer()
-                                Text(hm(workout.duration)).font(.subheadline.weight(.semibold)).monospacedDigit()
                             }
+                            .buttonStyle(CardLinkStyle())
                         }
                     }
-                    .buttonStyle(.plain)
+                    .padding(Spacing.md)
                 }
             }
-            .padding(Spacing.md)
         }
         .background(AppColor.background)
         .inlineNavigationTitle("Workouts")
     }
-
-    private func hm(_ ti: TimeInterval) -> String {
-        let minutes = Int(ti / 60)
-        return "\(minutes / 60)h \(minutes % 60)m"
-    }
 }
 
-/// A single workout's detail: route map, summary stats, and a heart-rate trace.
+/// A recorded workout's summary: stats and a heart-rate trace. (No map — the ring has no GPS.)
 struct WorkoutDetailView: View {
-    let workout: Workout
+    let workout: WorkoutRecord
     private var mock: MockHealthData { MockHealthData() }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Spacing.md) {
-                Card(label: workout.name) { WorkoutMapSnapshot() }
-                Card(label: "Summary") {
+                Card(label: workout.name, title: workout.start.formatted(.dateTime.weekday(.wide).day().month())) {
                     HStack {
                         StatTile(label: "Duration", value: hm(workout.duration), accent: AppColor.strain)
                         StatTile(label: "Calories", value: "\(workout.activeCalories)")
@@ -69,13 +75,15 @@ struct WorkoutDetailView: View {
         .background(AppColor.background)
         .inlineNavigationTitle(workout.name)
     }
+}
 
-    private func hm(_ ti: TimeInterval) -> String {
-        let minutes = Int(ti / 60)
-        return "\(minutes / 60)h \(minutes % 60)m"
-    }
+private func hm(_ ti: TimeInterval) -> String {
+    let minutes = Int(ti / 60)
+    if minutes < 1 { return "\(Int(ti))s" }
+    return minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(minutes % 60)m"
 }
 
 #Preview {
     NavigationStack { WorkoutsView() }
+        .modelContainer(for: WorkoutRecord.self, inMemory: true)
 }

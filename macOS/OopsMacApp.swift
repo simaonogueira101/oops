@@ -27,7 +27,7 @@ struct OopsMacApp: App {
         }
         .menuBarExtraStyle(.window)
         // Local-only SwiftData store (the Mac is the sync hub; no CloudKit).
-        .modelContainer(for: BatteryReading.self)
+        .modelContainer(for: [BatteryReading.self, WorkoutRecord.self])
 
         Window("Set up Oops", id: "setup") {
             OnboardingView(setup: setup)

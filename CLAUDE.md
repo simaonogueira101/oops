@@ -71,7 +71,9 @@ accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `
 which guards the iOS-only `navigationBarTitleDisplayMode` so shared screens compile on macOS).
 Workout recording (`Screens/Workout/`): the tab bar's separated trailing "+" (a `Tab` with
 `role: .search` whose selection is intercepted) opens `RecordWorkoutForm`; `WorkoutRecorder`
-holds the active session and `ActiveWorkoutBanner` surfaces it on Home. Content blocks live in
+holds the active session, `ActiveWorkoutBanner` surfaces it on Home, and ending a workout
+persists a `WorkoutRecord` that Strain's history reads live via `@Query`. Drawers open
+full-height by default; the active-workout drawer is the one medium-detent exception. Content blocks live in
 `DesignSystem/Blocks/` (rings, contributor rows, zone scale, sparkline, tag chips, period picker…)
 and Swift Charts primitives in `DesignSystem/Charts/` (line/bar/`RingChart`, and the staggered
 **`SleepStageChart`** hypnogram — note Charts places the first categorical y value at the *top*).
@@ -94,7 +96,7 @@ hardware-bound transport, so we develop against a fake ring today and swap in BL
   persist (SwiftData) → publish`. The composition root (`iOS/OopsApp`) injects the transport.
 
 ### Persistence
-`@Model` types (`BatteryReading`, and iOS-only `SyncLogEntry`) in a **local-only**
+`@Model` types (`BatteryReading`, `WorkoutRecord`, and iOS-only `SyncLogEntry`) in a **local-only**
 `ModelContainer` (no `cloudKitDatabase`). `iOS/OopsApp` wraps container creation in a
 **try / wipe-and-recreate guard** — adding a `@Model` to the schema can make the on-disk
 store fail to open, which would otherwise crash on launch on a device with an existing store.

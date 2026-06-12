@@ -9,7 +9,7 @@ struct OopsApp: App {
     init() {
         // Local-only SwiftData store (no CloudKit, by design). If the on-disk store is
         // incompatible after a schema change, start fresh rather than crash on launch.
-        let schema = Schema([BatteryReading.self, SyncLogEntry.self])
+        let schema = Schema([BatteryReading.self, SyncLogEntry.self, WorkoutRecord.self])
         let config = ModelConfiguration(schema: schema)
         if let existing = try? ModelContainer(for: schema, configurations: config) {
             container = existing

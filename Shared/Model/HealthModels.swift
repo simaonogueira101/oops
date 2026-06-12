@@ -87,13 +87,3 @@ struct HRZone: Identifiable, Equatable {
     let color: Color
 }
 
-/// A recorded workout summary.
-struct Workout: Identifiable, Equatable {
-    let id = UUID()
-    let name: String
-    let symbol: String
-    let start: Date
-    let duration: TimeInterval
-    let activeCalories: Int
-    let avgHR: Int
-}

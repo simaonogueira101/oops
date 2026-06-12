@@ -12,12 +12,8 @@ struct StrainView: View {
             VStack(spacing: Spacing.md) {
                 strainHero
                 activityStats
-                goalCard
                 zonesCard
                 workoutsCard
-                balanceCard
-                cardioLoadCard
-                fitnessCard
                 trendsCard
             }
             .padding(Spacing.md)
@@ -56,13 +52,6 @@ struct StrainView: View {
         }
     }
 
-    private var goalCard: some View {
-        Card(label: "Move goal", accent: AppColor.strain) {
-            GoalProgress(current: Double(metrics.steps), goal: Double(metrics.stepGoal),
-                         accent: AppColor.strain, unit: "steps", style: .ring)
-        }
-    }
-
     private var zonesCard: some View {
         Card(label: "Heart-rate zones", accessory: .chevron) {
             ZoneScale(zones: mock.hrZones())
@@ -84,30 +73,6 @@ struct StrainView: View {
             }
         }
         .navigates(to: .workouts)
-    }
-
-    private var balanceCard: some View {
-        Card(label: "Active vs restorative") {
-            HStack {
-                StatTile(label: "Active", value: "2h 10m", accent: AppColor.strain)
-                StatTile(label: "Restorative", value: "21h 50m", accent: AppColor.recovery)
-            }
-        }
-    }
-
-    private var cardioLoadCard: some View {
-        Card(label: "Cardio load") {
-            BarSeriesChart(samples: mock.stepsSeries(days: 7), color: AppColor.strain)
-        }
-    }
-
-    private var fitnessCard: some View {
-        Card(label: "Cardio fitness", accessory: .value("VO₂max")) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                Text("46").font(.title.weight(.semibold)).foregroundStyle(AppColor.strain)
-                Text("Above average").font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-            }
-        }
     }
 
     private var trendsCard: some View {

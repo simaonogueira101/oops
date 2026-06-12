@@ -10,16 +10,6 @@ struct HRZonesView: View {
             VStack(spacing: Spacing.md) {
                 PeriodPicker(period: $period)
                 Card(label: "Time in zones") { ZoneScale(zones: zones) }
-                ForEach(zones) { zone in
-                    Card(label: zone.name, accessory: .value("\(zone.minutes)m")) {
-                        HStack(spacing: Spacing.sm) {
-                            RoundedRectangle(cornerRadius: 3).fill(zone.color).frame(width: 10, height: 10)
-                            Text("\(zone.lowerBPM)–\(zone.upperBPM) bpm")
-                                .font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
-                            Spacer()
-                        }
-                    }
-                }
             }
             .padding(Spacing.md)
         }

@@ -15,10 +15,7 @@ struct SleepView: View {
                 hypnogramCard
                 breakdownCard
                 contributorsCard
-                durationsCard
                 sleepingHRCard
-                hrvCard
-                respiratoryCard
                 timingCard
                 trendsCard
             }
@@ -78,31 +75,10 @@ struct SleepView: View {
         }
     }
 
-    private var durationsCard: some View {
-        Card(label: "Sleep & bed") {
-            HStack {
-                StatTile(label: "Asleep", value: hm(session.totalAsleep), accent: AppColor.sleep)
-                StatTile(label: "In bed", value: hm(session.timeInBed))
-            }
-        }
-    }
-
     private var sleepingHRCard: some View {
         Card(label: "Sleeping heart rate", accessory: .value("52 bpm")) {
             LineTrendChart(samples: mock.series(days: 14, base: 52, spread: 8),
                            color: AppColor.recovery, baseline: 54)
-        }
-    }
-
-    private var hrvCard: some View {
-        Card(label: "HRV during sleep", accessory: .value("48 ms")) {
-            LineTrendChart(samples: mock.hrvSeries(days: 14), color: AppColor.recovery, baseline: 44)
-        }
-    }
-
-    private var respiratoryCard: some View {
-        Card(label: "Respiratory rate", accessory: .value("14.1 br/min")) {
-            Sparkline(samples: mock.series(days: 14, base: 14, spread: 2), color: AppColor.recovery)
         }
     }
 

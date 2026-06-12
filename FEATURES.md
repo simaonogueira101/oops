@@ -52,10 +52,7 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 | Sleep-stage hypnogram | Staggered horizontal columns over the night | ✅ | ⬜ |
 | Stage breakdown | Awake/REM/Light/Deep %, + duration | ✅ | ⬜ |
 | Sleep contributors | Efficiency, restfulness, latency, timing | ✅ | ⬜ |
-| Time in bed / asleep | Aggregate durations | ✅ | ⬜ |
 | Sleeping heart rate | Overnight HR trend | ✅ | ⬜ |
-| HRV during sleep | Overnight HRV trend | ✅ | ⬜ |
-| Respiratory rate (sleep) | Overnight respiratory sparkline | ✅ | ⬜ |
 | Bedtime / timing | Bedtime & wake | ✅ | ⬜ |
 | Sleep trends | Inline period selector + trend chart | ✅ | ⬜ |
 
@@ -77,12 +74,9 @@ Implemented ⬜ across the board — these render mock data until the ring is co
 |---|---|---|---|
 | Day strain hero | Strain ring (0–21) + calories/steps | ✅ | ⬜ |
 | Steps / distance / calories | Activity stat grid | ✅ | ⬜ |
-| Move goal | Goal ring | ✅ | ⬜ |
 | Heart-rate zones | Zone scale → HR Zones | ✅ | ⬜ |
 | Workouts list + detail | List → detail (map, summary, HR trace) | ✅ | ⬜ |
-| Active vs restorative | Time split | ✅ | ⬜ |
-| Cardio load | Daily bar series | ✅ | ⬜ |
-| Cardio fitness (VO₂max) | Estimated fitness | ✅ | ⬜ |
+| Cardio fitness (VO₂max) | Estimated fitness (cut — not measurable by the R09) | ⬜ | ⬜ |
 | Strain trends | Inline period selector + trend chart | ✅ | ⬜ |
 | HR zones screen | Period picker + per-zone cards | ✅ | ⬜ |
 

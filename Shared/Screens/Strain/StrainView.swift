@@ -21,6 +21,7 @@ struct StrainView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
+        .navigationTitle("Strain")
     }
 
     private var strainHero: some View {

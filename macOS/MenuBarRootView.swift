@@ -33,7 +33,14 @@ struct MenuBarRootView: View {
 
             Group {
                 switch tab {
-                case .overview: OverviewView(metrics: .sample, date: $date, recorder: recorder)
+                case .overview:
+                    OverviewView(metrics: .sample, date: $date, recorder: recorder) { domain in
+                        switch domain {
+                        case .sleep: tab = .sleep
+                        case .recovery: tab = .recovery
+                        case .strain: tab = .strain
+                        }
+                    }
                 case .sleep: SleepView()
                 case .recovery: RecoveryView()
                 case .strain: StrainView()

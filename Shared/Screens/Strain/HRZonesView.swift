@@ -14,6 +14,7 @@ struct HRZonesView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
+        .drawerTitle("Heart Rate Zones")
     }
 }
 

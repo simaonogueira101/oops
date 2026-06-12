@@ -45,6 +45,7 @@ struct RecordWorkoutForm: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
+            .drawerTitle("Record Workout")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -54,7 +55,42 @@ struct RecordWorkoutForm: View {
     }
 }
 
-/// The thin ongoing-workout banner shown on Home below the hero. Tapping opens the live drawer.
+/// Compact ongoing-workout bar for the iOS 26 tab-bar bottom accessory (Now-Playing style).
+/// Tapping opens the live drawer.
+struct ActiveWorkoutAccessory: View {
+    let recorder: WorkoutRecorder
+    @State private var showDrawer = false
+
+    var body: some View {
+        if let active = recorder.active {
+            Button { showDrawer = true } label: {
+                TimelineView(.periodic(from: active.startDate, by: 1)) { context in
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "record.circle")
+                            .symbolEffect(.pulse)
+                            .foregroundStyle(AppColor.strain)
+                        Text(active.type.rawValue).font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(elapsedText(at: context.date, since: active.startDate))
+                            .font(.subheadline.weight(.semibold)).monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text("\(workoutLiveHR(elapsed: context.date.timeIntervalSince(active.startDate))) bpm")
+                            .font(.footnote).foregroundStyle(AppColor.secondaryLabel)
+                    }
+                    .padding(.horizontal, Spacing.md)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Workout in progress: \(active.type.rawValue)")
+            .cardDrawer(isPresented: $showDrawer, detents: [.medium, .large]) {
+                ActiveWorkoutDrawer(recorder: recorder)
+            }
+        }
+    }
+}
+
+/// The thin ongoing-workout banner shown in the macOS feed (no tab-bar accessory there).
+/// Tapping opens the live drawer.
 struct ActiveWorkoutBanner: View {
     let recorder: WorkoutRecorder
     @State private var showDrawer = false
@@ -65,10 +101,10 @@ struct ActiveWorkoutBanner: View {
                 Card(accent: AppColor.strain, style: .tinted(AppColor.strain)) {
                     TimelineView(.periodic(from: active.startDate, by: 1)) { context in
                         HStack(spacing: Spacing.sm) {
-                            Image(systemName: active.type.symbol)
+                            Image(systemName: "record.circle")
+                                .symbolEffect(.pulse)
                                 .foregroundStyle(AppColor.strain)
                             Text(active.type.rawValue).font(.subheadline.weight(.semibold))
-                            ProgressView().controlSize(.small).tint(AppColor.strain)
                             Spacer()
                             Text(elapsedText(at: context.date, since: active.startDate))
                                 .font(.subheadline.weight(.semibold)).monospacedDigit()
@@ -96,7 +132,6 @@ struct ActiveWorkoutDrawer: View {
         if let active = recorder.active {
             TimelineView(.periodic(from: active.startDate, by: 1)) { context in
                 VStack(spacing: Spacing.lg) {
-                    Capsule().fill(.clear).frame(height: Spacing.xs)
                     Image(systemName: active.type.symbol)
                         .font(.headerGlyph)
                         .symbolRenderingMode(.hierarchical)

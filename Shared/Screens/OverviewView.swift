@@ -6,6 +6,8 @@ struct OverviewView: View {
     let metrics: DayMetrics
     @Binding var date: Date
     let recorder: WorkoutRecorder
+    /// Switches to a domain's tab (Summary cards never duplicate a tab inside a sheet).
+    var openDomain: (Domain) -> Void = { _ in }
 
     @State private var swipeEdge: Edge = .trailing
     private var mock: MockHealthData { MockHealthData() }
@@ -20,9 +22,9 @@ struct OverviewView: View {
                 // so it gets the in-content date scroller instead.
                 #if os(macOS)
                 DateScroller(date: $date)
+                ActiveWorkoutBanner(recorder: recorder)
                 #endif
                 recoveryHero
-                ActiveWorkoutBanner(recorder: recorder)
                 sleepStrainRow
                 stepsCard
                 heartRateCard
@@ -32,6 +34,7 @@ struct OverviewView: View {
             .transition(.push(from: swipeEdge))
         }
         .background(AppColor.background)
+        .navigationTitle("Summary")
         .simultaneousGesture(daySwipe)
         .sensoryFeedback(.selection, trigger: dayKey)
     }
@@ -69,7 +72,7 @@ struct OverviewView: View {
             )
             .padding(.vertical, Spacing.xs)
         }
-        .navigates(to: .recovery)
+        .domainButton(.recovery, openDomain)
     }
 
     // MARK: Rows
@@ -82,7 +85,7 @@ struct OverviewView: View {
                     Sparkline(samples: mock.hrvSeries(days: 10), color: AppColor.sleep)
                 }
             }
-            .navigates(to: .sleep)
+            .domainButton(.sleep, openDomain)
 
             Card(label: "Strain", accent: AppColor.strain, accessory: .chevron) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -90,7 +93,7 @@ struct OverviewView: View {
                     Sparkline(samples: mock.stepsSeries(days: 10), color: AppColor.strain)
                 }
             }
-            .navigates(to: .strain)
+            .domainButton(.strain, openDomain)
         }
     }
 
@@ -99,7 +102,7 @@ struct OverviewView: View {
             GoalProgress(current: Double(metrics.steps), goal: Double(metrics.stepGoal),
                          accent: AppColor.strain, unit: "steps")
         }
-        .navigates(to: .strain)
+        .domainButton(.strain, openDomain)
     }
 
     private var heartRateCard: some View {
@@ -119,6 +122,14 @@ struct OverviewView: View {
 
     private func compactValue(_ text: String, color: Color) -> some View {
         Text(text).font(.title.weight(.semibold)).foregroundStyle(color)
+    }
+}
+
+private extension View {
+    /// Wraps a card so tapping it switches to the given domain tab.
+    func domainButton(_ domain: Domain, _ open: @escaping (Domain) -> Void) -> some View {
+        Button { open(domain) } label: { self }
+            .buttonStyle(CardLinkStyle())
     }
 }
 

@@ -52,6 +52,7 @@ struct ProfileView: View {
                     Text("Your Mac auto-installs new builds when you commit, so this updates on its own.")
                 }
             }
+            .drawerTitle("Profile")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { profile.setName(name); dismiss() }

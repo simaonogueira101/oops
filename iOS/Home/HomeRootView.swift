@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// iPhone root: a persistent top bar above the iOS 26 Liquid-Glass floating tab bar
-/// (Overview · Sleep · Recovery · Strain). Top-bar elements open their own sheets.
+/// iPhone root: four domain tabs, each in its own `NavigationStack` with a large title and a
+/// shared toolbar (battery · sync · record · profile). The active workout surfaces as a
+/// Now-Playing-style bottom accessory above the tab bar.
 struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \BatteryReading.timestamp, order: .reverse) private var readings: [BatteryReading]
@@ -12,63 +13,54 @@ struct HomeRootView: View {
     @State private var profile = ProfileStore()
     @State private var recorder = WorkoutRecorder()
     @State private var date = Date()
-    @State private var tab = HomeTab.home
+    @State private var tab = HomeTab.summary
     @State private var sheet: HomeSheet?
     @State private var justUpdated = false
 
-    enum HomeTab: Hashable { case home, sleep, recovery, strain, record }
-    enum HomeSheet: Int, Identifiable { case profile, sync, record; var id: Int { rawValue } }
-
-    /// Selecting the trailing "+" opens the record drawer instead of switching tabs.
-    private var tabSelection: Binding<HomeTab> {
-        Binding(
-            get: { tab },
-            set: { selected in
-                if selected == .record { sheet = .record } else { tab = selected }
-            }
-        )
-    }
+    enum HomeTab: Hashable { case summary, sleep, recovery, strain }
+    enum HomeSheet: Int, Identifiable { case profile, sync, record, battery; var id: Int { rawValue } }
 
     var body: some View {
-        VStack(spacing: 0) {
-            TopBar(
-                profile: profile,
-                date: $date,
-                battery: manager?.batteryStatus,
-                syncState: sync.state,
-                onProfile: { sheet = .profile },
-                onSync: { sheet = .sync }
-            )
-
+        TabView(selection: $tab) {
+            Tab("Summary", systemImage: "circle.grid.2x2", value: HomeTab.summary) {
+                NavigationStack {
+                    OverviewView(metrics: .sample, date: $date, recorder: recorder,
+                                 openDomain: openDomain)
+                        .navigationSubtitle(subtitleText)
+                        .toolbar { sharedToolbar }
+                }
+            }
+            Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
+                NavigationStack {
+                    SleepView().toolbar { sharedToolbar }
+                }
+            }
+            Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
+                NavigationStack {
+                    RecoveryView().toolbar { sharedToolbar }
+                }
+            }
+            Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
+                NavigationStack {
+                    StrainView().toolbar { sharedToolbar }
+                }
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            if recorder.isRecording {
+                ActiveWorkoutAccessory(recorder: recorder)
+            }
+        }
+        .overlay(alignment: .top) {
             if justUpdated {
                 UpdatedBanner(build: BuildInfo.build) {
                     withAnimation { justUpdated = false }
                 }
             }
-
-            TabView(selection: tabSelection) {
-                Tab("Home", systemImage: "circle.grid.2x2", value: HomeTab.home) {
-                    screen(for: .home)
-                }
-                Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
-                    screen(for: .sleep)
-                }
-                Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
-                    screen(for: .recovery)
-                }
-                Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
-                    screen(for: .strain)
-                }
-                Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
-                    // Never the real selection — the tap is intercepted to open the record
-                    // drawer. But the tab system still renders this tab for a frame before the
-                    // selection snaps back, so mirror the active screen to make that invisible.
-                    screen(for: tab)
-                }
-            }
         }
+        .sensoryFeedback(.success, trigger: recorder.isRecording)
         .background(AppColor.background.ignoresSafeArea())
-        .tint(AppColor.accent)
         .task {
             sync.modelContext = modelContext
             recorder.modelContext = modelContext
@@ -92,18 +84,70 @@ struct HomeRootView: View {
                 MacSyncView(sync: sync, onSyncNow: pushSync)
             case .record:
                 RecordWorkoutForm(recorder: recorder)
+            case .battery:
+                if let manager {
+                    BatteryScreen(manager: manager)
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private func screen(for tab: HomeTab) -> some View {
-        switch tab {
-        case .home: OverviewView(metrics: .sample, date: $date, recorder: recorder)
-        case .sleep: SleepView()
-        case .recovery: RecoveryView()
-        case .strain: StrainView()
-        case .record: AppColor.background.ignoresSafeArea() // unreachable
+    // MARK: Toolbar
+
+    @ToolbarContentBuilder
+    private var sharedToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarLeading) {
+            Button {
+                sheet = .battery
+            } label: {
+                HStack(spacing: Spacing.xxs) {
+                    if let battery = manager?.batteryStatus {
+                        Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
+                    }
+                    Image(systemName: batterySymbol)
+                        .foregroundStyle(manager?.batteryStatus?.isCharging == true ? AppColor.positive : .primary)
+                }
+            }
+            .accessibilityLabel(batteryAccessibilityLabel)
+
+            Button("Mac sync", systemImage: "laptopcomputer") { sheet = .sync }
+                .foregroundStyle(sync.state == .sent ? AppColor.positive : .primary)
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button("Record workout", systemImage: "plus") { sheet = .record }
+            Button { sheet = .profile } label: { Avatar(profile: profile, size: 30) }
+                .accessibilityLabel("Profile")
+        }
+    }
+
+    private var subtitleText: String {
+        Calendar.current.isDateInToday(date)
+            ? "Today"
+            : date.formatted(.dateTime.weekday(.wide).month().day())
+    }
+
+    private var batterySymbol: String {
+        guard let status = manager?.batteryStatus else { return "battery.50percent" }
+        if status.isCharging { return "battery.100percent.bolt" }
+        switch status.level {
+        case ...10: return "battery.0percent"
+        case ...30: return "battery.25percent"
+        case ...60: return "battery.50percent"
+        case ...85: return "battery.75percent"
+        default: return "battery.100percent"
+        }
+    }
+
+    private var batteryAccessibilityLabel: String {
+        guard let status = manager?.batteryStatus else { return "Ring battery" }
+        return "Ring battery \(status.level) percent\(status.isCharging ? ", charging" : "")"
+    }
+
+    private func openDomain(_ domain: Domain) {
+        switch domain {
+        case .sleep: tab = .sleep
+        case .recovery: tab = .recovery
+        case .strain: tab = .strain
         }
     }
 

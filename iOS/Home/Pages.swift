@@ -53,6 +53,7 @@ struct MacSyncView: View {
                     }
                 }
             }
+            .drawerTitle("Mac Sync")
         }
     }
 

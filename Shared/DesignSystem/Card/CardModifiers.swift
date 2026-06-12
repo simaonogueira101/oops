@@ -1,18 +1,17 @@
 import SwiftUI
 
 extension View {
-    /// Present a bottom drawer (sheet) from a tapped card. Full-height by default (like the
-    /// Mac-sync drawer); pass detents for the rare glanceable case (active workout).
+    /// Present a bottom drawer (sheet) from a tapped card. Glanceable medium detent first,
+    /// expandable to full — with the system's sheet material and chrome (no overrides).
     func cardDrawer<DrawerContent: View>(
         isPresented: Binding<Bool>,
-        detents: Set<PresentationDetent> = [.large],
+        detents: Set<PresentationDetent> = [.medium, .large],
         @ViewBuilder content: @escaping () -> DrawerContent
     ) -> some View {
         sheet(isPresented: isPresented) {
             content()
                 .presentationDetents(detents)
-                .presentationDragIndicator(.visible)
-                .presentationBackground(AppColor.surfaceElevated)
+                .presentationDragIndicator(detents.count > 1 ? .visible : .automatic)
         }
     }
 }

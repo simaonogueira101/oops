@@ -35,6 +35,7 @@ struct MetricDetailScreen: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
+        .drawerTitle(title)
     }
 
     private var average: String {

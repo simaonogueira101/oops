@@ -24,13 +24,12 @@ struct RecoveryView: View {
     }
 
     private var scoreHero: some View {
-        Card(label: "Recovery", title: band.label, accent: AppColor.recovery,
-             footer: .text("You're well recovered — a good day to take on more strain.")) {
+        Card(label: "Recovery", title: band.label, accent: AppColor.recovery) {
             HStack(spacing: Spacing.lg) {
                 ScoreRing(score: 72, accent: AppColor.recovery, caption: band.label, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Higher than your 30-day average").font(.subheadline)
-                    Text("HRV 48 ms · RHR 54 bpm").font(.caption).foregroundStyle(AppColor.secondaryLabel)
+                    Text("HRV 48 ms").font(.subheadline)
+                    Text("RHR 54 bpm").font(.subheadline)
                 }
             }
         }

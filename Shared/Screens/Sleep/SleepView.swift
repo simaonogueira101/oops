@@ -25,10 +25,9 @@ struct SleepView: View {
     }
 
     private var scoreHero: some View {
-        Card(label: "Sleep", title: "Restful night", accent: AppColor.sleep,
-             footer: .text("REM and deep sleep accounted for a healthy share of your night.")) {
+        Card(label: "Sleep", accent: AppColor.sleep) {
             HStack(spacing: Spacing.lg) {
-                ScoreRing(score: 86, accent: AppColor.sleep, caption: "Good", size: 120)
+                ScoreRing(score: 86, accent: AppColor.sleep, caption: ScoreBand(score: 86).label, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(hm(session.totalAsleep)).font(.title.weight(.semibold))
                     Text("asleep").font(.caption).foregroundStyle(AppColor.secondaryLabel)

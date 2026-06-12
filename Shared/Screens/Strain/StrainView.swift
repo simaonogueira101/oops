@@ -24,8 +24,7 @@ struct StrainView: View {
     }
 
     private var strainHero: some View {
-        Card(label: "Day strain", title: "Moderate", accent: AppColor.strain,
-             footer: .text("You're on track for a balanced day of effort.")) {
+        Card(label: "Day strain", accent: AppColor.strain) {
             HStack(spacing: Spacing.lg) {
                 ZStack {
                     RingChart(value: metrics.strainFraction, color: AppColor.strain)

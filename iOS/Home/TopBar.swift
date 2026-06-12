@@ -15,7 +15,7 @@ struct TopBar: View {
             ZStack {
                 DateNav(date: $date)
                     .padding(.horizontal, Spacing.xs)
-                    .padding(.vertical, Spacing.xs)
+                    .frame(height: pillHeight)
                     .glassEffect(.regular.interactive(), in: .capsule)
 
                 HStack {
@@ -24,6 +24,7 @@ struct TopBar: View {
                             .padding(Spacing.xxs)
                     }
                     .buttonStyle(.plain)
+                    .frame(height: pillHeight)
                     .glassEffect(.regular.interactive(), in: .circle)
                     .accessibilityLabel("Profile")
 
@@ -40,7 +41,7 @@ struct TopBar: View {
                         .accessibilityLabel("Mac sync")
                     }
                     .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
+                    .frame(height: pillHeight)
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
             }
@@ -48,6 +49,9 @@ struct TopBar: View {
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.xs)
     }
+
+    /// All three pills match the avatar pill: 28pt avatar + xxs padding each side.
+    private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
 
     private var batteryLabel: some View {
         HStack(spacing: Spacing.xxs) {

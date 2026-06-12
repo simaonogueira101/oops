@@ -10,6 +10,9 @@ struct DeltaLabel: View {
 
     var body: some View {
         HStack(spacing: Spacing.xxs) {
+            Text(info.value, format: .number.precision(.fractionLength(0)))
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
             Image(systemName: info.direction.symbol)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(tint ?? info.direction.color(upIsGood: upIsGood))
@@ -20,7 +23,7 @@ struct DeltaLabel: View {
                 .monospacedDigit()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(info.direction == .up ? "Up" : info.direction == .down ? "Down" : "Unchanged") \(Int(abs(info.value - info.baseline))) from \(Int(info.baseline))")
+        .accessibilityLabel("\(Int(info.value)), \(info.direction == .up ? "up" : info.direction == .down ? "down" : "unchanged") \(Int(abs(info.value - info.baseline))) from \(Int(info.baseline))")
     }
 }
 

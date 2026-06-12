@@ -70,8 +70,7 @@ struct HomeRootView: View {
             }
     }
 
-    /// The glass top bar floats over the content; a progressive fade scrim beneath it softens
-    /// content scrolling under (Settings-style edge treatment for a custom bar).
+    /// The glass top bar floats over the content — fully transparent nav, no scrim.
     private var topChrome: some View {
         VStack(spacing: 0) {
             TopBar(
@@ -87,15 +86,6 @@ struct HomeRootView: View {
                     withAnimation { justUpdated = false }
                 }
             }
-        }
-        .background {
-            LinearGradient(
-                colors: [AppColor.background.opacity(0.95), AppColor.background.opacity(0.75), .clear],
-                startPoint: .top, endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-            .padding(.bottom, -Spacing.lg)
-            .allowsHitTesting(false)
         }
     }
 

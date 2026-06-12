@@ -33,17 +33,17 @@ struct OverviewView: View {
     // MARK: Hero
 
     private var recoveryHero: some View {
-        Card(label: "Recovery", systemImage: "gauge.with.needle",
+        Card(label: "Recovery", systemImage: "heart.fill",
              accent: AppColor.recovery, accessory: .chevron) {
             ScoreHero(score: metrics.score, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
                 HeroStat(label: "HRV", value: "\(metrics.hrv) ms",
-                         symbol: "waveform.path.ecg", color: AppColor.recovery),
+                         symbol: "waveform", color: AppColor.recovery),
                 HeroStat(label: "Resting HR", value: "\(metrics.restingHR) bpm",
                          symbol: "heart.fill", color: AppColor.recovery),
                 HeroStat(label: "Strain", value: strainText,
-                         symbol: "flame.fill", color: AppColor.strain),
+                         symbol: "bolt.fill", color: AppColor.strain),
                 HeroStat(label: "Sleep", value: "\(sleepScore)",
-                         symbol: "bed.double.fill", color: AppColor.sleep)
+                         symbol: "moon.fill", color: AppColor.sleep)
             ])
             .padding(.vertical, Spacing.xs)
         }
@@ -53,7 +53,7 @@ struct OverviewView: View {
     // MARK: Cards
 
     private var sleepCard: some View {
-        Card(label: "Sleep", systemImage: "bed.double.fill", accent: AppColor.sleep, accessory: .chevron) {
+        Card(label: "Sleep", systemImage: "moon.fill", accent: AppColor.sleep, accessory: .chevron) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 compactValue("\(sleepScore)")
                 Sparkline(samples: mock.sleepScoreSeries(days: 14), color: AppColor.sleep)
@@ -63,7 +63,7 @@ struct OverviewView: View {
     }
 
     private var strainCard: some View {
-        Card(label: "Strain", systemImage: "flame.fill", accent: AppColor.strain, accessory: .chevron) {
+        Card(label: "Strain", systemImage: "bolt.fill", accent: AppColor.strain, accessory: .chevron) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 compactValue(strainText)
                 Sparkline(samples: mock.strainSeries(days: 14), color: AppColor.strain)

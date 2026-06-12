@@ -7,12 +7,16 @@ struct Sparkline: View {
     var color: Color
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 40
 
+    private var floorValue: Double { samples.map(\.value).min() ?? 0 }
+
     var body: some View {
         Chart(samples) { sample in
             LineMark(x: .value("t", sample.date), y: .value("v", sample.value))
                 .interpolationMethod(.linear)
                 .foregroundStyle(color)
-            AreaMark(x: .value("t", sample.date), y: .value("v", sample.value))
+            AreaMark(x: .value("t", sample.date),
+                     yStart: .value("floor", floorValue),
+                     yEnd: .value("v", sample.value))
                 .interpolationMethod(.linear)
                 .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
                                                 startPoint: .top, endPoint: .bottom))

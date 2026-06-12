@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The persistent top bar as three floating Liquid Glass pills over the (transparent) nav:
-/// avatar (left), a centered day navigator, and the ring battery + Mac-sync status (right).
+/// The persistent top bar as floating Liquid Glass elements over the transparent nav:
+/// avatar (opens Profile), a split day navigator (‹ · date · ›, the date taps to today), and
+/// the battery + Mac glyph pill (opens Mac sync).
 struct TopBar: View {
     let profile: ProfileStore
     @Binding var date: Date
@@ -10,13 +11,13 @@ struct TopBar: View {
     let onProfile: () -> Void
     let onSync: () -> Void
 
+    /// All elements match the avatar pill: 28pt avatar + xxs padding each side.
+    private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
+
     var body: some View {
         GlassEffectContainer(spacing: Spacing.xxs) {
             ZStack {
-                DateNav(date: $date)
-                    .padding(.horizontal, Spacing.xs)
-                    .frame(height: pillHeight)
-                    .glassEffect(.regular.interactive(), in: .capsule)
+                DateNav(date: $date, pillHeight: pillHeight)
 
                 HStack {
                     Button(action: onProfile) {
@@ -30,28 +31,26 @@ struct TopBar: View {
 
                     Spacer()
 
-                    HStack(spacing: Spacing.sm) {
-                        batteryLabel
-                        Button(action: onSync) {
+                    Button(action: onSync) {
+                        HStack(spacing: Spacing.sm) {
+                            batteryLabel
                             Image(systemName: "laptopcomputer")
                                 .imageScale(.small)
                                 .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Mac sync")
+                        .padding(.horizontal, Spacing.sm)
+                        .frame(height: pillHeight)
                     }
-                    .padding(.horizontal, Spacing.sm)
-                    .frame(height: pillHeight)
+                    .buttonStyle(.plain)
                     .glassEffect(.regular.interactive(), in: .capsule)
+                    .accessibilityLabel("Ring battery and Mac sync")
+                    .accessibilityHint("Opens Mac sync")
                 }
             }
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.xs)
     }
-
-    /// All three pills match the avatar pill: 28pt avatar + xxs padding each side.
-    private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
 
     private var batteryLabel: some View {
         HStack(spacing: Spacing.xxs) {
@@ -83,10 +82,11 @@ struct TopBar: View {
     }
 }
 
-/// ‹ date › — arrows step a day (within the last two weeks, capped at today), the centered
-/// label taps back to today.
+/// ‹ · date · › as three separate glass buttons: the arrows step a day (within the last two
+/// weeks, capped at today); tapping the date jumps back to today.
 private struct DateNav: View {
     @Binding var date: Date
+    let pillHeight: CGFloat
 
     private var cal: Calendar { .current }
     private var today: Date { cal.startOfDay(for: .now) }
@@ -96,19 +96,38 @@ private struct DateNav: View {
 
     var body: some View {
         HStack(spacing: Spacing.xxs) {
-            Button { step(-1) } label: { Image(systemName: "chevron.backward").imageScale(.small) }
-                .disabled(atEarliest)
-                .accessibilityLabel("Previous day")
-            Button { date = today } label: {
-                Text(label).font(.caption.weight(.medium)).monospacedDigit().frame(minWidth: 44)
+            Button { step(-1) } label: {
+                Image(systemName: "chevron.backward")
+                    .imageScale(.small)
+                    .frame(width: pillHeight, height: pillHeight)
             }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .disabled(atEarliest)
+            .accessibilityLabel("Previous day")
+
+            Button { withAnimation(.snappy) { date = today } } label: {
+                Text(label)
+                    .font(.caption.weight(.medium)).monospacedDigit()
+                    .frame(minWidth: 44)
+                    .padding(.horizontal, Spacing.xs)
+                    .frame(height: pillHeight)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .capsule)
             .accessibilityLabel(isToday ? "Today" : label)
             .accessibilityHint("Go to today")
-            Button { step(1) } label: { Image(systemName: "chevron.forward").imageScale(.small) }
-                .disabled(isToday)
-                .accessibilityLabel("Next day")
+
+            Button { step(1) } label: {
+                Image(systemName: "chevron.forward")
+                    .imageScale(.small)
+                    .frame(width: pillHeight, height: pillHeight)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .disabled(isToday)
+            .accessibilityLabel("Next day")
         }
-        .buttonStyle(.plain)
         .foregroundStyle(.primary)
     }
 

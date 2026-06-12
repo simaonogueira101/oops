@@ -11,6 +11,8 @@ struct LineTrendChart: View {
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 180
     @State private var selection: Date?
 
+    private var floorValue: Double { samples.map(\.value).min() ?? 0 }
+
     private var selected: MetricSample? {
         guard let selection else { return nil }
         return samples.min {
@@ -24,7 +26,9 @@ struct LineTrendChart: View {
                 LineMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
                     .interpolationMethod(.linear)
                     .foregroundStyle(color)
-                AreaMark(x: .value("Date", sample.date), y: .value("Value", sample.value))
+                AreaMark(x: .value("Date", sample.date),
+                         yStart: .value("Floor", floorValue),
+                         yEnd: .value("Value", sample.value))
                     .interpolationMethod(.linear)
                     .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
                                                     startPoint: .top, endPoint: .bottom))

@@ -21,7 +21,6 @@ struct RecoveryView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .inlineNavigationTitle("Recovery")
     }
 
     private var scoreHero: some View {

@@ -24,7 +24,6 @@ struct SettingsView: View {
                 NavigationLink("Welcome tour") { WelcomeView() }
             }
         }
-        .inlineNavigationTitle("Settings")
     }
 }
 

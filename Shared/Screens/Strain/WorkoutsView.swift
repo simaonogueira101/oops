@@ -46,7 +46,6 @@ struct WorkoutsView: View {
             }
         }
         .background(AppColor.background)
-        .inlineNavigationTitle("Workouts")
     }
 }
 
@@ -73,7 +72,6 @@ struct WorkoutDetailView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .inlineNavigationTitle(workout.name)
     }
 }
 

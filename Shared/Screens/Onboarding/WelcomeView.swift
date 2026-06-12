@@ -26,7 +26,6 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity)
         }
         .background(AppColor.background)
-        .inlineNavigationTitle("Welcome")
     }
 
     private func feature(_ symbol: String, _ title: String, _ detail: String) -> some View {

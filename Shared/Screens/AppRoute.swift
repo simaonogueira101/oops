@@ -33,15 +33,6 @@ extension View {
         DrawerLink(route: route) { self }
     }
 
-    /// Cross-platform inline navigation title (macOS has no title display mode).
-    @ViewBuilder
-    func inlineNavigationTitle(_ title: String) -> some View {
-        #if os(iOS)
-        navigationTitle(title).navigationBarTitleDisplayMode(.inline)
-        #else
-        navigationTitle(title)
-        #endif
-    }
 }
 
 /// A tappable label that presents its route in a bottom drawer (cards open drawers, not pushes).

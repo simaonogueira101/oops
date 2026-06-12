@@ -45,7 +45,6 @@ struct RecordWorkoutForm: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
-            .inlineNavigationTitle("Record Workout")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

@@ -48,18 +48,16 @@ struct HomeRootView: View {
 
             TabView(selection: tabSelection) {
                 Tab("Home", systemImage: "circle.grid.2x2", value: HomeTab.home) {
-                    NavigationStack {
-                        OverviewView(metrics: .sample, date: $date, recorder: recorder)
-                    }
+                    OverviewView(metrics: .sample, date: $date, recorder: recorder)
                 }
                 Tab("Sleep", systemImage: "moon", value: HomeTab.sleep) {
-                    NavigationStack { SleepView() }
+                    SleepView()
                 }
                 Tab("Recovery", systemImage: "heart", value: HomeTab.recovery) {
-                    NavigationStack { RecoveryView() }
+                    RecoveryView()
                 }
                 Tab("Strain", systemImage: "bolt", value: HomeTab.strain) {
-                    NavigationStack { StrainView() }
+                    StrainView()
                 }
                 Tab("Record", systemImage: "plus", value: HomeTab.record, role: .search) {
                     // Never shown — selection is intercepted to open the drawer. Painted with

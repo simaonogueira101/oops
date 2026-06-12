@@ -67,8 +67,9 @@ All screens are composed from **one reusable `Card`** (`DesignSystem/Card/`) —
 accessory) + a `@ViewBuilder` content slot + optional footer; tap behavior via `.navigates(to:)`
 (opens the route in a **bottom drawer** — cards never push), `.cardDrawer` (sheet), or
 `ExpandableCard`. `Card` is presentation-only; routing lives in **`Screens/AppRoute.swift`**
-(`AppRoute` enum + `RouteDestination` + `DrawerLink` + the `.inlineNavigationTitle()` helper,
-which guards the iOS-only `navigationBarTitleDisplayMode` so shared screens compile on macOS).
+(`AppRoute` enum + `RouteDestination` + `DrawerLink`). Screens and drawers carry **no
+navigation titles** (card labels identify content); `NavigationStack` exists only where
+something pushes or hosts a toolbar (inside drawers, the record form, Profile).
 Workout recording (`Screens/Workout/`): the tab bar's separated trailing "+" (a `Tab` with
 `role: .search` whose selection is intercepted) opens `RecordWorkoutForm`; `WorkoutRecorder`
 holds the active session, `ActiveWorkoutBanner` surfaces it on Home, and ending a workout

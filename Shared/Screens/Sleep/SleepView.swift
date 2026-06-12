@@ -22,7 +22,6 @@ struct SleepView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .inlineNavigationTitle("Sleep")
     }
 
     private var scoreHero: some View {

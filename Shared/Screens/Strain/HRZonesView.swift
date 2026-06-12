@@ -14,7 +14,6 @@ struct HRZonesView: View {
             .padding(Spacing.md)
         }
         .background(AppColor.background)
-        .inlineNavigationTitle("Zones")
     }
 }
 

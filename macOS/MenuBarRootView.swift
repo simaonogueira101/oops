@@ -31,18 +31,16 @@ struct MenuBarRootView: View {
 
             Divider()
 
-            NavigationStack {
-                Group {
-                    switch tab {
-                    case .overview: OverviewView(metrics: .sample, date: $date, recorder: recorder)
-                    case .sleep: SleepView()
-                    case .recovery: RecoveryView()
-                    case .strain: StrainView()
-                    case .mac: macTab
-                    }
+            Group {
+                switch tab {
+                case .overview: OverviewView(metrics: .sample, date: $date, recorder: recorder)
+                case .sleep: SleepView()
+                case .recovery: RecoveryView()
+                case .strain: StrainView()
+                case .mac: macTab
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(.windowBackgroundColor))
         .task {

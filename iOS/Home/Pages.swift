@@ -53,8 +53,6 @@ struct MacSyncView: View {
                     }
                 }
             }
-            .navigationTitle("Mac Sync")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 

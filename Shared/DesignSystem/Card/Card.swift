@@ -96,7 +96,7 @@ struct Card<Content: View>: View {
             Image(systemName: "chevron.forward")
                 .font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         case .value(let value):
-            Text(value).font(.subheadline).foregroundStyle(AppColor.secondaryLabel)
+            Text(value).font(.subheadline.weight(.semibold)).foregroundStyle(AppColor.label)
         case .delta(let info, let upIsGood):
             DeltaLabel(info: info, upIsGood: upIsGood, tint: accent)
         case .icon(let name):

@@ -7,7 +7,7 @@ struct RecoveryView: View {
     @State private var period: Period = .week
     @Environment(\.healthData) private var health
     private var metrics: DayMetrics { health.dayMetrics(for: date) }
-    private var band: ScoreBand { ScoreBand(score: 72) }
+    private var band: ScoreBand { ScoreBand(score: metrics.score ?? 0) }
 
     private var bodyTempAccessory: String {
         guard let delta = metrics.bodyTempDelta else { return "—" }
@@ -35,31 +35,34 @@ struct RecoveryView: View {
     private var scoreHero: some View {
         Card(label: "Recovery", accent: AppColor.recovery) {
             HStack(spacing: Spacing.lg) {
-                ScoreRing(score: 72, accent: AppColor.recovery, caption: band.label, size: 120)
+                ScoreRing(score: metrics.score ?? 0, accent: AppColor.recovery,
+                          caption: metrics.score != nil ? band.label : nil, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("HRV 48 ms").font(.subheadline)
-                    Text("RHR 54 bpm").font(.subheadline)
+                    Text("HRV \(dashFormatted(metrics.hrv)) ms").font(.subheadline)
+                    Text("RHR \(dashFormatted(metrics.restingHR)) bpm").font(.subheadline)
                 }
             }
         }
     }
 
     private var contributorsCard: some View {
+        // Contributors require derived computation not yet available from raw ring samples.
+        // Render the named rows as unavailable (—) rather than fabricating values.
         Card(label: "Contributors") {
             ContributorRows(tint: AppColor.recovery, contributors: [
-                Contributor(name: "HRV balance", fraction: 0.8, band: .good),
-                Contributor(name: "Resting heart rate", fraction: 0.9, band: .optimal),
-                Contributor(name: "Body temperature", fraction: 0.5, band: .fair),
-                Contributor(name: "Recovery index", fraction: 0.85, band: .optimal),
-                Contributor(name: "Sleep balance", fraction: 0.7, band: .good),
-                Contributor(name: "Activity balance", fraction: 0.6, band: .good)
+                Contributor(name: "HRV balance", fraction: nil, band: nil),
+                Contributor(name: "Resting heart rate", fraction: nil, band: nil),
+                Contributor(name: "Body temperature", fraction: nil, band: nil),
+                Contributor(name: "Recovery index", fraction: nil, band: nil),
+                Contributor(name: "Sleep balance", fraction: nil, band: nil),
+                Contributor(name: "Activity balance", fraction: nil, band: nil)
             ])
         }
     }
 
     private var hrvCard: some View {
         Card(label: "HRV", accent: AppColor.recovery,
-             accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true),
+             accessory: .value(metrics.hrv.map { "\($0) ms" } ?? "—"),
              showsChevron: true) {
             Sparkline(samples: health.hrvSeries(days: 14), color: AppColor.recovery)
         }
@@ -68,7 +71,7 @@ struct RecoveryView: View {
 
     private var restingHRCard: some View {
         Card(label: "Resting heart rate", accent: AppColor.recovery,
-             accessory: .delta(DeltaInfo(value: 54, baseline: 56), upIsGood: false),
+             accessory: .value(metrics.restingHR.map { "\($0) bpm" } ?? "—"),
              showsChevron: true) {
             Sparkline(samples: health.restingHRSeries(days: 14), color: AppColor.recovery)
         }

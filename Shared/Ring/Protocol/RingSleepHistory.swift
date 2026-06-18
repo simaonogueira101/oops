@@ -24,9 +24,11 @@ extension RingProtocol {
             while i + 1 < min(15, b.count) {   // values live in bytes[2..14]; byte[15] is the checksum
                 let code = b[i]; let minutes = Int(b[i + 1]); i += 2
                 if minutes == 0 { continue }
-                guard let stage = sleepStage(for: code) else { continue }
                 let end = cursor.addingTimeInterval(Double(minutes) * 60)
-                intervals.append(SleepStageInterval(stage: stage, start: cursor, end: end))
+                // Always advance the cursor to keep the timeline aligned, even for unknown stages.
+                if let stage = sleepStage(for: code) {
+                    intervals.append(SleepStageInterval(stage: stage, start: cursor, end: end))
+                }
                 cursor = end
             }
         }

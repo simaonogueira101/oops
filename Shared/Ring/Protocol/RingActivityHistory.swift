@@ -23,7 +23,6 @@ extension RingProtocol {
     static func parseActivityHistory(_ packets: [Data], calendar: Calendar) -> [ActivitySamplePoint] {
         guard let header = packets.first, header.count >= 2 else { return [] }
         let calorieScale = header[header.startIndex + 1] == 0xF0 ? 10 : 1
-        var cal = calendar; cal.timeZone = TimeZone(identifier: "UTC")!
         return packets.dropFirst().compactMap { packet in
             let b = Array(packet)
             guard b.count >= 13 else { return nil }
@@ -32,8 +31,8 @@ extension RingProtocol {
             let calories = (Int(b[7]) | Int(b[8]) << 8) * calorieScale
             let steps = Int(b[9]) | Int(b[10]) << 8
             let dist = Int(b[11]) | Int(b[12]) << 8
-            guard let date = cal.date(from: DateComponents(year: year, month: month, day: day,
-                                                           hour: idx / 4, minute: (idx % 4) * 15))
+            guard let date = calendar.date(from: DateComponents(year: year, month: month, day: day,
+                                                                hour: idx / 4, minute: (idx % 4) * 15))
             else { return nil }
             return ActivitySamplePoint(date: date, steps: steps, calories: calories, distanceMeters: dist)
         }

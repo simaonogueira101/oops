@@ -104,6 +104,7 @@ struct RingHealthData: HealthData {
             ("Peak", 152, 220, 1.0)
         ]
         return zones.map { name, lo, hi, opacity in
+            // NOTE: "minutes" currently counts HR samples, not elapsed time — pending real-data calibration.
             let minutes = samples.filter { $0.bpm >= lo && $0.bpm <= hi }.count
             return HRZone(name: name, lowerBPM: lo, upperBPM: hi, minutes: minutes,
                           color: AppColor.strain.opacity(opacity))

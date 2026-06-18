@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// A single contributor: a name, a 0...1 fill, and a qualitative band.
+/// `fraction` and `band` may be nil when the metric is unavailable (renders as "—").
 struct Contributor: Identifiable {
     let id = UUID()
     let name: String
-    let fraction: Double
-    let band: ScoreBand
+    let fraction: Double?
+    let band: ScoreBand?
 }
 
 /// A list of contributor rows (label + progress + band label). Colors are shades of the
@@ -21,11 +22,12 @@ struct ContributorRows: View {
                     HStack {
                         Text(contributor.name).font(.subheadline)
                         Spacer()
-                        Text(contributor.band.label)
+                        Text(contributor.band?.label ?? "—")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppColor.secondaryLabel)
                     }
-                    ProgressView(value: contributor.fraction).tint(contributor.band.tinted(tint))
+                    ProgressView(value: contributor.fraction ?? 0)
+                        .tint(contributor.band.map { $0.tinted(tint) } ?? AppColor.track)
                 }
                 .accessibilityElement(children: .combine)
             }

@@ -29,14 +29,13 @@ enum RingBigData {
     static func parseTemperature(_ packets: [Data], today: Date, calendar: Calendar) -> [TemperatureReading] {
         let all = Array(packets.reduce(Data(), +))
         guard all.count > 6, all[0] == 0xBC, all[1] == 0x25 else { return [] }
-        var cal = calendar; cal.timeZone = TimeZone(identifier: "UTC")!
-        let todayStart = cal.startOfDay(for: today)
+        let todayStart = calendar.startOfDay(for: today)
         var readings: [TemperatureReading] = []
         var i = 6                                   // per-day blocks begin at index 6
         while i + 2 + 48 <= all.count {             // [days_ago][skip 0x1E][48 slots]
             let daysAgo = Int(all[i])
             let blockStart = i + 2
-            guard let dayStart = cal.date(byAdding: .day, value: -daysAgo, to: todayStart) else { break }
+            guard let dayStart = calendar.date(byAdding: .day, value: -daysAgo, to: todayStart) else { break }
             for slot in 0..<48 {
                 let raw = Int(all[blockStart + slot]) & 0xFF
                 if raw > 0 {

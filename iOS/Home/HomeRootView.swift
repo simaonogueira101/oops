@@ -19,6 +19,10 @@ struct HomeRootView: View {
     @State private var sheet: HomeSheet?
     @State private var justUpdated = false
     @State private var scrollSignal = 0
+    /// Bumped whenever a sync completes so SwiftUI re-evaluates computed health views.
+    /// Needed because RingHealthData is a struct (not @Observable), so inserting samples
+    /// into its ModelContext won't automatically invalidate views reading dayMetrics(for:).
+    @State private var dataRevision = 0
 
     enum HomeTab: Hashable { case summary, sleep, recovery, strain, record }
     enum HomeSheet: Int, Identifiable { case profile, sync, record, activeWorkout; var id: Int { rawValue } }
@@ -41,6 +45,7 @@ struct HomeRootView: View {
 
     var body: some View {
         tabs
+            .id(dataRevision)
             .environment(\.healthData, health ?? MockHealthData())
             .overlay(alignment: .top) { topChrome }
             .scrollEdgeEffectStyle(.soft, for: .all)
@@ -81,6 +86,11 @@ struct HomeRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 // Refresh when the app returns to the foreground.
                 if phase == .active { Task { await manager?.sync() } }
+            }
+            .onChange(of: manager?.lastUpdated) { _, _ in
+                // Re-evaluate health views after each sync; RingHealthData is a plain struct so
+                // SwiftUI won't invalidate it automatically when samples land in ModelContext.
+                dataRevision += 1
             }
             .sheet(item: $sheet) { which in
                 switch which {

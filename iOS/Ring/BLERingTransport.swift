@@ -67,6 +67,11 @@ final class BLERingTransport: NSObject, RingTransport {
     // Paged read state — nil when no paged read is in flight.
     private var pagedContinuation: CheckedContinuation<[Data], Error>?
     private var pagedBuffer: [Data] = []
+    /// The opcode (byte[0]) of the in-flight V1 read. The ring echoes a command's opcode in its
+    /// response, but echoes arrive with latency — so we only accept notify packets matching this
+    /// opcode and drop stale/unsolicited ones (otherwise a delayed echo from a previous command
+    /// gets mis-read as this command's response, e.g. battery returning 2% from an HRV-enable echo).
+    private var expectedV1Opcode: UInt8?
     private var isCompletePredicate: (([Data]) -> Bool)?
     private var pagedTimeoutTask: Task<Void, Never>?
     private var currentPagedTimeout: TimeInterval = 8
@@ -114,6 +119,7 @@ final class BLERingTransport: NSObject, RingTransport {
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         pagedContinuation?.resume(throwing: RingError.notConnected)
         pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil; currentPagedTimeout = 8
+        expectedV1Opcode = nil
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         bigDataContinuation?.resume(throwing: RingError.notConnected)
         bigDataContinuation = nil; bigDataBuffer = []; bigDataComplete = nil
@@ -125,6 +131,7 @@ final class BLERingTransport: NSObject, RingTransport {
         trace("Write command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
         return try await withCheckedThrowingContinuation { continuation in
             responseContinuation = continuation
+            expectedV1Opcode = command.first
             let type: CBCharacteristicWriteType =
                 writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
             peripheral.writeValue(command, for: writeChar, type: type)
@@ -144,6 +151,7 @@ final class BLERingTransport: NSObject, RingTransport {
             pagedBuffer = []
             isCompletePredicate = isComplete
             currentPagedTimeout = perPacketTimeout
+            expectedV1Opcode = command.first
             let type: CBCharacteristicWriteType =
                 writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
             peripheral.writeValue(command, for: writeChar, type: type)
@@ -207,6 +215,7 @@ final class BLERingTransport: NSObject, RingTransport {
         pagedContinuation = nil
         pagedBuffer = []
         isCompletePredicate = nil
+        expectedV1Opcode = nil
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         continuation.resume(returning: packets)
     }
@@ -216,6 +225,7 @@ final class BLERingTransport: NSObject, RingTransport {
         pagedContinuation = nil
         pagedBuffer = []
         isCompletePredicate = nil
+        expectedV1Opcode = nil
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         continuation.resume(throwing: error)
     }
@@ -296,6 +306,7 @@ final class BLERingTransport: NSObject, RingTransport {
     private func answer(_ data: Data) {
         guard let continuation = responseContinuation else { return }
         responseContinuation = nil
+        expectedV1Opcode = nil
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
         continuation.resume(returning: data)
     }
@@ -303,6 +314,7 @@ final class BLERingTransport: NSObject, RingTransport {
     private func failResponse(_ error: RingError) {
         guard let continuation = responseContinuation else { return }
         responseContinuation = nil
+        expectedV1Opcode = nil
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
         continuation.resume(throwing: error)
     }
@@ -461,6 +473,12 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             return failResponse(.timeout)
         }
         trace("Notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        // Correlate by opcode: drop stale echoes / unsolicited packets that aren't this read's
+        // response, so a delayed reply from a previous command can't be mis-attributed here.
+        if let expected = expectedV1Opcode, value.first != expected {
+            trace("…ignoring (expected \(String(format: "%02X", expected)))")
+            return
+        }
         // Route to whichever V1 read is in flight.
         if pagedContinuation != nil {
             pagedBuffer.append(value)

@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import SwiftData
 
 /// Profile + preferences: photo & name (stored locally), appearance, goals, units,
 /// notifications, and about. The app's single settings surface.
@@ -7,6 +8,8 @@ struct ProfileView: View {
     let profile: ProfileStore
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query private var ringMetas: [RingSyncMeta]
     @State private var pickerItem: PhotosPickerItem?
     @State private var name = ""
     @AppStorage("appTheme") private var theme: AppTheme = .system
@@ -53,6 +56,24 @@ struct ProfileView: View {
 
                 Section("Units") {
                     Toggle("Metric units", isOn: $useMetric)
+                }
+
+                Section {
+                    if let meta = ringMetas.first, meta.boundRingID != nil {
+                        LabeledContent("Paired ring", value: meta.boundRingName ?? "Paired ring")
+                        Button("Forget ring", role: .destructive) {
+                            meta.boundRingID = nil
+                            meta.boundRingName = nil
+                            try? modelContext.save()
+                        }
+                    } else {
+                        Text("No ring paired yet")
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Ring")
+                } footer: {
+                    Text("Anyone with a Bluetooth app nearby can read this ring — binding only controls which ring this app uses.")
                 }
 
                 Section("Notifications") {

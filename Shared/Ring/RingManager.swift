@@ -62,13 +62,36 @@ final class RingManager {
                 try? modelContext.save()
             }
 
+            // a. Live HR FIRST — verified on-device that the ring only streams real-time HR
+            // when the live-read is the FIRST command after connect. Prepending any other
+            // command (setTime, enables, battery) makes the ring emit one frame then shut the
+            // sensor off; a bare start streams BPM after a ~26s warm-up. So measure now, before
+            // anything else. The 0x69 frames stream on their own (no keepalive); collect until a
+            // non-zero BPM or a 70-frame cap, with a long per-packet timeout to span the warm-up.
+            do {
+                let frames = try await transport.send(
+                    RingProtocol.liveHRStartCommand(),
+                    isComplete: { packets in
+                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
+                    },
+                    perPacketTimeout: 32
+                )
+                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
+                    liveHR = bpm
+                }
+                try? await transport.send(RingProtocol.liveHRStopCommand())
+            } catch {
+                trace("liveHR step failed: \(error)")
+                try? await transport.send(RingProtocol.liveHRStopCommand())
+            }
+
             // Ring-facing time is UTC (tahnok convention): clock set in UTC, history requested
             // at UTC midnights. Sample timestamps come back as absolute instants; the display
             // layer (RingHealthData) buckets them by the local calendar.
             var utc = Calendar(identifier: .gregorian)
             utc.timeZone = TimeZone(identifier: "UTC")!
 
-            // a. Set clock (best-effort)
+            // b. Set clock (best-effort)
             try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: utc))
 
             // a2. Enable HR logging (best-effort; harmless to repeat each sync)
@@ -90,33 +113,7 @@ final class RingManager {
                 trace("battery step failed: \(error)")
             }
 
-            // c. Live HR — after start, the ring STREAMS 0x69 frames on its own (the 0x1E
-            // "keepalive" is unsupported — verified on-device, it returns 0x9E 0xEE). So we just
-            // start the measurement and passively collect the streamed frames until a non-zero
-            // BPM arrives (the sensor takes several seconds to lock on) or we cap the window.
-            do {
-                let frames = try await transport.send(
-                    RingProtocol.liveHRStartCommand(),
-                    isComplete: { packets in
-                        // The PPG takes ~25-30s to lock on. Stop as soon as a non-zero BPM
-                        // arrives, else cap at 70 frames.
-                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
-                    },
-                    // After the first "warming up" frame the ring goes quiet while the sensor
-                    // engages (~26s on-device), so the per-packet timeout must span that gap —
-                    // a short timeout stops the measurement before the green light even comes on.
-                    perPacketTimeout: 32
-                )
-                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
-                    liveHR = bpm
-                }
-                try? await transport.send(RingProtocol.liveHRStopCommand())
-            } catch {
-                trace("liveHR step failed: \(error)")
-                try? await transport.send(RingProtocol.liveHRStopCommand())
-            }
-
-            // d. History backfill (UTC day boundaries to match the ring's UTC clock)
+            // History backfill (UTC day boundaries to match the ring's UTC clock)
             let calendar = utc
             let today = calendar.startOfDay(for: .now)
             let meta = (try? syncMeta()) ?? RingSyncMeta()

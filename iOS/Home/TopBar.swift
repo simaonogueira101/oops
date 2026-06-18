@@ -19,7 +19,7 @@ struct TopBar: View {
     @ScaledMetric(relativeTo: .caption2) private var batteryFontSize: CGFloat = 9
     /// Fixed slot for the battery percentage (or the updating spinner that replaces it) so the
     /// swap never reflows the pill. Scales with Dynamic Type; sized for the widest case ("100%").
-    @ScaledMetric(relativeTo: .caption2) private var batteryTextWidth: CGFloat = 26
+    @ScaledMetric(relativeTo: .caption2) private var batteryTextWidth: CGFloat = 32
 
     var body: some View {
         GlassEffectContainer(spacing: Spacing.xxs) {
@@ -102,6 +102,8 @@ struct TopBar: View {
                     Text("\(battery.level)%")
                         .font(.system(size: batteryFontSize, weight: .medium))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
             .frame(width: batteryTextWidth)

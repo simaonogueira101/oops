@@ -15,9 +15,11 @@ struct TopBar: View {
     /// All pills match the avatar pill: 28pt avatar + xxs padding each side.
     private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
 
+    /// Battery percentage type: a touch smaller than caption2, scaling with Dynamic Type.
+    @ScaledMetric(relativeTo: .caption2) private var batteryFontSize: CGFloat = 9
     /// Fixed slot for the battery percentage (or the updating spinner that replaces it) so the
     /// swap never reflows the pill. Scales with Dynamic Type; sized for the widest case ("100%").
-    @ScaledMetric(relativeTo: .caption2) private var batteryTextWidth: CGFloat = 30
+    @ScaledMetric(relativeTo: .caption2) private var batteryTextWidth: CGFloat = 26
 
     var body: some View {
         GlassEffectContainer(spacing: Spacing.xxs) {
@@ -97,7 +99,9 @@ struct TopBar: View {
                 if isUpdatingBattery {
                     ProgressView().controlSize(.mini)
                 } else if let battery {
-                    Text("\(battery.level)%").font(.caption2.weight(.medium)).monospacedDigit()
+                    Text("\(battery.level)%")
+                        .font(.system(size: batteryFontSize, weight: .medium))
+                        .monospacedDigit()
                 }
             }
             .frame(width: batteryTextWidth)

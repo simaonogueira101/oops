@@ -4,7 +4,7 @@ import SwiftUI
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
     @State private var period: Period = .week
-    private var mock: MockHealthData { MockHealthData() }
+    @Environment(\.healthData) private var health
     private var band: ScoreBand { ScoreBand(score: 72) }
 
     var body: some View {
@@ -53,7 +53,7 @@ struct RecoveryView: View {
         Card(label: "HRV", accent: AppColor.recovery,
              accessory: .delta(DeltaInfo(value: 48, baseline: 44), upIsGood: true),
              showsChevron: true) {
-            Sparkline(samples: mock.hrvSeries(days: 14), color: AppColor.recovery)
+            Sparkline(samples: health.hrvSeries(days: 14), color: AppColor.recovery)
         }
         .navigates(to: .hrv)
     }
@@ -62,21 +62,21 @@ struct RecoveryView: View {
         Card(label: "Resting heart rate", accent: AppColor.recovery,
              accessory: .delta(DeltaInfo(value: 54, baseline: 56), upIsGood: false),
              showsChevron: true) {
-            Sparkline(samples: mock.restingHRSeries(days: 14), color: AppColor.recovery)
+            Sparkline(samples: health.restingHRSeries(days: 14), color: AppColor.recovery)
         }
         .navigates(to: .heartRate)
     }
 
     private var bodyTempCard: some View {
         Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C"), showsChevron: true) {
-            Sparkline(samples: mock.series(days: 14, base: 0, spread: 0.8), color: AppColor.recovery)
+            Sparkline(samples: [], color: AppColor.recovery)
         }
         .navigates(to: .bodyTemp)
     }
 
     private var respiratoryCard: some View {
         Card(label: "Respiratory rate", accent: AppColor.recovery, accessory: .value("14.1"), showsChevron: true) {
-            Sparkline(samples: mock.series(days: 14, base: 14, spread: 2), color: AppColor.recovery)
+            Sparkline(samples: [], color: AppColor.recovery)
         }
         .navigates(to: .respiratory)
     }
@@ -85,7 +85,7 @@ struct RecoveryView: View {
         Card(label: "Recovery trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                LineTrendChart(samples: mock.series(days: period.days, base: 70, spread: 24),
+                LineTrendChart(samples: health.restingHRSeries(days: period.days),
                                color: AppColor.recovery, baseline: nil)
                     .animation(.snappy, value: period)
             }

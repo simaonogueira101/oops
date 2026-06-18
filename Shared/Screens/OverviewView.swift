@@ -9,10 +9,10 @@ struct OverviewView: View {
     /// Switches to a domain's tab (Summary cards never duplicate a tab inside a sheet).
     var openDomain: (Domain) -> Void = { _ in }
 
-    private var mock: MockHealthData { MockHealthData() }
+    @Environment(\.healthData) private var health
     private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
     private var recoveryBand: ScoreBand { ScoreBand(score: metrics.score ?? 0) }
-    private var strainText: String { (metrics.strain ?? 0).formatted(.number.precision(.fractionLength(1))) }
+    private var strainText: String { dashFormatted(metrics.strain) }
 
     var body: some View {
         TopScrollView {
@@ -36,7 +36,7 @@ struct OverviewView: View {
         Card(label: "Recovery", systemImage: "heart.fill",
              accent: AppColor.recovery, accessory: .chevron) {
             ScoreHero(score: metrics.score ?? 0, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
-                HeroStat(label: "HRV", value: "\(metrics.hrv ?? 0) ms",
+                HeroStat(label: "HRV", value: "\(dashFormatted(metrics.hrv)) ms",
                          symbol: "waveform", color: AppColor.recovery),
                 HeroStat(label: "Resting HR", value: "\(metrics.restingHR) bpm",
                          symbol: "heart.fill", color: AppColor.recovery),
@@ -56,7 +56,7 @@ struct OverviewView: View {
         Card(label: "Sleep", systemImage: "moon.fill", accent: AppColor.sleep, accessory: .chevron) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 compactValue("\(sleepScore)")
-                Sparkline(samples: mock.sleepScoreSeries(days: 14), color: AppColor.sleep)
+                Sparkline(samples: health.sleepScoreSeries(days: 14), color: AppColor.sleep)
             }
         }
         .domainButton(.sleep, openDomain)
@@ -66,7 +66,7 @@ struct OverviewView: View {
         Card(label: "Strain", systemImage: "bolt.fill", accent: AppColor.strain, accessory: .chevron) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 compactValue(strainText)
-                Sparkline(samples: mock.strainSeries(days: 14), color: AppColor.strain)
+                Sparkline(samples: health.strainSeries(days: 14), color: AppColor.strain)
             }
         }
         .domainButton(.strain, openDomain)

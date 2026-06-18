@@ -40,6 +40,7 @@ struct HomeRootView: View {
 
     var body: some View {
         tabs
+            .environment(\.healthData, RingHealthData(modelContext: modelContext))
             .overlay(alignment: .top) { topChrome }
             .scrollEdgeEffectStyle(.soft, for: .all)
             .environment(\.scrollToTopSignal, scrollSignal)
@@ -138,7 +139,8 @@ struct HomeRootView: View {
         switch tab {
         case .summary:
             DayPager(date: $date) { day in
-                OverviewView(metrics: .sample, date: day, recorder: recorder, openDomain: openDomain)
+                OverviewView(metrics: RingHealthData(modelContext: modelContext).dayMetrics(for: day),
+                             date: day, recorder: recorder, openDomain: openDomain)
             }
         case .sleep: DayPager(date: $date) { _ in SleepView() }
         case .recovery: DayPager(date: $date) { _ in RecoveryView() }

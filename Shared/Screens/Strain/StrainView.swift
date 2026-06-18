@@ -4,10 +4,10 @@ import SwiftData
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
     @State private var period: Period = .week
+    @Environment(\.healthData) private var health
     @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
-    private var metrics: DayMetrics { MockHealthData().dayMetrics }
-    private var mock: MockHealthData { MockHealthData() }
-    private var strainText: String { (metrics.strain ?? 0).formatted(.number.precision(.fractionLength(1))) }
+    private var metrics: DayMetrics { health.dayMetrics(for: .now) }
+    private var strainText: String { dashFormatted(metrics.strain) }
 
     var body: some View {
         TopScrollView {
@@ -58,7 +58,7 @@ struct StrainView: View {
 
     private var zonesCard: some View {
         Card(label: "Heart-rate zones", accessory: .chevron) {
-            ZoneScale(zones: mock.hrZones())
+            ZoneScale(zones: health.hrZones(for: .now))
         }
         .navigates(to: .hrZones)
     }
@@ -90,7 +90,7 @@ struct StrainView: View {
         Card(label: "Strain trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                BarSeriesChart(samples: mock.stepsSeries(days: period.days), color: AppColor.strain)
+                BarSeriesChart(samples: health.stepsSeries(days: period.days), color: AppColor.strain)
                     .animation(.snappy, value: period)
             }
         }

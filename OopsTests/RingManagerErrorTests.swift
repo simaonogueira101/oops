@@ -36,7 +36,7 @@ private final class StubTransport: RingTransport {
 struct RingManagerErrorTests {
     private func inMemoryContext() throws -> ModelContext {
         let container = try ModelContainer(
-            for: BatteryReading.self,
+            for: BatteryReading.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         return ModelContext(container)

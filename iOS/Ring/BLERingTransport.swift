@@ -45,6 +45,17 @@ final class BLERingTransport: NSObject, RingTransport {
     private var v2NotifyChar: CBCharacteristic?
     private(set) var supportsBigData: Bool = false
 
+    /// When non-nil, scan will only connect to a peripheral whose `identifier` matches this UUID.
+    /// Set by `RingManager` before calling `connect()` once a ring has been bound.
+    var boundRingID: UUID?
+
+    /// The identifier of the peripheral that most recently connected successfully.
+    /// `RingManager` reads this after a successful connect to persist the binding.
+    private(set) var connectedRingID: UUID?
+
+    /// The advertised/peripheral name of the most recently connected ring.
+    private(set) var connectedRingName: String?
+
     private enum Stage { case idle, waitingForPowerOn, scanning, connecting, discovering, ready }
     private var stage: Stage = .idle
 
@@ -245,6 +256,7 @@ final class BLERingTransport: NSObject, RingTransport {
         readyContinuation = nil
         connectTimeoutTask?.cancel(); connectTimeoutTask = nil
         stage = .ready
+        connectedRingID = peripheral?.identifier
         continuation.resume()
     }
 
@@ -301,12 +313,14 @@ extension BLERingTransport: @preconcurrency CBCentralManagerDelegate {
         let services = advUUIDs.map(\.uuidString).joined(separator: ",")
         trace("Discovered: name=\(name ?? "nil") rssi=\(RSSI) services=[\(services)]")
 
-        guard RingScanMatcher.matches(name: name, advertisedServiceUUIDs: advUUIDs) else { return }
+        guard RingScanMatcher.matches(name: name, advertisedServiceUUIDs: advUUIDs,
+                                      boundID: boundRingID, peripheralID: peripheral.identifier) else { return }
 
         trace("Matched ring \(name ?? "nil") — connecting")
         stage = .connecting
         central.stopScan()
         self.peripheral = peripheral
+        self.connectedRingName = name
         peripheral.delegate = self
         central.connect(peripheral)
     }

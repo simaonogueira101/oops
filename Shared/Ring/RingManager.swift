@@ -23,6 +23,17 @@ final class RingManager {
         self.modelContext = modelContext
     }
 
+    // MARK: Ring binding
+
+    /// Returns the single `RingSyncMeta` record, creating and inserting one if none exists.
+    private func syncMeta() throws -> RingSyncMeta {
+        let existing = try modelContext.fetch(FetchDescriptor<RingSyncMeta>())
+        if let meta = existing.first { return meta }
+        let meta = RingSyncMeta()
+        modelContext.insert(meta)
+        return meta
+    }
+
     func refreshBattery() async {
         // One read at a time: the BLE transport connects, does one job, disconnects, so
         // overlapping calls (cold-launch + foreground, or a periodic tick landing on a manual
@@ -34,7 +45,23 @@ final class RingManager {
         defer { isBusy = false }
 
         do {
+            // Apply any existing ring binding before connecting so the transport only
+            // connects to the previously-paired ring (or any R09 ring on first launch).
+            if let meta = try? syncMeta() {
+                transport.boundRingID = meta.boundRingID.flatMap(UUID.init(uuidString:))
+            }
+
             try await transport.connect()
+
+            // After the first successful connect, persist the binding so future connects
+            // go straight to this ring without scanning by name.
+            if let meta = try? syncMeta(), meta.boundRingID == nil,
+               let connectedID = transport.connectedRingID {
+                meta.boundRingID = connectedID.uuidString
+                meta.boundRingName = transport.connectedRingName
+                try? modelContext.save()
+            }
+
             let response = try await transport.send(RingProtocol.batteryCommand())
             transport.disconnect()
 

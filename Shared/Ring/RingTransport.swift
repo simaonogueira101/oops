@@ -19,7 +19,7 @@ enum RingError: Error, Equatable {
 /// (simulated, used before the ring arrives) and, later, `BLERingTransport` (real
 /// CoreBluetooth). Main-actor isolated: iteration 0 drives it entirely from the UI flow.
 @MainActor
-protocol RingTransport {
+protocol RingTransport: AnyObject {
     func connect() async throws
     func disconnect()
     /// Sends a 16-byte command packet and returns the ring's response packet.
@@ -35,4 +35,31 @@ protocol RingTransport {
     /// Writes raw bytes to the Big-Data V2 write characteristic and accumulates V2 notify
     /// packets until `isComplete` returns true, then returns all collected packets.
     func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]
+
+    // MARK: Ring binding (remember my ring)
+
+    /// When non-nil, `connect()` must only accept a peripheral with this identifier.
+    /// `RingManager` sets this before calling `connect()` once a ring has been bound.
+    /// Default implementation is a no-op (mock/stub transports ignore binding).
+    var boundRingID: UUID? { get set }
+
+    /// The identifier of the peripheral that connected successfully most recently.
+    /// `RingManager` reads this after a successful connect to persist a new binding.
+    /// Default returns nil (mock/stub transports never produce a real peripheral id).
+    var connectedRingID: UUID? { get }
+
+    /// The advertised name of the most recently connected ring.
+    /// Default returns nil.
+    var connectedRingName: String? { get }
+}
+
+// Default no-op conformances so existing MockRingTransport / StubTransport compile unchanged.
+extension RingTransport {
+    var boundRingID: UUID? {
+        get { nil }
+        // swiftlint:disable:next unused_setter_value
+        set {}
+    }
+    var connectedRingID: UUID? { nil }
+    var connectedRingName: String? { nil }
 }

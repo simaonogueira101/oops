@@ -23,4 +23,13 @@ enum RingScanMatcher {
         if let name = name?.uppercased(), nameFragments.contains(where: name.contains) { return true }
         return false
     }
+
+    /// Binding-aware overload: when a `boundID` is set, only the peripheral with that exact
+    /// identifier is accepted (ignores name/UUID matching entirely). When `boundID` is nil
+    /// falls back to the standard name/service-UUID match — used during first-time pairing.
+    static func matches(name: String?, advertisedServiceUUIDs: [CBUUID],
+                        boundID: UUID?, peripheralID: UUID) -> Bool {
+        if let boundID { return peripheralID == boundID }
+        return matches(name: name, advertisedServiceUUIDs: advertisedServiceUUIDs)
+    }
 }

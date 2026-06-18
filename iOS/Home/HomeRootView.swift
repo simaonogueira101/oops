@@ -54,7 +54,13 @@ struct HomeRootView: View {
                 UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
 
                 if manager == nil {
-                    manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
+                    let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
+                    // Show the last recorded percentage immediately instead of a blank pill,
+                    // until the first live read lands.
+                    if let last = readings.first {
+                        manager.batteryStatus = BatteryStatus(level: last.level, isCharging: last.isCharging)
+                    }
+                    self.manager = manager
                 }
                 await manager?.refreshBattery()
             }

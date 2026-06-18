@@ -11,7 +11,7 @@ import Foundation
 /// mock on a device even after the ring exists.
 enum RingTransportFactory {
     /// Set to `true` once the physical R09 is available for on-device BLE.
-    static let ringAvailable = false
+    static let ringAvailable = true
 
     @MainActor
     static func make(forceMock: Bool = false) -> any RingTransport {

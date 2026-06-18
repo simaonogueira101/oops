@@ -6,6 +6,7 @@ import SwiftData
 /// separated "+" record button sits on the trailing side of the bottom nav.
 struct HomeRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \BatteryReading.timestamp, order: .reverse) private var readings: [BatteryReading]
 
     @State private var manager: RingManager?
@@ -53,10 +54,22 @@ struct HomeRootView: View {
                 UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
 
                 if manager == nil {
-                    let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
-                    self.manager = manager
-                    await manager.refreshBattery()
+                    manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
                 }
+                await manager?.refreshBattery()
+            }
+            .task {
+                // Periodic top-up while the app stays open. Ring battery moves slowly, so a
+                // gentle cadence is plenty and spares both batteries and the flaky BLE stack.
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(30 * 60))
+                    if Task.isCancelled { break }
+                    await manager?.refreshBattery()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Refresh when the app returns to the foreground.
+                if phase == .active { Task { await manager?.refreshBattery() } }
             }
             .sheet(item: $sheet) { which in
                 switch which {

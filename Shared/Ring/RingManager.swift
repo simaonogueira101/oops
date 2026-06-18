@@ -24,6 +24,10 @@ final class RingManager {
     }
 
     func refreshBattery() async {
+        // One read at a time: the BLE transport connects, does one job, disconnects, so
+        // overlapping calls (cold-launch + foreground, or a periodic tick landing on a manual
+        // read) would contend for the same radio.
+        guard !isBusy else { return }
         isBusy = true
         errorMessage = nil
         bluetoothUnavailable = false

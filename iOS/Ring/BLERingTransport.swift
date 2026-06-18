@@ -1,5 +1,6 @@
 import Foundation
 import CoreBluetooth
+import os
 
 /// Real CoreBluetooth implementation of `RingTransport` for the Colmi R09.
 ///
@@ -15,9 +16,17 @@ import CoreBluetooth
 @MainActor
 final class BLERingTransport: NSObject, RingTransport {
     // Nordic-UART-style GATT service exposed by the ring.
-    private let serviceUUID = CBUUID(string: "6E40FFF0-B5A3-F393-E0A9-E50E24DCCA9E")
+    private let serviceUUID = RingScanMatcher.serviceUUID
     private let writeUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     private let notifyUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+
+    // Bring-up observability. `Logger` feeds Console.app; the `print` mirror makes the same
+    // lines show up in `devicectl --console` capture over USB. Remove once assumptions hold.
+    private let log = Logger(subsystem: "com.simao.oops", category: "BLE")
+    private func trace(_ message: String) {
+        log.notice("\(message, privacy: .public)")
+        print("BLE: \(message)")
+    }
 
     private let connectTimeout: Double = 12
     private let responseTimeout: Double = 8
@@ -72,6 +81,7 @@ final class BLERingTransport: NSObject, RingTransport {
 
     func send(_ command: Data) async throws -> Data {
         guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
+        trace("Write command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
         return try await withCheckedThrowingContinuation { continuation in
             responseContinuation = continuation
             let type: CBCharacteristicWriteType =
@@ -109,30 +119,45 @@ final class BLERingTransport: NSObject, RingTransport {
 
     private func beginScan() {
         stage = .scanning
-        // Primary path: filter by the ring's service UUID. If a real R09 turns out not to
-        // advertise it, fall back here to a scan-all + name-prefix match.
-        central.scanForPeripherals(withServices: [serviceUUID])
+        // The R09 (verified on real hardware, 2026-06-18) advertises its name — "R09_4301" —
+        // but NOT its GATT service UUID, so a `withServices:` filter finds nothing. We must scan
+        // unfiltered and match via `RingScanMatcher` (name fallback). The service UUID is still
+        // present in GATT, so service/characteristic discovery after connect works normally.
+        trace("Scanning for peripherals (unfiltered)…")
+        central.scanForPeripherals(withServices: nil)
     }
 
     private func succeedReady() {
+        guard let continuation = readyContinuation else { return }
+        readyContinuation = nil
         connectTimeoutTask?.cancel(); connectTimeoutTask = nil
         stage = .ready
-        readyContinuation?.resume(); readyContinuation = nil
+        continuation.resume()
     }
 
+    /// Resolve the in-flight connect with a failure. Idempotent: once connect has resolved
+    /// (success or failure) `readyContinuation` is nil and late delegate callbacks are ignored,
+    /// so a stray post-ready callback can't throw into an already-finished — or a future — connect.
     private func failReady(_ error: RingError) {
+        guard let continuation = readyContinuation else { return }
+        readyContinuation = nil
+        trace("Connect failed at stage \(stage): \(error)")
         connectTimeoutTask?.cancel(); connectTimeoutTask = nil
-        readyContinuation?.resume(throwing: error); readyContinuation = nil
+        continuation.resume(throwing: error)
     }
 
     private func answer(_ data: Data) {
+        guard let continuation = responseContinuation else { return }
+        responseContinuation = nil
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
-        responseContinuation?.resume(returning: data); responseContinuation = nil
+        continuation.resume(returning: data)
     }
 
     private func failResponse(_ error: RingError) {
+        guard let continuation = responseContinuation else { return }
+        responseContinuation = nil
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
-        responseContinuation?.resume(throwing: error); responseContinuation = nil
+        continuation.resume(throwing: error)
     }
 }
 
@@ -156,6 +181,16 @@ extension BLERingTransport: @preconcurrency CBCentralManagerDelegate {
                         didDiscover peripheral: CBPeripheral,
                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard stage == .scanning else { return }
+
+        let advName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let name = advName ?? peripheral.name
+        let advUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
+        let services = advUUIDs.map(\.uuidString).joined(separator: ",")
+        trace("Discovered: name=\(name ?? "nil") rssi=\(RSSI) services=[\(services)]")
+
+        guard RingScanMatcher.matches(name: name, advertisedServiceUUIDs: advUUIDs) else { return }
+
+        trace("Matched ring \(name ?? "nil") — connecting")
         stage = .connecting
         central.stopScan()
         self.peripheral = peripheral
@@ -206,14 +241,23 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard characteristic.uuid == notifyUUID else { return }
-        if error == nil && characteristic.isNotifying { succeedReady() } else { failReady(.connectionFailed) }
+        if error == nil && characteristic.isNotifying {
+            trace("Ring ready — notifications enabled")
+            succeedReady()
+        } else {
+            failReady(.connectionFailed)
+        }
     }
 
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard characteristic.uuid == notifyUUID else { return }
-        if let error { return failResponse(error as? RingError ?? .timeout) }
+        if let error {
+            trace("Notify error: \(error.localizedDescription)")
+            return failResponse(error as? RingError ?? .timeout)
+        }
         guard let value = characteristic.value else { return failResponse(.timeout) }
+        trace("Notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
         answer(value)
     }
 }

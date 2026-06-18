@@ -32,7 +32,7 @@ extension RingProtocol {
         var slot = 0
         for packet in data {
             let bytes = Array(packet)
-            let values = hrSubtype(packet) == 1 ? Array(bytes[6..<16]) : Array(bytes[2..<16])
+            let values = hrSubtype(packet) == 1 ? Array(bytes[6..<15]) : Array(bytes[2..<15])
             for value in values {
                 if value > 0 {
                     samples.append(MetricSample(date: start.addingTimeInterval(Double(slot) * intervalSeconds),

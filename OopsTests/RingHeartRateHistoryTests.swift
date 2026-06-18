@@ -34,6 +34,7 @@ struct RingHeartRateHistoryTests {
         let ts = RingProtocol.uint32LE(start)
         first[2] = ts[0]; first[3] = ts[1]; first[4] = ts[2]; first[5] = ts[3]
         first[6] = 60; first[7] = 0; first[8] = 62   // 3 readings, middle is "no reading"
+        first[15] = 99                                // non-zero checksum; must not be read as value
         let samples = RingProtocol.parseHeartRateHistory([header, Data(first)])
         #expect(samples.count == 2)                  // zeros dropped
         #expect(samples[0].value == 60)

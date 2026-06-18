@@ -17,6 +17,8 @@ struct TopBar: View {
 
     /// Battery percentage type: a touch smaller than caption2, scaling with Dynamic Type.
     @ScaledMetric(relativeTo: .caption2) private var batteryFontSize: CGFloat = 9
+    /// Gap between the percentage and the battery icon — a hair tighter than Spacing.xxs.
+    @ScaledMetric(relativeTo: .caption2) private var batteryGap: CGFloat = 2
     /// Fixed slot for the battery percentage (or the updating spinner that replaces it) so the
     /// swap never reflows the pill. Scales with Dynamic Type; sized for the widest case ("100%").
     @ScaledMetric(relativeTo: .caption2) private var batteryTextWidth: CGFloat = 32
@@ -94,7 +96,7 @@ struct TopBar: View {
     /// The battery icon stays put; only the percentage swaps to a spinner while updating. The
     /// text/spinner lives in a fixed-width slot so the swap doesn't change the pill's size.
     private var batterySlot: some View {
-        HStack(spacing: Spacing.xxs) {
+        HStack(spacing: batteryGap) {
             ZStack {
                 if isUpdatingBattery {
                     ProgressView().controlSize(.mini)

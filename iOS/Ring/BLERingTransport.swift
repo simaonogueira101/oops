@@ -45,6 +45,12 @@ final class BLERingTransport: NSObject, RingTransport {
     private var connectTimeoutTask: Task<Void, Never>?
     private var responseTimeoutTask: Task<Void, Never>?
 
+    // Paged read state — nil when no paged read is in flight.
+    private var pagedContinuation: CheckedContinuation<[Data], Error>?
+    private var pagedBuffer: [Data] = []
+    private var isCompletePredicate: (([Data]) -> Bool)?
+    private var pagedTimeoutTask: Task<Void, Never>?
+
     override init() {
         super.init()
         central = CBCentralManager(delegate: self, queue: .main)
@@ -77,6 +83,9 @@ final class BLERingTransport: NSObject, RingTransport {
         // Resolve anything still in flight so no awaiter hangs.
         readyContinuation?.resume(throwing: RingError.connectionFailed); readyContinuation = nil
         responseContinuation?.resume(throwing: RingError.notConnected); responseContinuation = nil
+        pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
+        pagedContinuation?.resume(throwing: RingError.notConnected)
+        pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil
     }
 
     func send(_ command: Data) async throws -> Data {
@@ -92,6 +101,46 @@ final class BLERingTransport: NSObject, RingTransport {
                 self?.failResponse(.timeout)
             }
         }
+    }
+
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
+        trace("Write paged command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        return try await withCheckedThrowingContinuation { continuation in
+            pagedContinuation = continuation
+            pagedBuffer = []
+            isCompletePredicate = isComplete
+            let type: CBCharacteristicWriteType =
+                writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
+            peripheral.writeValue(command, for: writeChar, type: type)
+            armPagedTimeout()
+        }
+    }
+
+    private func armPagedTimeout() {
+        pagedTimeoutTask?.cancel()
+        pagedTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.responseTimeout ?? 8))
+            self?.failPaged(.timeout)
+        }
+    }
+
+    private func answerPaged(_ packets: [Data]) {
+        guard let continuation = pagedContinuation else { return }
+        pagedContinuation = nil
+        pagedBuffer = []
+        isCompletePredicate = nil
+        pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
+        continuation.resume(returning: packets)
+    }
+
+    private func failPaged(_ error: RingError) {
+        guard let continuation = pagedContinuation else { return }
+        pagedContinuation = nil
+        pagedBuffer = []
+        isCompletePredicate = nil
+        pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
+        continuation.resume(throwing: error)
     }
 
     // MARK: Connect flow
@@ -254,10 +303,25 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
         guard characteristic.uuid == notifyUUID else { return }
         if let error {
             trace("Notify error: \(error.localizedDescription)")
+            if pagedContinuation != nil {
+                return failPaged(error as? RingError ?? .timeout)
+            }
             return failResponse(error as? RingError ?? .timeout)
         }
-        guard let value = characteristic.value else { return failResponse(.timeout) }
+        guard let value = characteristic.value else {
+            if pagedContinuation != nil { return failPaged(.timeout) }
+            return failResponse(.timeout)
+        }
         trace("Notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
-        answer(value)
+        // Route to whichever read is in flight.
+        if pagedContinuation != nil {
+            pagedBuffer.append(value)
+            armPagedTimeout()   // re-arm per-packet timeout
+            if isCompletePredicate?(pagedBuffer) == true {
+                answerPaged(pagedBuffer)
+            }
+        } else {
+            answer(value)
+        }
     }
 }

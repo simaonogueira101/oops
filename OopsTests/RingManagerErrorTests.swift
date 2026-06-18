@@ -23,6 +23,9 @@ private final class StubTransport: RingTransport {
         if let sendError { throw sendError }
         return RingProtocol.makePacket(command: 0x03, payload: [50, 0])
     }
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        [try await send(command)]
+    }
 }
 
 @MainActor

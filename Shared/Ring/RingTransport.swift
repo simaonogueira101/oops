@@ -24,4 +24,7 @@ protocol RingTransport {
     func disconnect()
     /// Sends a 16-byte command packet and returns the ring's response packet.
     func send(_ command: Data) async throws -> Data
+    /// Sends a command and accumulates inbound packets until `isComplete` returns true,
+    /// then returns all collected packets. Used for multi-packet history reads.
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]
 }

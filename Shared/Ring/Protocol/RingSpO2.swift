@@ -3,6 +3,10 @@ import Foundation
 extension RingProtocol {
     static func liveSpO2StartCommand() -> Data { makePacket(command: 0x69, payload: [0x03, 0x01]) }
 
+    /// `0x2C`: enable all-day continuous SpO2 monitoring. Sending this before the V2 request
+    /// ensures the ring has been recording hourly samples. Payload `[0x02, 0x01]` = enable.
+    static func enableAllDaySpO2Command() -> Data { makePacket(command: 0x2C, payload: [0x02, 0x01]) }
+
     static func parseLiveSpO2(_ data: Data) -> Int? {
         guard data.count >= 4 else { return nil }
         let b = Array(data)

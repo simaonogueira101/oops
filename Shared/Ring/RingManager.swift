@@ -113,7 +113,8 @@ final class RingManager {
 
             let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
 
-            for metricKey in ["hr", "activity", "sleep", "stress", "spo2"] {
+            // SpO2 and sleep are now fetched via Big Data V2 after the per-day loop.
+            for metricKey in ["hr", "activity", "stress"] {
                 let lastSynced = meta.lastSyncedDay[metricKey]
                 let from: Date
                 if let last = lastSynced {
@@ -166,10 +167,67 @@ final class RingManager {
                 }
             }
 
-            // f. Disconnect
+            // f. SpO2 V2 (Big Data 0x2A) — replaces the V1 per-day spo2HistoryCommand
+            if transport.supportsBigData {
+                do {
+                    try? await transport.send(RingProtocol.enableAllDaySpO2Command())
+                    let packets = try await transport.sendBigData(
+                        RingBigData.spo2Request(),
+                        isComplete: RingBigData.spo2Complete
+                    )
+                    let samples = RingBigData.parseSpO2(packets, today: .now, calendar: utc)
+                    let existing = (try? fetchTimestamps(SpO2Sample.self)) ?? []
+                    for s in samples where !existing.contains(s.date) {
+                        modelContext.insert(SpO2Sample(timestamp: s.date, percent: Int(s.value)))
+                    }
+                    if !samples.isEmpty {
+                        meta.lastSyncedDay["spo2"] = today
+                    }
+                } catch {
+                    trace("spo2 V2 step failed: \(error)")
+                }
+            }
+
+            // g. Sleep V2 (Big Data 0x27) — replaces the V1 per-day sleepHistoryCommand
+            if transport.supportsBigData {
+                do {
+                    let packets = try await transport.sendBigData(
+                        RingBigData.sleepRequest(),
+                        isComplete: RingBigData.sleepComplete
+                    )
+                    let intervals = RingBigData.parseSleep(packets, today: .now, calendar: utc)
+                    // Group intervals by dayStart and replace/insert one SleepSessionRecord per day.
+                    let grouped = Dictionary(grouping: intervals) { iv in
+                        utc.startOfDay(for: iv.start)
+                    }
+                    for (dayStart, dayIntervals) in grouped {
+                        let existing = try modelContext.fetch(
+                            FetchDescriptor<SleepSessionRecord>(
+                                predicate: #Predicate { $0.dayStart == dayStart }
+                            )
+                        )
+                        for record in existing { modelContext.delete(record) }
+                        let stageRecords = dayIntervals.map { iv in
+                            SleepStageIntervalRecord(
+                                stageRaw: stageRaw(for: iv.stage),
+                                start: iv.start,
+                                end: iv.end
+                            )
+                        }
+                        modelContext.insert(SleepSessionRecord(dayStart: dayStart, intervals: stageRecords))
+                    }
+                    if !intervals.isEmpty {
+                        meta.lastSyncedDay["sleep"] = today
+                    }
+                } catch {
+                    trace("sleep V2 step failed: \(error)")
+                }
+            }
+
+            // h. Disconnect
             transport.disconnect()
 
-            // g. Save
+            // i. Save
             try? modelContext.save()
 
         } catch let error as RingError {
@@ -214,31 +272,6 @@ final class RingManager {
                 existingTimestamps.insert(s.date)
             }
 
-        case "sleep":
-            let packets = try await transport.send(
-                RingProtocol.sleepHistoryCommand(day: day, calendar: calendar),
-                isComplete: RingProtocol.sleepHistoryComplete
-            )
-            let intervals = RingProtocol.parseSleep(packets, dayStart: dayStart)
-            if !intervals.isEmpty {
-                // Delete existing record for this dayStart to avoid duplicates.
-                let existing = try modelContext.fetch(
-                    FetchDescriptor<SleepSessionRecord>(
-                        predicate: #Predicate { $0.dayStart == dayStart }
-                    )
-                )
-                for record in existing { modelContext.delete(record) }
-
-                let stageRecords = intervals.map { iv in
-                    SleepStageIntervalRecord(
-                        stageRaw: stageRaw(for: iv.stage),
-                        start: iv.start,
-                        end: iv.end
-                    )
-                }
-                modelContext.insert(SleepSessionRecord(dayStart: dayStart, intervals: stageRecords))
-            }
-
         case "stress":
             let packets = try await transport.send(
                 RingProtocol.stressHistoryCommand(day: day, calendar: calendar),
@@ -247,17 +280,6 @@ final class RingManager {
             let samples = RingProtocol.parseStress(packets, dayStart: dayStart)
             for s in samples where !existingTimestamps.contains(s.date) {
                 modelContext.insert(StressSample(timestamp: s.date, value: Int(s.value)))
-                existingTimestamps.insert(s.date)
-            }
-
-        case "spo2":
-            let packets = try await transport.send(
-                RingProtocol.spo2HistoryCommand(day: day, calendar: calendar),
-                isComplete: RingProtocol.spo2HistoryComplete
-            )
-            let samples = RingProtocol.parseSpO2History(packets, dayStart: dayStart)
-            for s in samples where !existingTimestamps.contains(s.date) {
-                modelContext.insert(SpO2Sample(timestamp: s.date, percent: Int(s.value)))
                 existingTimestamps.insert(s.date)
             }
 

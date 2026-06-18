@@ -47,7 +47,13 @@ final class MockRingTransport: RingTransport {
     }
 
     func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
-        return MockRingTransport.temperaturePackets()
+        guard data.count >= 2 else { return [] }
+        switch data[data.startIndex + 1] {
+        case 0x25: return MockRingTransport.temperaturePackets()
+        case 0x2A: return MockRingTransport.spo2BigDataPackets()
+        case 0x27: return MockRingTransport.sleepBigDataPackets()
+        default:   return []
+        }
     }
 
     // MARK: - Deterministic packet builders
@@ -129,6 +135,42 @@ final class MockRingTransport: RingTransport {
         var bytes: [UInt8] = [0xBC, 0x25, lenLo, lenHi, 0x00, 0x00,   // header + 2 filler
                                0x00, 0x1E]                              // daysAgo=0, 0x1E marker
         bytes.append(contentsOf: slots)
+        return [Data(bytes)]
+    }
+
+    /// SpO2 Big-Data V2 response (0x2A).
+    /// Layout: [0xBC, 0x2A, len_lo, len_hi] + 2 filler bytes + one day block:
+    /// [daysAgo=0][24 hourly (min, max) pairs = 48 bytes].
+    /// Hours 20–22 have non-zero readings (94, 98) to exercise parseSpO2.
+    private static func spo2BigDataPackets() -> [Data] {
+        // 24 pairs × 2 bytes each = 48 data bytes
+        var pairs = [UInt8](repeating: 0, count: 48)
+        // hours 20, 21, 22: (min=94, max=98)
+        for hour in [20, 21, 22] {
+            pairs[hour * 2]     = 94
+            pairs[hour * 2 + 1] = 98
+        }
+        // Payload length = 2 filler + 1 daysAgo + 48 pairs = 51
+        let len: UInt8 = 51
+        var bytes: [UInt8] = [0xBC, 0x2A, len, 0x00, 0x00, 0x00,   // header + 2 filler
+                               0x00]                                  // daysAgo=0
+        bytes.append(contentsOf: pairs)
+        return [Data(bytes)]
+    }
+
+    /// Sleep Big-Data V2 response (0x27).
+    /// Layout: [0xBC, 0x27, len_lo, len_hi] + 2 filler bytes + one day block:
+    /// [daysAgo=1][(stageCode, minutes)…]
+    /// Stages: 02=light 90 min, 03=deep 60 min, 04=REM 45 min, 05=awake 5 min.
+    private static func sleepBigDataPackets() -> [Data] {
+        // 4 pairs × 2 bytes = 8 bytes; payload = 2 filler + 1 daysAgo + 8 pairs = 11
+        let len: UInt8 = 11
+        let bytes: [UInt8] = [0xBC, 0x27, len, 0x00, 0x00, 0x00,   // header + 2 filler
+                               0x01,                                   // daysAgo=1
+                               0x02, 90,                               // light, 90 min
+                               0x03, 60,                               // deep, 60 min
+                               0x04, 45,                               // REM, 45 min
+                               0x05, 5]                                // awake, 5 min
         return [Data(bytes)]
     }
 

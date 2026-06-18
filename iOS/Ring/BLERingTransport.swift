@@ -159,6 +159,15 @@ final class BLERingTransport: NSObject, RingTransport {
         }
     }
 
+    /// Write a command with no response awaited — for live-HR keepalives fired during a paged
+    /// read. Does not touch any continuation/buffer, so it won't disturb an in-flight read.
+    func fireAndForget(_ command: Data) {
+        guard stage == .ready, let peripheral, let writeChar else { return }
+        let type: CBCharacteristicWriteType =
+            writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
+        peripheral.writeValue(command, for: writeChar, type: type)
+    }
+
     func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
         guard stage == .ready, let peripheral, let v2WriteChar else { throw RingError.notConnected }
         guard responseContinuation == nil, pagedContinuation == nil, bigDataContinuation == nil else {

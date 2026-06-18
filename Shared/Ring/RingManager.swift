@@ -69,13 +69,26 @@ final class RingManager {
             // anything else. The 0x69 frames stream on their own (no keepalive); collect until a
             // non-zero BPM or a 70-frame cap, with a long per-packet timeout to span the warm-up.
             do {
+                // The ring measures once and shuts the sensor off unless it gets a periodic
+                // CONTINUE keepalive (0x1E 03) — that's how the official app sustains a live
+                // read. Fire it every ~2s while the paged read collects 0x69 frames until a
+                // non-zero BPM (the PPG takes ~26s to lock on) or the frame cap.
+                let keepalive = Task { [transport] in
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(2))
+                        if Task.isCancelled { break }
+                        transport.fireAndForget(RingProtocol.liveHRKeepaliveCommand())
+                    }
+                }
+                defer { keepalive.cancel() }
                 let frames = try await transport.send(
                     RingProtocol.liveHRStartCommand(),
                     isComplete: { packets in
                         packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
                     },
-                    perPacketTimeout: 32
+                    perPacketTimeout: 12
                 )
+                keepalive.cancel()
                 if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                     liveHR = bpm
                 }

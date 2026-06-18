@@ -7,7 +7,13 @@ struct RingLiveHRTests {
         let p = Array(RingProtocol.liveHRStartCommand())
         #expect(p[0] == 0x69)
         #expect(p[1] == 0x01) // reading type 1 = HR
-        #expect(p[2] == 0x01) // action = start
+        #expect(p[2] == 0x00) // sub = 0 (matches official getSimpleReq(1))
+    }
+
+    @Test func keepaliveIsContinueAction() {
+        let p = Array(RingProtocol.liveHRKeepaliveCommand())
+        #expect(p[0] == 0x1E) // CMD_REAL_TIME_HEART_RATE
+        #expect(p[1] == 0x03) // ACTION_CONTINUE (the integer 3, not ASCII '3')
     }
 
     @Test func stopCommandUses0x6A() {

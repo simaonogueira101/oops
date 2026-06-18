@@ -37,6 +37,10 @@ protocol RingTransport: AnyObject {
     /// packets until `isComplete` returns true, then returns all collected packets.
     func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]
 
+    /// Writes a command WITHOUT awaiting a response — used to fire live-HR keepalives while a
+    /// paged read is collecting heart-rate frames. Default no-op (mock/stub ignore it).
+    func fireAndForget(_ command: Data)
+
     // MARK: Ring binding (remember my ring)
 
     /// When non-nil, `connect()` must only accept a peripheral with this identifier.
@@ -67,4 +71,5 @@ extension RingTransport {
     }
     var connectedRingID: UUID? { nil }
     var connectedRingName: String? { nil }
+    func fireAndForget(_ command: Data) {}
 }

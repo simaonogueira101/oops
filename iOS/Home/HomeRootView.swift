@@ -67,7 +67,7 @@ struct HomeRootView: View {
                     }
                     self.manager = manager
                 }
-                await manager?.refreshBattery()
+                await manager?.sync()
             }
             .task {
                 // Periodic top-up while the app stays open. Ring battery moves slowly, so a
@@ -75,12 +75,12 @@ struct HomeRootView: View {
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(30 * 60))
                     if Task.isCancelled { break }
-                    await manager?.refreshBattery()
+                    await manager?.sync()
                 }
             }
             .onChange(of: scenePhase) { _, phase in
                 // Refresh when the app returns to the foreground.
-                if phase == .active { Task { await manager?.refreshBattery() } }
+                if phase == .active { Task { await manager?.sync() } }
             }
             .sheet(item: $sheet) { which in
                 switch which {

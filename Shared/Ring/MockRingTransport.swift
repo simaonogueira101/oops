@@ -23,6 +23,9 @@ final class MockRingTransport: RingTransport {
                 command: 0x03,
                 payload: [UInt8(batteryLevel), isCharging ? 1 : 0]
             )
+        case 0x01, 0x3A, 0x6A:
+            // Set-time, enable temperature, live HR stop — acknowledge silently.
+            return RingProtocol.makePacket(command: command.first ?? 0x00)
         default:
             throw RingError.unsupportedCommand
         }
@@ -35,6 +38,7 @@ final class MockRingTransport: RingTransport {
         case 0x44: return MockRingTransport.sleepPackets()
         case 0x37: return MockRingTransport.stressPackets()
         case 0x2C: return MockRingTransport.spo2Packets()
+        case 0x69: return MockRingTransport.liveHRPackets()
         default:   return [try await send(command)]
         }
     }
@@ -97,6 +101,13 @@ final class MockRingTransport: RingTransport {
         let data = makeRaw([0x2C, 0x01, 97, 96, 98, 97, 95, 98, 97, 96,
                              98, 97, 96, 95, 97, 0x00])
         return [header, data]
+    }
+
+    /// Live HR: one response packet with BPM=72.
+    private static func liveHRPackets() -> [Data] {
+        // [0x69, type=1, error=0, bpm=72, ...]
+        [makeRaw([0x69, 0x01, 0x00, 72, 0x00, 0x00, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]
     }
 
     /// Temperature Big-Data V2 response.

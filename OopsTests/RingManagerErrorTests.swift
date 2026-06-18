@@ -49,7 +49,7 @@ struct RingManagerErrorTests {
             modelContext: context
         )
 
-        await manager.refreshBattery()
+        await manager.sync()
 
         #expect(manager.bluetoothUnavailable == true)
         #expect(manager.errorMessage?.contains("Bluetooth") == true)
@@ -63,7 +63,7 @@ struct RingManagerErrorTests {
             modelContext: try inMemoryContext()
         )
 
-        await manager.refreshBattery()
+        await manager.sync()
 
         #expect(manager.bluetoothUnavailable == false)
         #expect(manager.errorMessage?.localizedCaseInsensitiveContains("not found") == true)
@@ -73,12 +73,12 @@ struct RingManagerErrorTests {
         let context = try inMemoryContext()
         // First, a failed read leaves the Bluetooth-unavailable state set.
         let failing = RingManager(transport: StubTransport(connectError: .bluetoothUnavailable), modelContext: context)
-        await failing.refreshBattery()
+        await failing.sync()
         #expect(failing.bluetoothUnavailable == true)
 
         // A subsequent successful read (mock transport) must clear it.
         let manager = RingManager(transport: MockRingTransport(batteryLevel: 80, isCharging: false), modelContext: context)
-        await manager.refreshBattery()
+        await manager.sync()
 
         #expect(manager.bluetoothUnavailable == false)
         #expect(manager.errorMessage == nil)

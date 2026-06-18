@@ -20,7 +20,7 @@ struct RingManagerTests {
             modelContext: context
         )
 
-        await manager.refreshBattery()
+        await manager.sync()
 
         #expect(manager.batteryStatus == BatteryStatus(level: 64, isCharging: true))
         #expect(manager.lastUpdated != nil)

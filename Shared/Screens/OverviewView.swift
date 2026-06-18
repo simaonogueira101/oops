@@ -36,10 +36,12 @@ struct OverviewView: View {
         Card(label: "Recovery", systemImage: "heart.fill",
              accent: AppColor.recovery, accessory: .chevron) {
             ScoreHero(score: metrics.score ?? 0, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
+                HeroStat(label: "Heart rate", value: metrics.currentHR.map { "\($0) bpm" } ?? "—",
+                         symbol: "heart.fill", color: AppColor.recovery),
                 HeroStat(label: "HRV", value: "\(dashFormatted(metrics.hrv)) ms",
                          symbol: "waveform", color: AppColor.recovery),
                 HeroStat(label: "Resting HR", value: metrics.restingHR.map { "\($0) bpm" } ?? "—",
-                         symbol: "heart.fill", color: AppColor.recovery),
+                         symbol: "bed.double.fill", color: AppColor.recovery),
                 HeroStat(label: "Strain", value: strainText,
                          symbol: "bolt.fill", color: AppColor.strain),
                 HeroStat(label: "Sleep", value: "\(sleepScore)",

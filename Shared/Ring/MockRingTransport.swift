@@ -170,20 +170,23 @@ final class MockRingTransport: RingTransport {
         return [Data(bytes)]
     }
 
-    /// Sleep Big-Data V2 response (0x27).
-    /// Layout: [0xBC, 0x27, len_lo, len_hi] + 2 filler bytes + one day block:
-    /// [daysAgo=1][(stageCode, minutes)…]
-    /// Stages: 02=light 90 min, 03=deep 60 min, 04=REM 45 min, 05=awake 5 min.
+    /// Sleep Big-Data V2 response (0x27) — SDK-correct layout.
+    /// Header: [0xBC, 0x27, len_lo, len_hi, crc_lo, crc_hi] (built by bigDataRequest)
+    /// Payload: [indicator=1] + one day block:
+    ///   [dayOffset=0, blockLenField=8, 0, 0, endMin_lo, endMin_hi, 2, 30, 3, 20]
+    /// endMinutes = 480 (8am); blockLen = 10, blockLenField = 8.
+    /// light 30 min + deep 20 min → total=50min, startTime = 7:10am.
     private static func sleepBigDataPackets() -> [Data] {
-        // 4 pairs × 2 bytes = 8 bytes; payload = 2 filler + 1 daysAgo + 8 pairs = 11
-        let len: UInt8 = 11
-        let bytes: [UInt8] = [0xBC, 0x27, len, 0x00, 0x00, 0x00,   // header + 2 filler
-                               0x01,                                   // daysAgo=1
-                               0x02, 90,                               // light, 90 min
-                               0x03, 60,                               // deep, 60 min
-                               0x04, 45,                               // REM, 45 min
-                               0x05, 5]                                // awake, 5 min
-        return [Data(bytes)]
+        let dayBlock: [UInt8] = [
+            0x00,         // dayOffset = 0
+            0x08,         // blockLenField = blockLen - 2 = 10 - 2 = 8
+            0x00, 0x00,   // discarded
+            0xE0, 0x01,   // endMinutes = 480 LE (0xE0 | 0x01<<8 = 224+256 = 480)
+            0x02, 30,     // light, 30 min
+            0x03, 20      // deep, 20 min
+        ]
+        let payload: [UInt8] = [0x01] + dayBlock   // indicator=1 + day block
+        return [RingBigData.bigDataRequest(action: 0x27, payload: payload)]
     }
 
     private static func makeRaw(_ bytes: [UInt8]) -> Data { Data(bytes) }

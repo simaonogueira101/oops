@@ -28,14 +28,12 @@ struct RingSleepHistoryTests {
         #expect(intervals[0].end.timeIntervalSince(intervals[0].start) == 30 * 60)
     }
 
-    // MARK: - V2 Big Data (0x27)
+    // MARK: - V2 Big Data (0x27) — QRing/oudmon SDK protocol
 
+    /// sleepRequest() must produce exactly BC 27 02 00 81 80 FF 01
     @Test func sleepRequestBytes() {
         let req = Array(RingBigData.sleepRequest())
-        #expect(req[0] == 0xBC)
-        #expect(req[1] == 0x27)
-        #expect(req[2] == 0x01)
-        #expect(req[3] == 0x00)
+        #expect(req == [0xBC, 0x27, 0x02, 0x00, 0x81, 0x80, 0xFF, 0x01])
     }
 
     @Test func sleepCompleteReturnsFalseOnEmpty() {
@@ -43,51 +41,65 @@ struct RingSleepHistoryTests {
     }
 
     @Test func sleepCompleteReturnsTrueWhenFullPayloadPresent() {
-        // payload = 2 filler + 1 daysAgo + 4 pairs × 2 = 11
-        let len: UInt8 = 11
-        var bytes = [UInt8](repeating: 0, count: 4 + Int(len))
-        bytes[0] = 0xBC; bytes[1] = 0x27; bytes[2] = len; bytes[3] = 0
+        // 6-byte header + payloadLen bytes
+        let payloadLen = 11
+        var bytes = [UInt8](repeating: 0, count: 6 + payloadLen)
+        bytes[0] = 0xBC; bytes[1] = 0x27
+        bytes[2] = UInt8(payloadLen & 0xFF); bytes[3] = UInt8(payloadLen >> 8)
         #expect(RingBigData.sleepComplete([Data(bytes)]))
     }
 
     @Test func sleepCompleteReturnsTrueForZeroLen() {
-        let bytes: [UInt8] = [0xBC, 0x27, 0x00, 0x00]
+        let bytes: [UInt8] = [0xBC, 0x27, 0x00, 0x00, 0x00, 0x00]
         #expect(RingBigData.sleepComplete([Data(bytes)]))
     }
 
     @Test func sleepCompleteReturnsFalseForPartialPayload() {
-        let bytes: [UInt8] = [0xBC, 0x27, 11, 0x00]   // declare 11 bytes but supply none
+        // 6-byte header declaring 11 bytes payload, but no payload bytes follow
+        let bytes: [UInt8] = [0xBC, 0x27, 11, 0x00, 0x00, 0x00]
         #expect(!RingBigData.sleepComplete([Data(bytes)]))
     }
 
+    /// Build a minimal but spec-correct V2 response and assert parse correctness.
+    /// Payload: indicator=1, dayBlock: dayOffset=0, blockLenField=8,
+    /// discard=0,0, endMinutes=480 (8am), light 30min, deep 20min.
+    /// total=50min → startTime=7:10am; last.end == 8am.
     @Test func parseSleepV2YieldsContiguousIntervals() {
         let today = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
-        // daysAgo=0, light 30 min, deep 20 min → starts at today's midnight
-        let len: UInt8 = 2 + 1 + 4   // 2 filler + 1 daysAgo + 2 pairs × 2
-        let bytes: [UInt8] = [0xBC, 0x27, len, 0x00, 0x00, 0x00,   // header + 2 filler
-                               0x00,                                   // daysAgo=0
-                               0x02, 30,                               // light, 30 min
-                               0x03, 20]                               // deep, 20 min
-        let intervals = RingBigData.parseSleep([Data(bytes)], today: today, calendar: Self.utc)
+        let dayBlock: [UInt8] = [
+            0x00,         // dayOffset=0
+            0x08,         // blockLenField=8 (blockLen=10)
+            0x00, 0x00,   // discarded
+            0xE0, 0x01,   // endMinutes=480 LE
+            0x02, 30,     // light, 30 min
+            0x03, 20      // deep, 20 min
+        ]
+        let payload: [UInt8] = [0x01] + dayBlock
+        let response = RingBigData.bigDataRequest(action: 0x27, payload: payload)
+        let intervals = RingBigData.parseSleep([response], today: today, calendar: Self.utc)
         #expect(intervals.count == 2)
         #expect(intervals[0].stage == .light)
         #expect(intervals[1].stage == .deep)
         #expect(intervals[1].start == intervals[0].end)
         #expect(intervals[0].end.timeIntervalSince(intervals[0].start) == 30 * 60)
-        #expect(intervals[0].start == today)
+        // last.end == 8am (480 min past midnight)
+        let eightAm = today.addingTimeInterval(480 * 60)
+        #expect(intervals[1].end == eightAm)
     }
 
     @Test func parseSleepV2MapsAllStageCodes() {
         let today = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
-        // 02=light 03=deep 04=rem 05=awake
-        let len: UInt8 = 2 + 1 + 8
-        let bytes: [UInt8] = [0xBC, 0x27, len, 0x00, 0x00, 0x00,
-                               0x00,
-                               0x02, 10,   // light
-                               0x03, 10,   // deep
-                               0x04, 10,   // rem
-                               0x05, 10]   // awake
-        let intervals = RingBigData.parseSleep([Data(bytes)], today: today, calendar: Self.utc)
+        // 4 pairs × 2 = 8 pair bytes; blockLen=14, blockLenField=12; endMinutes=120
+        let dayBlock: [UInt8] = [
+            0x00, 0x0C, 0x00, 0x00, 0x78, 0x00,   // dayOffset=0, blockLenField=12, discard, endMin=120
+            0x02, 10,   // light
+            0x03, 10,   // deep
+            0x04, 10,   // rem
+            0x05, 10    // awake
+        ]
+        let payload: [UInt8] = [0x01] + dayBlock
+        let response = RingBigData.bigDataRequest(action: 0x27, payload: payload)
+        let intervals = RingBigData.parseSleep([response], today: today, calendar: Self.utc)
         #expect(intervals.count == 4)
         #expect(intervals[0].stage == .light)
         #expect(intervals[1].stage == .deep)
@@ -97,16 +109,27 @@ struct RingSleepHistoryTests {
 
     @Test func parseSleepV2SkipsUnknownStageCodes() {
         let today = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
-        let len: UInt8 = 2 + 1 + 6
-        let bytes: [UInt8] = [0xBC, 0x27, len, 0x00, 0x00, 0x00,
-                               0x00,
-                               0xFF, 10,   // unknown stage → skip but advance cursor
-                               0x02, 30,   // light 30 min starts after the unknown 10 min
-                               0x03, 20]   // deep 20 min
-        let intervals = RingBigData.parseSleep([Data(bytes)], today: today, calendar: Self.utc)
+        // 3 pairs × 2 = 6 pair bytes; blockLen=12, blockLenField=10; endMinutes=60
+        let dayBlock: [UInt8] = [
+            0x00, 0x0A, 0x00, 0x00, 0x3C, 0x00,   // dayOffset=0, blockLenField=10, discard, endMin=60
+            0xFF, 10,   // unknown → skip but advance cursor
+            0x02, 30,   // light 30 min
+            0x03, 20    // deep 20 min
+        ]
+        let payload: [UInt8] = [0x01] + dayBlock
+        let response = RingBigData.bigDataRequest(action: 0x27, payload: payload)
+        let intervals = RingBigData.parseSleep([response], today: today, calendar: Self.utc)
         #expect(intervals.count == 2)
         #expect(intervals[0].stage == .light)
-        // light starts 10 min after midnight (unknown stage advanced the cursor)
+        // total=60min, endMinutes=60→1am; startTime=midnight; unknown 10min → light starts at 10min past midnight
         #expect(intervals[0].start == today.addingTimeInterval(10 * 60))
+    }
+
+    @Test func parseSleepV2ReturnsEmptyWhenIndicatorIsZero() {
+        let today = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
+        let payload: [UInt8] = [0x00]   // indicator=0 → no sleep data
+        let response = RingBigData.bigDataRequest(action: 0x27, payload: payload)
+        let intervals = RingBigData.parseSleep([response], today: today, calendar: Self.utc)
+        #expect(intervals.isEmpty)
     }
 }

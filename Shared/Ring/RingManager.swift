@@ -111,11 +111,22 @@ final class RingManager {
                 let clampedFrom = max(from, weekStart)
                 guard clampedFrom <= today else { continue }
 
+                // Fetch existing timestamps once per metric (avoids full-table scan per day).
+                var existingTimestamps: Set<Date> = fetchTimestampsForMetric(metricKey)
+
                 var day = clampedFrom
                 while day <= today {
                     let dayOffset = calendar.dateComponents([.day], from: day, to: today).day ?? 0
-                    await syncDay(day: day, dayOffset: dayOffset, metricKey: metricKey,
-                                  calendar: calendar, meta: meta, today: today)
+                    do {
+                        try await syncDayThrowing(day: day, dayOffset: dayOffset, metricKey: metricKey,
+                                                   calendar: calendar,
+                                                   existingTimestamps: &existingTimestamps)
+                        // Advance per-day on success (empty result also counts as success).
+                        meta.lastSyncedDay[metricKey] = day
+                    } catch {
+                        trace("\(metricKey) history day=\(day) failed: \(error) — stopping this metric for this sync")
+                        break  // Stop advancing this metric; retry from this day next sync.
+                    }
                     day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                 }
             }
@@ -158,104 +169,82 @@ final class RingManager {
 
     // MARK: - Per-day metric sync (partial-failure tolerant)
 
-    private func syncDay(day: Date, dayOffset: Int, metricKey: String,
-                         calendar: Calendar, meta: RingSyncMeta, today: Date) async {
+    /// Throws on transport/parse failure so the caller can break out of the day loop
+    /// and retry from this day on the next sync.
+    private func syncDayThrowing(day: Date, dayOffset: Int, metricKey: String,
+                                  calendar: Calendar,
+                                  existingTimestamps: inout Set<Date>) async throws {
         let dayStart = calendar.startOfDay(for: day)
 
         switch metricKey {
         case "hr":
-            do {
-                let packets = try await transport.send(
-                    RingProtocol.heartRateHistoryCommand(day: day, calendar: calendar),
-                    isComplete: RingProtocol.heartRateHistoryComplete
-                )
-                let samples = RingProtocol.parseHeartRateHistory(packets)
-                let existing = (try? fetchTimestamps(HeartRateSample.self)) ?? []
-                for s in samples where !existing.contains(s.date) {
-                    modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
-                }
-                if !samples.isEmpty { meta.lastSyncedDay["hr"] = today }
-            } catch {
-                trace("HR history day=\(day) failed: \(error)")
+            let packets = try await transport.send(
+                RingProtocol.heartRateHistoryCommand(day: day, calendar: calendar),
+                isComplete: RingProtocol.heartRateHistoryComplete
+            )
+            let samples = RingProtocol.parseHeartRateHistory(packets)
+            for s in samples where !existingTimestamps.contains(s.date) {
+                modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
+                existingTimestamps.insert(s.date)
             }
 
         case "activity":
-            do {
-                let packets = try await transport.send(
-                    RingProtocol.activityHistoryCommand(dayOffset: dayOffset),
-                    isComplete: RingProtocol.activityHistoryComplete
-                )
-                let samples = RingProtocol.parseActivityHistory(packets, calendar: calendar)
-                let existing = (try? fetchTimestamps(ActivitySample.self)) ?? []
-                for s in samples where !existing.contains(s.date) {
-                    modelContext.insert(ActivitySample(timestamp: s.date, steps: s.steps,
-                                                       calories: s.calories, distanceMeters: s.distanceMeters))
-                }
-                if !samples.isEmpty { meta.lastSyncedDay["activity"] = today }
-            } catch {
-                trace("activity history day=\(day) failed: \(error)")
+            let packets = try await transport.send(
+                RingProtocol.activityHistoryCommand(dayOffset: dayOffset),
+                isComplete: RingProtocol.activityHistoryComplete
+            )
+            let samples = RingProtocol.parseActivityHistory(packets, calendar: calendar)
+            for s in samples where !existingTimestamps.contains(s.date) {
+                modelContext.insert(ActivitySample(timestamp: s.date, steps: s.steps,
+                                                   calories: s.calories, distanceMeters: s.distanceMeters))
+                existingTimestamps.insert(s.date)
             }
 
         case "sleep":
-            do {
-                let packets = try await transport.send(
-                    RingProtocol.sleepHistoryCommand(day: day, calendar: calendar),
-                    isComplete: RingProtocol.sleepHistoryComplete
-                )
-                let intervals = RingProtocol.parseSleep(packets, dayStart: dayStart)
-                if !intervals.isEmpty {
-                    // Delete existing record for this dayStart to avoid duplicates.
-                    let existing = try modelContext.fetch(
-                        FetchDescriptor<SleepSessionRecord>(
-                            predicate: #Predicate { $0.dayStart == dayStart }
-                        )
+            let packets = try await transport.send(
+                RingProtocol.sleepHistoryCommand(day: day, calendar: calendar),
+                isComplete: RingProtocol.sleepHistoryComplete
+            )
+            let intervals = RingProtocol.parseSleep(packets, dayStart: dayStart)
+            if !intervals.isEmpty {
+                // Delete existing record for this dayStart to avoid duplicates.
+                let existing = try modelContext.fetch(
+                    FetchDescriptor<SleepSessionRecord>(
+                        predicate: #Predicate { $0.dayStart == dayStart }
                     )
-                    for record in existing { modelContext.delete(record) }
+                )
+                for record in existing { modelContext.delete(record) }
 
-                    let stageRecords = intervals.map { iv in
-                        SleepStageIntervalRecord(
-                            stageRaw: stageRaw(for: iv.stage),
-                            start: iv.start,
-                            end: iv.end
-                        )
-                    }
-                    modelContext.insert(SleepSessionRecord(dayStart: dayStart, intervals: stageRecords))
-                    meta.lastSyncedDay["sleep"] = today
+                let stageRecords = intervals.map { iv in
+                    SleepStageIntervalRecord(
+                        stageRaw: stageRaw(for: iv.stage),
+                        start: iv.start,
+                        end: iv.end
+                    )
                 }
-            } catch {
-                trace("sleep history day=\(day) failed: \(error)")
+                modelContext.insert(SleepSessionRecord(dayStart: dayStart, intervals: stageRecords))
             }
 
         case "stress":
-            do {
-                let packets = try await transport.send(
-                    RingProtocol.stressHistoryCommand(day: day, calendar: calendar),
-                    isComplete: RingProtocol.stressHistoryComplete
-                )
-                let samples = RingProtocol.parseStress(packets, dayStart: dayStart)
-                let existing = (try? fetchTimestamps(StressSample.self)) ?? []
-                for s in samples where !existing.contains(s.date) {
-                    modelContext.insert(StressSample(timestamp: s.date, value: Int(s.value)))
-                }
-                if !samples.isEmpty { meta.lastSyncedDay["stress"] = today }
-            } catch {
-                trace("stress history day=\(day) failed: \(error)")
+            let packets = try await transport.send(
+                RingProtocol.stressHistoryCommand(day: day, calendar: calendar),
+                isComplete: RingProtocol.stressHistoryComplete
+            )
+            let samples = RingProtocol.parseStress(packets, dayStart: dayStart)
+            for s in samples where !existingTimestamps.contains(s.date) {
+                modelContext.insert(StressSample(timestamp: s.date, value: Int(s.value)))
+                existingTimestamps.insert(s.date)
             }
 
         case "spo2":
-            do {
-                let packets = try await transport.send(
-                    RingProtocol.spo2HistoryCommand(day: day, calendar: calendar),
-                    isComplete: RingProtocol.spo2HistoryComplete
-                )
-                let samples = RingProtocol.parseSpO2History(packets, dayStart: dayStart)
-                let existing = (try? fetchTimestamps(SpO2Sample.self)) ?? []
-                for s in samples where !existing.contains(s.date) {
-                    modelContext.insert(SpO2Sample(timestamp: s.date, percent: Int(s.value)))
-                }
-                if !samples.isEmpty { meta.lastSyncedDay["spo2"] = today }
-            } catch {
-                trace("SpO2 history day=\(day) failed: \(error)")
+            let packets = try await transport.send(
+                RingProtocol.spo2HistoryCommand(day: day, calendar: calendar),
+                isComplete: RingProtocol.spo2HistoryComplete
+            )
+            let samples = RingProtocol.parseSpO2History(packets, dayStart: dayStart)
+            for s in samples where !existingTimestamps.contains(s.date) {
+                modelContext.insert(SpO2Sample(timestamp: s.date, percent: Int(s.value)))
+                existingTimestamps.insert(s.date)
             }
 
         default: break
@@ -268,6 +257,18 @@ final class RingManager {
     private func fetchTimestamps<T: PersistentModel & HasTimestamp>(_ type: T.Type) throws -> Set<Date> {
         let all = try modelContext.fetch(FetchDescriptor<T>())
         return Set(all.map(\.timestamp))
+    }
+
+    /// Returns the existing persisted timestamps for a metric key (non-throwing; falls back to empty).
+    /// Called once per metric before the day loop to avoid per-day full-table scans.
+    private func fetchTimestampsForMetric(_ metricKey: String) -> Set<Date> {
+        switch metricKey {
+        case "hr":       return (try? fetchTimestamps(HeartRateSample.self)) ?? []
+        case "activity": return (try? fetchTimestamps(ActivitySample.self)) ?? []
+        case "stress":   return (try? fetchTimestamps(StressSample.self)) ?? []
+        case "spo2":     return (try? fetchTimestamps(SpO2Sample.self)) ?? []
+        default:         return []
+        }
     }
 
     /// Maps a `SleepStage` to the integer convention used in `SleepStageIntervalRecord`.
@@ -303,11 +304,6 @@ final class RingManager {
         }
     }
 
-    // MARK: - Legacy alias
-
-    /// Kept for source compatibility with any call sites not yet migrated to `sync()`.
-    @available(*, deprecated, renamed: "sync")
-    func refreshBattery() async { await sync() }
 }
 
 // MARK: - HasTimestamp protocol

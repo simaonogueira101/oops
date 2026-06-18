@@ -6,6 +6,7 @@ import Foundation
 final class MockRingTransport: RingTransport {
     var batteryLevel: Int
     var isCharging: Bool
+    var supportsBigData: Bool = true
 
     init(batteryLevel: Int = 72, isCharging: Bool = false) {
         self.batteryLevel = batteryLevel
@@ -36,6 +37,10 @@ final class MockRingTransport: RingTransport {
         case 0x2C: return MockRingTransport.spo2Packets()
         default:   return [try await send(command)]
         }
+    }
+
+    func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        return MockRingTransport.temperaturePackets()
     }
 
     // MARK: - Deterministic packet builders
@@ -92,6 +97,25 @@ final class MockRingTransport: RingTransport {
         let data = makeRaw([0x2C, 0x01, 97, 96, 98, 97, 95, 98, 97, 96,
                              98, 97, 96, 95, 97, 0x00])
         return [header, data]
+    }
+
+    /// Temperature Big-Data V2 response.
+    /// Layout: [0xBC, 0x25, len_lo, len_hi] header + 2 filler bytes + one day block
+    /// (daysAgo=0, 0x1E marker, 48 slots with a couple of non-zero readings).
+    /// `len` = total payload after the 4-byte header = 52, so `temperatureComplete` resolves.
+    private static func temperaturePackets() -> [Data] {
+        // 48 slots, 30-minute each; slot 16 ≈ 08:00, slot 17 ≈ 08:30 with non-zero raw values.
+        // celsius = raw / 10.0 + 20.0 → raw = 170 → 37.0 °C; raw = 165 → 36.5 °C
+        var slots = [UInt8](repeating: 0, count: 48)
+        slots[16] = 170   // 37.0 °C
+        slots[17] = 165   // 36.5 °C
+        // Payload length = 2 filler + 1 (daysAgo) + 1 (0x1E) + 48 (slots) = 52
+        let lenLo: UInt8 = 52
+        let lenHi: UInt8 = 0
+        var bytes: [UInt8] = [0xBC, 0x25, lenLo, lenHi, 0x00, 0x00,   // header + 2 filler
+                               0x00, 0x1E]                              // daysAgo=0, 0x1E marker
+        bytes.append(contentsOf: slots)
+        return [Data(bytes)]
     }
 
     private static func makeRaw(_ bytes: [UInt8]) -> Data { Data(bytes) }

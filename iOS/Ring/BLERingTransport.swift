@@ -15,10 +15,15 @@ import os
 /// and the orchestration around it (`RingManager`) are unit-tested.
 @MainActor
 final class BLERingTransport: NSObject, RingTransport {
-    // Nordic-UART-style GATT service exposed by the ring.
+    // Nordic-UART-style GATT service exposed by the ring (V1 channel).
     private let serviceUUID = RingScanMatcher.serviceUUID
     private let writeUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     private let notifyUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+
+    // Big-Data V2 channel — body temperature lives on a separate GATT service.
+    private let v2ServiceUUID = CBUUID(string: RingBigData.serviceUUID)
+    private let v2WriteUUID = CBUUID(string: RingBigData.writeUUID)
+    private let v2NotifyUUID = CBUUID(string: RingBigData.notifyUUID)
 
     // Bring-up observability. `Logger` feeds Console.app; the `print` mirror makes the same
     // lines show up in `devicectl --console` capture over USB. Remove once assumptions hold.
@@ -36,6 +41,9 @@ final class BLERingTransport: NSObject, RingTransport {
     private var peripheral: CBPeripheral?
     private var writeChar: CBCharacteristic?
     private var notifyChar: CBCharacteristic?
+    private var v2WriteChar: CBCharacteristic?
+    private var v2NotifyChar: CBCharacteristic?
+    private(set) var supportsBigData: Bool = false
 
     private enum Stage { case idle, waitingForPowerOn, scanning, connecting, discovering, ready }
     private var stage: Stage = .idle
@@ -50,6 +58,12 @@ final class BLERingTransport: NSObject, RingTransport {
     private var pagedBuffer: [Data] = []
     private var isCompletePredicate: (([Data]) -> Bool)?
     private var pagedTimeoutTask: Task<Void, Never>?
+
+    // Big-Data V2 read state — nil when no V2 read is in flight.
+    private var bigDataContinuation: CheckedContinuation<[Data], Error>?
+    private var bigDataBuffer: [Data] = []
+    private var bigDataComplete: (([Data]) -> Bool)?
+    private var bigDataTimeoutTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -79,13 +93,18 @@ final class BLERingTransport: NSObject, RingTransport {
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
         if central.isScanning { central.stopScan() }
         if let peripheral { central.cancelPeripheralConnection(peripheral) }
-        peripheral = nil; writeChar = nil; notifyChar = nil; stage = .idle
+        peripheral = nil; writeChar = nil; notifyChar = nil
+        v2WriteChar = nil; v2NotifyChar = nil; supportsBigData = false
+        stage = .idle
         // Resolve anything still in flight so no awaiter hangs.
         readyContinuation?.resume(throwing: RingError.connectionFailed); readyContinuation = nil
         responseContinuation?.resume(throwing: RingError.notConnected); responseContinuation = nil
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         pagedContinuation?.resume(throwing: RingError.notConnected)
         pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil
+        bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
+        bigDataContinuation?.resume(throwing: RingError.notConnected)
+        bigDataContinuation = nil; bigDataBuffer = []; bigDataComplete = nil
     }
 
     func send(_ command: Data) async throws -> Data {
@@ -117,6 +136,49 @@ final class BLERingTransport: NSObject, RingTransport {
             peripheral.writeValue(command, for: writeChar, type: type)
             armPagedTimeout()
         }
+    }
+
+    func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        guard stage == .ready, let peripheral, let v2WriteChar else { throw RingError.notConnected }
+        guard responseContinuation == nil, pagedContinuation == nil, bigDataContinuation == nil else {
+            throw RingError.notConnected
+        }
+        trace("Write Big-Data V2: \(data.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        return try await withCheckedThrowingContinuation { continuation in
+            bigDataContinuation = continuation
+            bigDataBuffer = []
+            bigDataComplete = isComplete
+            let type: CBCharacteristicWriteType =
+                v2WriteChar.properties.contains(.write) ? .withResponse : .withoutResponse
+            peripheral.writeValue(data, for: v2WriteChar, type: type)
+            armBigDataTimeout()
+        }
+    }
+
+    private func armBigDataTimeout() {
+        bigDataTimeoutTask?.cancel()
+        bigDataTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.responseTimeout ?? 8))
+            self?.failBigData(.timeout)
+        }
+    }
+
+    private func answerBigData(_ packets: [Data]) {
+        guard let continuation = bigDataContinuation else { return }
+        bigDataContinuation = nil
+        bigDataBuffer = []
+        bigDataComplete = nil
+        bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
+        continuation.resume(returning: packets)
+    }
+
+    private func failBigData(_ error: RingError) {
+        guard let continuation = bigDataContinuation else { return }
+        bigDataContinuation = nil
+        bigDataBuffer = []
+        bigDataComplete = nil
+        bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
+        continuation.resume(throwing: error)
     }
 
     private func armPagedTimeout() {
@@ -251,7 +313,7 @@ extension BLERingTransport: @preconcurrency CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         stage = .discovering
-        peripheral.discoverServices([serviceUUID])
+        peripheral.discoverServices([serviceUUID, v2ServiceUUID])
     }
 
     func centralManager(_ central: CBCentralManager,
@@ -275,10 +337,31 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             return failReady(.connectionFailed)
         }
         peripheral.discoverCharacteristics([writeUUID, notifyUUID], for: service)
+        // V2 service is best-effort — a ring without it still connects.
+        if let v2Service = peripheral.services?.first(where: { $0.uuid == v2ServiceUUID }) {
+            peripheral.discoverCharacteristics([v2WriteUUID, v2NotifyUUID], for: v2Service)
+        } else {
+            trace("Big-Data V2 service not found — temperature unavailable")
+        }
     }
 
     func peripheral(_ peripheral: CBPeripheral,
                     didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        if service.uuid == v2ServiceUUID {
+            // V2 is best-effort — failure here must NOT block V1 readiness.
+            let chars = service.characteristics ?? []
+            if let write = chars.first(where: { $0.uuid == v2WriteUUID }),
+               let notify = chars.first(where: { $0.uuid == v2NotifyUUID }) {
+                v2WriteChar = write
+                v2NotifyChar = notify
+                peripheral.setNotifyValue(true, for: notify)
+                trace("Big-Data V2 chars found — enabling notifications")
+            } else {
+                trace("Big-Data V2 chars missing")
+            }
+            return
+        }
+        // V1 service — required for readiness.
         let chars = service.characteristics ?? []
         guard let write = chars.first(where: { $0.uuid == writeUUID }),
               let notify = chars.first(where: { $0.uuid == notifyUUID }) else {
@@ -291,6 +374,17 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        if characteristic.uuid == v2NotifyUUID {
+            // V2 notification enable/fail is best-effort — does not affect V1 readiness.
+            if error == nil && characteristic.isNotifying {
+                supportsBigData = true
+                trace("Big-Data V2 notifications enabled — temperature available")
+            } else {
+                supportsBigData = false
+                trace("Big-Data V2 notification enable failed — temperature unavailable")
+            }
+            return
+        }
         guard characteristic.uuid == notifyUUID else { return }
         if error == nil && characteristic.isNotifying {
             trace("Ring ready — notifications enabled")
@@ -302,6 +396,22 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        // Route V2 Big-Data packets separately from V1.
+        if characteristic.uuid == v2NotifyUUID {
+            if let error {
+                trace("V2 notify error: \(error.localizedDescription)")
+                return failBigData(error as? RingError ?? .timeout)
+            }
+            guard let value = characteristic.value else { return failBigData(.timeout) }
+            trace("V2 notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
+            bigDataBuffer.append(value)
+            armBigDataTimeout()
+            if bigDataComplete?(bigDataBuffer) == true {
+                answerBigData(bigDataBuffer)
+            }
+            return
+        }
+
         guard characteristic.uuid == notifyUUID else { return }
         if let error {
             trace("Notify error: \(error.localizedDescription)")
@@ -315,7 +425,7 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             return failResponse(.timeout)
         }
         trace("Notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
-        // Route to whichever read is in flight.
+        // Route to whichever V1 read is in flight.
         if pagedContinuation != nil {
             pagedBuffer.append(value)
             armPagedTimeout()   // re-arm per-packet timeout

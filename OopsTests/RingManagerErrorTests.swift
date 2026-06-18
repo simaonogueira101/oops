@@ -26,6 +26,10 @@ private final class StubTransport: RingTransport {
     func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
         [try await send(command)]
     }
+    var supportsBigData: Bool { false }
+    func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        throw RingError.notConnected
+    }
 }
 
 @MainActor

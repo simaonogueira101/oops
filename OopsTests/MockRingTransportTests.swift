@@ -21,4 +21,14 @@ struct MockRingTransportTests {
 
         #expect(RingProtocol.parseBattery(response) == BatteryStatus(level: 88, isCharging: true))
     }
+
+    @MainActor
+    @Test func bigDataSendReturnsTemperaturePackets() async throws {
+        let mock = MockRingTransport()
+        try await mock.connect()
+        #expect(mock.supportsBigData)
+        let packets = try await mock.sendBigData(RingBigData.temperatureRequest(), isComplete: RingBigData.temperatureComplete)
+        let readings = RingBigData.parseTemperature(packets, today: .now, calendar: .current)
+        #expect(!readings.isEmpty)
+    }
 }

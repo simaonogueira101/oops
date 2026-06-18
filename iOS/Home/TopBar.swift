@@ -7,12 +7,17 @@ struct TopBar: View {
     let profile: ProfileStore
     @Binding var date: Date
     let battery: BatteryStatus?
+    let isUpdatingBattery: Bool
     let syncState: SyncState
     let onProfile: () -> Void
     let onSync: () -> Void
 
     /// All pills match the avatar pill: 28pt avatar + xxs padding each side.
     private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
+
+    /// Fixed slot for the battery "<value>% <icon>" pair so swapping in the updating spinner
+    /// never reflows the pill. Scales with Dynamic Type. Sized for the widest case ("100%").
+    @ScaledMetric private var batterySlotWidth: CGFloat = 52
 
     var body: some View {
         GlassEffectContainer(spacing: Spacing.xxs) {
@@ -69,14 +74,7 @@ struct TopBar: View {
     private var syncPill: some View {
         Button(action: onSync) {
             HStack(spacing: Spacing.sm) {
-                HStack(spacing: Spacing.xxs) {
-                    if let battery {
-                        Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
-                    }
-                    Image(systemName: batterySymbol)
-                        .imageScale(.small)
-                        .foregroundStyle(battery?.isCharging == true ? AppColor.positive : .primary)
-                }
+                batterySlot
                 Image(systemName: "laptopcomputer")
                     .imageScale(.small)
                     .foregroundStyle(syncState == .sent ? AppColor.positive : .primary)
@@ -89,6 +87,26 @@ struct TopBar: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .accessibilityLabel(batteryAccessibilityLabel)
         .accessibilityHint("Opens Mac sync")
+    }
+
+    /// The battery value + icon, or a spinner in their place while updating — both kept inside a
+    /// fixed-width slot so the swap doesn't change the pill's size.
+    private var batterySlot: some View {
+        ZStack {
+            if isUpdatingBattery {
+                ProgressView().controlSize(.mini)
+            } else {
+                HStack(spacing: Spacing.xxs) {
+                    if let battery {
+                        Text("\(battery.level)%").font(.caption.weight(.medium)).monospacedDigit()
+                    }
+                    Image(systemName: batterySymbol)
+                        .imageScale(.small)
+                        .foregroundStyle(battery?.isCharging == true ? AppColor.positive : .primary)
+                }
+            }
+        }
+        .frame(width: batterySlotWidth)
     }
 
     // MARK: Derived

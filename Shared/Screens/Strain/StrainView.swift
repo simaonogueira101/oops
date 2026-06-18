@@ -7,7 +7,7 @@ struct StrainView: View {
     @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
     private var metrics: DayMetrics { MockHealthData().dayMetrics }
     private var mock: MockHealthData { MockHealthData() }
-    private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
+    private var strainText: String { (metrics.strain ?? 0).formatted(.number.precision(.fractionLength(1))) }
 
     var body: some View {
         TopScrollView {

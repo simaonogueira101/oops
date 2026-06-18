@@ -2,7 +2,7 @@ import Foundation
 
 /// Deterministic sample data for every screen. Seeded so previews and tests are stable — it never
 /// reads the wall clock or `random()`. Swap for a real ring-backed provider later.
-struct MockHealthData {
+struct MockHealthData: HealthData {
     private let seed: UInt64
     /// Fixed reference midnight so output never depends on the current date.
     let referenceDate: Date
@@ -15,11 +15,15 @@ struct MockHealthData {
 
     // MARK: Scores
 
-    var dayMetrics: DayMetrics {
+    /// `HealthData` conformance — date is ignored; output is always deterministic.
+    func dayMetrics(for date: Date) -> DayMetrics {
         DayMetrics(score: 72, recovery: 0.72, strain: 8.4, hrv: 48, restingHR: 54, currentHR: 61,
                    bodyTempDelta: -0.2, respiratoryRate: 14.1, sleepPerformance: 0.86,
                    steps: 9240, stepGoal: 12000, activeCalories: 430, stress: 32, spo2: 97)
     }
+
+    /// Convenience accessor kept for existing screen code that doesn't have a date context.
+    var dayMetrics: DayMetrics { dayMetrics(for: referenceDate) }
 
     // MARK: Series
 
@@ -40,6 +44,9 @@ struct MockHealthData {
     }
 
     // MARK: Sleep — contiguous intervals from bedtime
+
+    /// `HealthData` conformance — date is ignored; output is always deterministic.
+    func sleepSession(for date: Date) -> SleepSession { sleepSession() }
 
     func sleepSession() -> SleepSession {
         var gen = LCG(seed: seed)
@@ -73,6 +80,9 @@ struct MockHealthData {
     }
 
     // MARK: Zones, workouts, tags
+
+    /// `HealthData` conformance — date is ignored; output is always deterministic.
+    func hrZones(for date: Date) -> [HRZone] { hrZones() }
 
     func hrZones() -> [HRZone] {
         // A strain-hue intensity ramp — the status trio keeps meaning good/warn/bad app-wide.

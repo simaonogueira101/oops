@@ -11,8 +11,8 @@ struct OverviewView: View {
 
     private var mock: MockHealthData { MockHealthData() }
     private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
-    private var recoveryBand: ScoreBand { ScoreBand(score: metrics.score) }
-    private var strainText: String { metrics.strain.formatted(.number.precision(.fractionLength(1))) }
+    private var recoveryBand: ScoreBand { ScoreBand(score: metrics.score ?? 0) }
+    private var strainText: String { (metrics.strain ?? 0).formatted(.number.precision(.fractionLength(1))) }
 
     var body: some View {
         TopScrollView {
@@ -35,8 +35,8 @@ struct OverviewView: View {
     private var recoveryHero: some View {
         Card(label: "Recovery", systemImage: "heart.fill",
              accent: AppColor.recovery, accessory: .chevron) {
-            ScoreHero(score: metrics.score, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
-                HeroStat(label: "HRV", value: "\(metrics.hrv) ms",
+            ScoreHero(score: metrics.score ?? 0, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
+                HeroStat(label: "HRV", value: "\(metrics.hrv ?? 0) ms",
                          symbol: "waveform", color: AppColor.recovery),
                 HeroStat(label: "Resting HR", value: "\(metrics.restingHR) bpm",
                          symbol: "heart.fill", color: AppColor.recovery),

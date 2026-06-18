@@ -90,6 +90,7 @@ final class BLERingTransport: NSObject, RingTransport {
 
     func send(_ command: Data) async throws -> Data {
         guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
+        guard responseContinuation == nil, pagedContinuation == nil else { throw RingError.notConnected }
         trace("Write command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
         return try await withCheckedThrowingContinuation { continuation in
             responseContinuation = continuation
@@ -105,6 +106,7 @@ final class BLERingTransport: NSObject, RingTransport {
 
     func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
         guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
+        guard responseContinuation == nil, pagedContinuation == nil else { throw RingError.notConnected }
         trace("Write paged command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
         return try await withCheckedThrowingContinuation { continuation in
             pagedContinuation = continuation

@@ -3,10 +3,11 @@ import SwiftData
 
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
+    var date: Date = .now
     @State private var period: Period = .week
     @Environment(\.healthData) private var health
     @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
-    private var metrics: DayMetrics { health.dayMetrics(for: .now) }
+    private var metrics: DayMetrics { health.dayMetrics(for: date) }
     private var strainText: String { dashFormatted(metrics.strain) }
 
     var body: some View {
@@ -58,7 +59,7 @@ struct StrainView: View {
 
     private var zonesCard: some View {
         Card(label: "Heart-rate zones", accessory: .chevron) {
-            ZoneScale(zones: health.hrZones(for: .now))
+            ZoneScale(zones: health.hrZones(for: date))
         }
         .navigates(to: .hrZones)
     }

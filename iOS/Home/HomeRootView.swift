@@ -10,6 +10,7 @@ struct HomeRootView: View {
     @Query(sort: \BatteryReading.timestamp, order: .reverse) private var readings: [BatteryReading]
 
     @State private var manager: RingManager?
+    @State private var health: (any HealthData)?
     @State private var sync = SyncCoordinator()
     @State private var profile = ProfileStore()
     @State private var recorder = WorkoutRecorder()
@@ -40,7 +41,7 @@ struct HomeRootView: View {
 
     var body: some View {
         tabs
-            .environment(\.healthData, RingHealthData(modelContext: modelContext))
+            .environment(\.healthData, health ?? MockHealthData())
             .overlay(alignment: .top) { topChrome }
             .scrollEdgeEffectStyle(.soft, for: .all)
             .environment(\.scrollToTopSignal, scrollSignal)
@@ -54,6 +55,9 @@ struct HomeRootView: View {
                 }
                 UserDefaults.standard.set(BuildInfo.build, forKey: "lastSeenBuild")
 
+                if health == nil {
+                    health = RingHealthData(modelContext: modelContext)
+                }
                 if manager == nil {
                     let manager = RingManager(transport: RingTransportFactory.make(), modelContext: modelContext)
                     // Show the last recorded percentage immediately instead of a blank pill,
@@ -136,15 +140,16 @@ struct HomeRootView: View {
     }
 
     @ViewBuilder private func screen(for tab: HomeTab) -> some View {
+        let provider = health ?? MockHealthData()
         switch tab {
         case .summary:
             DayPager(date: $date) { day in
-                OverviewView(metrics: RingHealthData(modelContext: modelContext).dayMetrics(for: day),
+                OverviewView(metrics: provider.dayMetrics(for: day),
                              date: day, recorder: recorder, openDomain: openDomain)
             }
-        case .sleep: DayPager(date: $date) { _ in SleepView() }
-        case .recovery: DayPager(date: $date) { _ in RecoveryView() }
-        case .strain: DayPager(date: $date) { _ in StrainView() }
+        case .sleep: DayPager(date: $date) { day in SleepView(date: day) }
+        case .recovery: DayPager(date: $date) { day in RecoveryView(date: day) }
+        case .strain: DayPager(date: $date) { day in StrainView(date: day) }
         case .record: Color.clear
         }
     }

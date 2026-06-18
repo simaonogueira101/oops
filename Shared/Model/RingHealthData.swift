@@ -26,12 +26,12 @@ struct RingHealthData: HealthData {
         let steps = activitySamples.reduce(0) { $0 + $1.steps }
         let activeCalories = activitySamples.reduce(0) { $0 + $1.calories }
 
-        let currentHR = hrSamples.sorted { $0.timestamp > $1.timestamp }.first?.bpm ?? 0
-        let restingHR = hrSamples.map(\.bpm).min() ?? 0
+        let currentHR: Int? = hrSamples.sorted { $0.timestamp > $1.timestamp }.first.map(\.bpm)
+        let restingHR: Int? = hrSamples.map(\.bpm).min()
 
-        let spo2: Int = spo2Samples.isEmpty ? 0 :
+        let spo2: Int? = spo2Samples.isEmpty ? nil :
             Int(Double(spo2Samples.map(\.percent).reduce(0, +)) / Double(spo2Samples.count))
-        let stress: Int = stressSamples.isEmpty ? 0 :
+        let stress: Int? = stressSamples.isEmpty ? nil :
             Int(Double(stressSamples.map(\.value).reduce(0, +)) / Double(stressSamples.count))
 
         let bodyTempDelta = computeBodyTempDelta(dayStart: start, dayEnd: end, dayTemps: tempSamples)

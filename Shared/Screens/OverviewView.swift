@@ -38,7 +38,7 @@ struct OverviewView: View {
             ScoreHero(score: metrics.score ?? 0, accent: AppColor.recovery, caption: recoveryBand.label, stats: [
                 HeroStat(label: "HRV", value: "\(dashFormatted(metrics.hrv)) ms",
                          symbol: "waveform", color: AppColor.recovery),
-                HeroStat(label: "Resting HR", value: "\(metrics.restingHR) bpm",
+                HeroStat(label: "Resting HR", value: metrics.restingHR.map { "\($0) bpm" } ?? "—",
                          symbol: "heart.fill", color: AppColor.recovery),
                 HeroStat(label: "Strain", value: strainText,
                          symbol: "bolt.fill", color: AppColor.strain),

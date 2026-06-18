@@ -3,9 +3,10 @@ import SwiftUI
 /// The Sleep tab: score, the staggered-stage hypnogram, stage breakdown, contributors, and the
 /// supporting overnight metrics — all composed from `Card`.
 struct SleepView: View {
+    var date: Date = .now
     @State private var period: Period = .week
     @Environment(\.healthData) private var health
-    private var session: SleepSession { health.sleepSession(for: .now) }
+    private var session: SleepSession { health.sleepSession(for: date) }
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
 
     var body: some View {

@@ -3,9 +3,17 @@ import SwiftUI
 /// The Recovery tab: the recovery score, its contributors, and the vitals that feed it — each
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
+    var date: Date = .now
     @State private var period: Period = .week
     @Environment(\.healthData) private var health
+    private var metrics: DayMetrics { health.dayMetrics(for: date) }
     private var band: ScoreBand { ScoreBand(score: 72) }
+
+    private var bodyTempAccessory: String {
+        guard let delta = metrics.bodyTempDelta else { return "—" }
+        let sign = delta >= 0 ? "+" : ""
+        return "\(sign)\(delta.formatted(.number.precision(.fractionLength(1)))) °C"
+    }
 
     var body: some View {
         TopScrollView {
@@ -68,14 +76,15 @@ struct RecoveryView: View {
     }
 
     private var bodyTempCard: some View {
-        Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value("−0.2 °C"), showsChevron: true) {
+        Card(label: "Skin temperature", accent: AppColor.recovery, accessory: .value(bodyTempAccessory), showsChevron: true) {
             Sparkline(samples: [], color: AppColor.recovery)
         }
         .navigates(to: .bodyTemp)
     }
 
     private var respiratoryCard: some View {
-        Card(label: "Respiratory rate", accent: AppColor.recovery, accessory: .value("14.1"), showsChevron: true) {
+        Card(label: "Respiratory rate", accent: AppColor.recovery,
+             accessory: .value(dashFormatted(metrics.respiratoryRate)), showsChevron: true) {
             Sparkline(samples: [], color: AppColor.recovery)
         }
         .navigates(to: .respiratory)

@@ -7,16 +7,16 @@ struct DayMetrics: Equatable {
     var recovery: Double?          // 0...1; nil until ring data lands
     var strain: Double?            // 0...21 (Whoop-like scale); nil until ring data lands
     var hrv: Int?                  // ms; nil until ring data lands
-    var restingHR: Int             // bpm
-    var currentHR: Int             // bpm, latest reading
+    var restingHR: Int?             // bpm; nil when no samples
+    var currentHR: Int?             // bpm, latest reading; nil when no samples
     var bodyTempDelta: Double?     // °C deviation from baseline; nil when no temperature data
     var respiratoryRate: Double?   // breaths / min; nil until ring data lands
     var sleepPerformance: Double   // 0...1
     var steps: Int
     var stepGoal: Int
     var activeCalories: Int
-    var stress: Int                // 0...100
-    var spo2: Int                  // %
+    var stress: Int?                // 0...100; nil when no samples
+    var spo2: Int?                  // %; nil when no samples
 
     /// Strain mapped to 0...1 for the ring.
     var strainFraction: Double { min(max((strain ?? 0) / 21, 0), 1) }

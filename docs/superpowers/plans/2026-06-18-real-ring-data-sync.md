@@ -660,7 +660,7 @@ extension RingProtocol {
         for packet in data {
             let b = Array(packet)
             var i = 2
-            while i + 1 < b.count {
+            while i + 1 < min(15, b.count) {   // values live in bytes[2..14]; byte[15] is the checksum
                 let code = b[i]; let minutes = Int(b[i + 1]); i += 2
                 if minutes == 0 { continue }
                 guard let stage = sleepStage(for: code) else { continue }
@@ -695,7 +695,7 @@ extension RingProtocol {
         var samples: [MetricSample] = []
         var slot = 0
         for packet in data {
-            for value in Array(packet)[2..<packet.count] {
+            for value in Array(packet)[2..<min(15, packet.count)] {   // bytes[2..14]; byte[15] is checksum
                 if value > 0 { samples.append(MetricSample(date: dayStart.addingTimeInterval(Double(slot) * interval), value: Double(value))) }
                 slot += 1
             }
@@ -796,7 +796,7 @@ extension RingProtocol {
         let interval = TimeInterval(max(1, Int(header[header.startIndex + 3])) * 60)
         var samples: [MetricSample] = []; var slot = 0
         for packet in packets.filter({ $0.count > 1 && $0[$0.startIndex + 1] != 0 }) {
-            for value in Array(packet)[2..<packet.count] {
+            for value in Array(packet)[2..<min(15, packet.count)] {   // bytes[2..14]; byte[15] is checksum
                 if value > 0 { samples.append(MetricSample(date: dayStart.addingTimeInterval(Double(slot) * interval), value: Double(value))) }
                 slot += 1
             }

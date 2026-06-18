@@ -245,6 +245,26 @@ final class BLERingTransport: NSObject, RingTransport {
 
     private func beginScan() {
         stage = .scanning
+        // The ring is often already connected at the iOS level (it advertises only when
+        // disconnected). CoreBluetooth won't surface a connected peripheral via scanning, so
+        // check retrieveConnectedPeripherals first and use it directly if it's our ring.
+        let known = central.retrieveConnectedPeripherals(withServices: [
+            serviceUUID,
+            v2ServiceUUID
+        ])
+        if let ring = known.first(where: {
+            RingScanMatcher.matches(name: $0.name, advertisedServiceUUIDs: [],
+                                    boundID: boundRingID, peripheralID: $0.identifier)
+        }) {
+            trace("Using already-connected ring \(ring.name ?? "nil") (retrieveConnectedPeripherals)")
+            stage = .connecting
+            self.peripheral = ring
+            ring.delegate = self
+            connectedRingName = ring.name
+            central.connect(ring)
+            return
+        }
+        // else fall through to scanning
         // The R09 (verified on real hardware, 2026-06-18) advertises its name — "R09_4301" —
         // but NOT its GATT service UUID, so a `withServices:` filter finds nothing. We must scan
         // unfiltered and match via `RingScanMatcher` (name fallback). The service UUID is still

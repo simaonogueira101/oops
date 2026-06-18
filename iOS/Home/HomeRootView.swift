@@ -154,7 +154,7 @@ struct HomeRootView: View {
         switch tab {
         case .summary:
             DayPager(date: $date) { day in
-                OverviewView(metrics: provider.dayMetrics(for: day),
+                OverviewView(metrics: overviewMetrics(for: day, base: provider),
                              date: day, recorder: recorder, openDomain: openDomain)
             }
         case .sleep: DayPager(date: $date) { day in SleepView(date: day) }
@@ -162,6 +162,15 @@ struct HomeRootView: View {
         case .strain: DayPager(date: $date) { day in StrainView(date: day) }
         case .record: Color.clear
         }
+    }
+
+    /// Returns `DayMetrics` for `day`, patching `currentHR` with the live reading when today.
+    private func overviewMetrics(for day: Date, base provider: any HealthData) -> DayMetrics {
+        var m = provider.dayMetrics(for: day)
+        if Calendar.current.isDateInToday(day), let hr = manager?.liveHR {
+            m.currentHR = hr
+        }
+        return m
     }
 
     private func openDomain(_ domain: Domain) {

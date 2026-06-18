@@ -62,8 +62,14 @@ final class RingManager {
                 try? modelContext.save()
             }
 
+            // Ring-facing time is UTC (tahnok convention): clock set in UTC, history requested
+            // at UTC midnights. Sample timestamps come back as absolute instants; the display
+            // layer (RingHealthData) buckets them by the local calendar.
+            var utc = Calendar(identifier: .gregorian)
+            utc.timeZone = TimeZone(identifier: "UTC")!
+
             // a. Set clock (best-effort)
-            try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: .current))
+            try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: utc))
 
             // a2. Enable HR logging (best-effort; harmless to repeat each sync)
             try? await transport.send(RingProtocol.enableHeartRateLoggingCommand())
@@ -81,23 +87,27 @@ final class RingManager {
                 trace("battery step failed: \(error)")
             }
 
-            // c. Live HR
+            // c. Live HR — the ring needs poking: start once, then send the keepalive
+            // repeatedly (~1s apart) until a non-zero BPM arrives (the sensor takes several
+            // seconds to lock on), then stop.
             do {
-                let packets = try await transport.send(
-                    RingProtocol.liveHRStartCommand(),
-                    isComplete: { packets in packets.contains { RingProtocol.parseLiveHR($0) != nil } },
-                    perPacketTimeout: 25
-                )
-                if let bpm = packets.compactMap({ RingProtocol.parseLiveHR($0) }).first {
-                    liveHR = bpm
+                try? await transport.send(RingProtocol.liveHRStartCommand())
+                for _ in 0..<18 {
+                    let response = try await transport.send(RingProtocol.liveHRKeepaliveCommand())
+                    if let bpm = RingProtocol.parseLiveHR(response) {
+                        liveHR = bpm
+                        break
+                    }
+                    try? await Task.sleep(for: .seconds(1))
                 }
                 try? await transport.send(RingProtocol.liveHRStopCommand())
             } catch {
                 trace("liveHR step failed: \(error)")
+                try? await transport.send(RingProtocol.liveHRStopCommand())
             }
 
-            // d. History backfill
-            let calendar = Calendar.current
+            // d. History backfill (UTC day boundaries to match the ring's UTC clock)
+            let calendar = utc
             let today = calendar.startOfDay(for: .now)
             let meta = (try? syncMeta()) ?? RingSyncMeta()
 
@@ -143,7 +153,7 @@ final class RingManager {
                         RingBigData.temperatureRequest(),
                         isComplete: RingBigData.temperatureComplete
                     )
-                    let readings = RingBigData.parseTemperature(packets, today: .now, calendar: .current)
+                    let readings = RingBigData.parseTemperature(packets, today: .now, calendar: utc)
                     let existing = (try? fetchTimestamps(TemperatureSample.self)) ?? []
                     for r in readings where !existing.contains(r.date) {
                         modelContext.insert(TemperatureSample(timestamp: r.date, celsius: r.celsius))

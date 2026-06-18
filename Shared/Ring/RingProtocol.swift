@@ -10,14 +10,17 @@ struct BatteryStatus: Equatable {
 /// No CoreBluetooth, no I/O — fully unit-testable.
 enum RingProtocol {
     /// Builds a 16-byte command packet: byte[0] = command, bytes[1...14] = payload
-    /// (zero-padded), byte[15] = checksum = sum(bytes[0..<15]) % 255.
+    /// (zero-padded), byte[15] = checksum = sum(bytes[0..<15]) & 0xFF (mod 256).
+    /// NOTE: must be `& 0xFF`, not `% 255` — they diverge once the byte sum reaches 255,
+    /// and the real ring rejects a `% 255` checksum (verified on-device: battery worked
+    /// because its sum is tiny, but every payload-bearing command was rejected with 0xFF).
     static func makePacket(command: UInt8, payload: [UInt8] = []) -> Data {
         var bytes = [UInt8](repeating: 0, count: 16)
         bytes[0] = command
         for (offset, byte) in payload.prefix(14).enumerated() {
             bytes[1 + offset] = byte
         }
-        let checksum = bytes[0..<15].reduce(0) { $0 + Int($1) } % 255
+        let checksum = bytes[0..<15].reduce(0) { $0 + Int($1) } & 0xFF
         bytes[15] = UInt8(checksum)
         return Data(bytes)
     }

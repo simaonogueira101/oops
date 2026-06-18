@@ -23,9 +23,12 @@ final class MockRingTransport: RingTransport {
                 command: 0x03,
                 payload: [UInt8(batteryLevel), isCharging ? 1 : 0]
             )
-        case 0x01, 0x3A, 0x6A:
-            // Set-time, enable temperature, live HR stop — acknowledge silently.
+        case 0x01, 0x3A, 0x6A, 0x16:
+            // Set-time, enable temperature, live HR stop, enable HR logging — acknowledge.
             return RingProtocol.makePacket(command: command.first ?? 0x00)
+        case 0x69, 0x1E:
+            // Live HR start / keepalive — answer with a deterministic BPM frame.
+            return RingProtocol.makePacket(command: 0x69, payload: [0x01, 0x00, 72])
         default:
             throw RingError.unsupportedCommand
         }

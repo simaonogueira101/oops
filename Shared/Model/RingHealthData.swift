@@ -22,6 +22,7 @@ struct RingHealthData: HealthData {
         let spo2Samples = fetchSpO2(from: start, to: end)
         let stressSamples = fetchStress(from: start, to: end)
         let tempSamples = fetchTemperature(from: start, to: end)
+        let hrvSamples = fetchHRV(from: start, to: end)
 
         let steps = activitySamples.reduce(0) { $0 + $1.steps }
         let activeCalories = activitySamples.reduce(0) { $0 + $1.calories }
@@ -37,11 +38,14 @@ struct RingHealthData: HealthData {
         let bodyTempDelta = computeBodyTempDelta(dayStart: start, dayEnd: end, dayTemps: tempSamples)
         let sleepPerf = computeSleepPerformance(for: date)
 
+        let hrv: Int? = hrvSamples.isEmpty ? nil :
+            Int(Double(hrvSamples.map(\.value).reduce(0, +)) / Double(hrvSamples.count))
+
         return DayMetrics(
             score: nil,
             recovery: nil,
             strain: nil,
-            hrv: nil,
+            hrv: hrv,
             restingHR: restingHR,
             currentHR: currentHR,
             bodyTempDelta: bodyTempDelta,
@@ -148,6 +152,13 @@ struct RingHealthData: HealthData {
 
     private func fetchTemperature(from start: Date, to end: Date) -> [TemperatureSample] {
         let descriptor = FetchDescriptor<TemperatureSample>(
+            predicate: #Predicate { $0.timestamp >= start && $0.timestamp < end }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func fetchHRV(from start: Date, to end: Date) -> [HRVSample] {
+        let descriptor = FetchDescriptor<HRVSample>(
             predicate: #Predicate { $0.timestamp >= start && $0.timestamp < end }
         )
         return (try? modelContext.fetch(descriptor)) ?? []

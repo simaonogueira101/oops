@@ -8,7 +8,7 @@ struct RingManagerSyncTests {
     @Test func syncPersistsBatteryLiveHRHistoryAndTemperature() async throws {
         let container = try ModelContainer(
             for: BatteryReading.self, HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-                StressSample.self, TemperatureSample.self, SleepSessionRecord.self,
+                StressSample.self, TemperatureSample.self, HRVSample.self, SleepSessionRecord.self,
                 SleepStageIntervalRecord.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let manager = RingManager(transport: MockRingTransport(), modelContext: container.mainContext)
@@ -27,7 +27,7 @@ struct RingManagerSyncTests {
     @Test func syncAdvancesLastSyncedDayToToday() async throws {
         let container = try ModelContainer(
             for: BatteryReading.self, HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-                StressSample.self, TemperatureSample.self, SleepSessionRecord.self,
+                StressSample.self, TemperatureSample.self, HRVSample.self, SleepSessionRecord.self,
                 SleepStageIntervalRecord.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let manager = RingManager(transport: MockRingTransport(), modelContext: container.mainContext)
@@ -39,7 +39,7 @@ struct RingManagerSyncTests {
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = TimeZone(identifier: "UTC")!
         let today = utc.startOfDay(for: .now)
-        for key in ["hr", "activity", "sleep", "stress", "spo2"] {
+        for key in ["hr", "activity", "sleep", "stress", "spo2", "hrv"] {
             let advanced = meta.lastSyncedDay[key]
             #expect(advanced == today, "lastSyncedDay[\(key)] should equal today after a full successful sync")
         }
@@ -49,7 +49,7 @@ struct RingManagerSyncTests {
     @Test func secondSyncDoesNotDuplicate() async throws {
         let container = try ModelContainer(
             for: BatteryReading.self, HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-                StressSample.self, TemperatureSample.self, SleepSessionRecord.self,
+                StressSample.self, TemperatureSample.self, HRVSample.self, SleepSessionRecord.self,
                 SleepStageIntervalRecord.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let manager = RingManager(transport: MockRingTransport(), modelContext: container.mainContext)

@@ -74,6 +74,9 @@ final class RingManager {
             // a2. Enable HR logging (best-effort; harmless to repeat each sync)
             try? await transport.send(RingProtocol.enableHeartRateLoggingCommand())
 
+            // a3. Enable HRV measurement (best-effort; harmless to repeat each sync)
+            try? await transport.send(RingProtocol.enableHRVCommand())
+
             // b. Battery
             do {
                 let response = try await transport.send(RingProtocol.batteryCommand())
@@ -116,7 +119,7 @@ final class RingManager {
             let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
 
             // SpO2 and sleep are now fetched via Big Data V2 after the per-day loop.
-            for metricKey in ["hr", "activity", "stress"] {
+            for metricKey in ["hr", "activity", "stress", "hrv"] {
                 let lastSynced = meta.lastSyncedDay[metricKey]
                 let from: Date
                 if let last = lastSynced {
@@ -285,6 +288,17 @@ final class RingManager {
                 existingTimestamps.insert(s.date)
             }
 
+        case "hrv":
+            let packets = try await transport.send(
+                RingProtocol.hrvHistoryCommand(day: day, calendar: calendar),
+                isComplete: RingProtocol.hrvHistoryComplete
+            )
+            let samples = RingProtocol.parseHRV(packets, dayStart: dayStart)
+            for s in samples where !existingTimestamps.contains(s.date) {
+                modelContext.insert(HRVSample(timestamp: s.date, value: Int(s.value)))
+                existingTimestamps.insert(s.date)
+            }
+
         default: break
         }
     }
@@ -305,6 +319,7 @@ final class RingManager {
         case "activity": return (try? fetchTimestamps(ActivitySample.self)) ?? []
         case "stress":   return (try? fetchTimestamps(StressSample.self)) ?? []
         case "spo2":     return (try? fetchTimestamps(SpO2Sample.self)) ?? []
+        case "hrv":      return (try? fetchTimestamps(HRVSample.self)) ?? []
         default:         return []
         }
     }
@@ -356,3 +371,4 @@ extension ActivitySample: HasTimestamp {}
 extension SpO2Sample: HasTimestamp {}
 extension StressSample: HasTimestamp {}
 extension TemperatureSample: HasTimestamp {}
+extension HRVSample: HasTimestamp {}

@@ -27,3 +27,8 @@ import SwiftData
     var timestamp: Date; var celsius: Double
     init(timestamp: Date, celsius: Double) { self.timestamp = timestamp; self.celsius = celsius }
 }
+
+@Model final class HRVSample {
+    var timestamp: Date; var value: Int
+    init(timestamp: Date, value: Int) { self.timestamp = timestamp; self.value = value }
+}

@@ -23,8 +23,8 @@ final class MockRingTransport: RingTransport {
                 command: 0x03,
                 payload: [UInt8(batteryLevel), isCharging ? 1 : 0]
             )
-        case 0x01, 0x3A, 0x6A, 0x16:
-            // Set-time, enable temperature, live HR stop, enable HR logging — acknowledge.
+        case 0x01, 0x3A, 0x6A, 0x16, 0x38:
+            // Set-time, enable temperature, live HR stop, enable HR logging, enable HRV — acknowledge.
             return RingProtocol.makePacket(command: command.first ?? 0x00)
         case 0x69, 0x1E:
             // Live HR start / keepalive — answer with a deterministic BPM frame.
@@ -40,6 +40,7 @@ final class MockRingTransport: RingTransport {
         case 0x43: return MockRingTransport.activityPackets()
         case 0x44: return MockRingTransport.sleepPackets()
         case 0x37: return MockRingTransport.stressPackets()
+        case 0x39: return MockRingTransport.hrvPackets()
         case 0x2C: return MockRingTransport.spo2Packets()
         case 0x69: return MockRingTransport.liveHRPackets()
         default:   return [try await send(command)]
@@ -98,6 +99,17 @@ final class MockRingTransport: RingTransport {
         // Data: subtype=1, then 13 stress values (bytes[2..14])
         let data = makeRaw([0x37, 0x01, 40, 42, 38, 45, 50, 48, 44, 41,
                              39, 43, 47, 46, 44, 0x00])
+        return [header, data]
+    }
+
+    /// HRV history: same header/data layout as stress.
+    private static func hrvPackets() -> [Data] {
+        // Header: cmd=0x39, subtype=0, dataCount=1, intervalMinutes=30
+        let header = makeRaw([0x39, 0x00, 0x01, 30, 0x00, 0x00, 0x00, 0x00,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        // Data: subtype=1, then 3 HRV values (ms) in bytes[2..4]
+        let data = makeRaw([0x39, 0x01, 40, 45, 50, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
         return [header, data]
     }
 

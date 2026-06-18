@@ -8,7 +8,7 @@ struct RingPersistenceTests {
     @Test func insertsAndFetchesHeartRateAndTemperature() throws {
         let container = try ModelContainer(
             for: HeartRateSample.self, ActivitySample.self, SpO2Sample.self, StressSample.self,
-                TemperatureSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self,
+                TemperatureSample.self, HRVSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = container.mainContext
         ctx.insert(HeartRateSample(timestamp: .init(timeIntervalSince1970: 1), bpm: 60))

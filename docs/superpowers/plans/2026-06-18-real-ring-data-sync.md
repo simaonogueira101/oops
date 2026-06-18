@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `MockHealthData` with real Colmi R09 data — a live spot reading plus a 7-day historical sync on app open — persisted locally in SwiftData, with app-layer ring binding.
+**Goal:** Replace `MockHealthData` with real Colmi R09 data — a live spot reading plus a 7-day historical sync on app open (including body temperature) — persisted locally in SwiftData, with app-layer ring binding.
 
-**Architecture:** Expand the pure `RingProtocol` with command builders + paged-response parsers for each opcode (time, HR live/history, steps, sleep, stress, SpO2). Teach `RingTransport` to collect multi-packet responses. Evolve `RingManager.refreshBattery()` into a partial-failure-tolerant `sync()` session that sets the clock, reads live values, backfills missing days, and persists granular samples. Wire screens to a `HealthData` provider that reads SwiftData (mock provider retained for previews).
+**Architecture:** Expand the pure `RingProtocol` with command builders + paged-response parsers for each V1 opcode (time, HR live/history, steps, sleep, stress, SpO2). Body temperature uses a SEPARATE GATT service ("Big Data V2") with variable-length, un-checksummed framing — modeled in its own `RingBigData` namespace and a second transport channel. Evolve `RingManager.refreshBattery()` into a partial-failure-tolerant `sync()` session that sets the clock, reads live values, backfills missing days, fetches temperature, and persists granular samples. Wire screens to a `HealthData` provider that reads SwiftData (mock provider retained for previews).
 
 **Tech Stack:** Swift 6, SwiftUI, SwiftData, CoreBluetooth, Swift Testing. XcodeGen (`project.yml`); run `xcodegen generate` after adding files.
 
@@ -15,40 +15,43 @@
 - **Design tokens only:** `Spacing`, `Typography`, `AppColor` — no font `size:`, no raw RGB/`Color.blue`. SwiftLint runs in-build and fails on violation.
 - **Free Apple tier; CoreBluetooth verified on the physical iPhone only** (not Simulator/CI). Pure protocol + persistence are unit-tested on Mac.
 - **End commit messages with:** `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
-- **16-byte packets:** `byte[0]`=command, `byte[15]`=checksum = `sum(bytes[0..<15]) % 255`. Built via existing `RingProtocol.makePacket(command:payload:)`.
+- **V1 protocol — 16-byte packets:** `byte[0]`=command, `byte[15]`=checksum = `sum(bytes[0..<15]) % 255`. Built via existing `RingProtocol.makePacket(command:payload:)`.
+- **V2 Big-Data protocol — variable length, NO checksum, NO padding.** Service `de5bf728-d711-4e47-af26-65e3012a5dc7`, write `de5bf72a-…`, notify `de5bf729-…`. Distinct from V1; never run V2 bytes through `makePacket`.
 - **Test target:** `OopsTests` (Swift Testing). Run via `xcodebuild -project Oops.xcodeproj -scheme Oops -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:OopsTests/<Suite>`.
 - **Timestamps:** ring clock set in **UTC**; historical request timestamps are UTC midnight.
-- **Paging contract:** `RingProtocol` provides, per paged command, an `isComplete(_ packets: [Data]) -> Bool` predicate; the transport accumulates notify packets until it returns true (or a per-packet timeout fires). Exact header byte offsets for the reverse-engineered commands (steps/sleep/stress/SpO2) are encoded to the documented layout and **confirmed on-device** in that task's verification step; a mismatch is a localized offset fix.
+- **Temperature scaling (load-bearing):** read each byte UNSIGNED — `tempC = (Double(byte & 0xFF) / 10.0) + 20.0`; a raw `0` means "no reading". A signed read is a known upstream bug (temps ≥32.8°C go negative).
+- **Paging contract:** `RingProtocol`/`RingBigData` provide, per paged command, an `isComplete(_ packets: [Data]) -> Bool` predicate; the transport accumulates notify packets until it returns true (or a per-packet timeout fires). Exact header byte offsets for the reverse-engineered commands (steps/sleep/stress/SpO2/temperature) are encoded to the documented layout and **confirmed on-device** in the verification tasks; a mismatch is a localized offset fix.
 
 ---
 
 ## File Structure
 
-**Protocol (pure, `Shared/Ring/Protocol/`)** — split `RingProtocol` growth into per-domain files:
-- `Shared/Ring/RingProtocol.swift` (exists) — keeps `makePacket`, battery, and shared helpers (`uint32LE`, BCD).
-- `Shared/Ring/Protocol/RingTimeCommand.swift` — `0x01` set-time builder.
-- `Shared/Ring/Protocol/RingLiveHR.swift` — `0x69`/`0x6A` builders + spot parser.
-- `Shared/Ring/Protocol/RingHeartRateHistory.swift` — `0x15` builder, `isComplete`, parser.
-- `Shared/Ring/Protocol/RingActivityHistory.swift` — `0x43` builder, `isComplete`, parser.
-- `Shared/Ring/Protocol/RingSleepHistory.swift` — `0x44` builder, `isComplete`, parser.
-- `Shared/Ring/Protocol/RingStressHistory.swift` — `0x37` builder, `isComplete`, parser.
-- `Shared/Ring/Protocol/RingSpO2.swift` — live (`0x69` type 3) + history builders/parsers.
+**V1 protocol (pure, `Shared/Ring/Protocol/`):**
+- `Shared/Ring/RingProtocol.swift` (exists) — `makePacket`, battery, shared helpers (`uint32LE`, BCD).
+- `Shared/Ring/Protocol/RingTimeCommand.swift` — `0x01` set-time.
+- `Shared/Ring/Protocol/RingLiveHR.swift` — `0x69`/`0x6A` + spot parser.
+- `Shared/Ring/Protocol/RingHeartRateHistory.swift` — `0x15`.
+- `Shared/Ring/Protocol/RingActivityHistory.swift` — `0x43`.
+- `Shared/Ring/Protocol/RingSleepHistory.swift` — `0x44`.
+- `Shared/Ring/Protocol/RingStressHistory.swift` — `0x37`.
+- `Shared/Ring/Protocol/RingSpO2.swift` — live (`0x69` type 3) + history (`0x2C`).
+- `Shared/Ring/Protocol/RingTemperature.swift` — V1 enable (`0x3A`) + V2 Big-Data temperature (`0xBC/0x25`).
 
 **Persistence (`Shared/Model/`):**
-- `Shared/Model/RingSamples.swift` — `HeartRateSample`, `ActivitySample`, `SpO2Sample`, `StressSample` `@Model`s.
+- `Shared/Model/RingSamples.swift` — `HeartRateSample`, `ActivitySample`, `SpO2Sample`, `StressSample`, `TemperatureSample`.
 - `Shared/Model/SleepSessionRecord.swift` — persisted sleep `@Model` + stage intervals.
 - `Shared/Model/RingSyncMeta.swift` — bound-ring id/name + per-metric last-synced day.
 - `iOS/OopsApp.swift` (modify) — register new models in the `ModelContainer` schema.
 
 **Transport / orchestration:**
-- `Shared/Ring/RingTransport.swift` (modify) — add paged `send(_:isComplete:)`.
-- `Shared/Ring/MockRingTransport.swift` (modify) — answer new opcodes; paged support.
-- `iOS/Ring/BLERingTransport.swift` (modify) — paged accumulation; bind-to-identifier.
+- `Shared/Ring/RingTransport.swift` (modify) — paged `send(_:isComplete:)` + `sendBigData(_:isComplete:)`.
+- `Shared/Ring/MockRingTransport.swift` (modify) — answer new opcodes incl. temperature.
+- `iOS/Ring/BLERingTransport.swift` (modify) — paged accumulation; second (V2) service/characteristic channel; bind-to-identifier.
 - `Shared/Ring/RingManager.swift` (modify) — `sync()` session, binding, persistence.
 
 **UI:**
 - `Shared/Model/HealthData.swift` — `HealthData` provider protocol; `MockHealthData` conforms.
-- `Shared/Model/RingHealthData.swift` — SwiftData-backed provider.
+- `Shared/Model/RingHealthData.swift` — SwiftData-backed provider (incl. temperature aggregation).
 - `Shared/Model/DayMetrics.swift` (modify) — optional deferred fields.
 - `Shared/Screens/*` (modify) — consume injected provider; render "—" for `nil`.
 - `Shared/Screens/Profile/ProfileView.swift` (modify) — "Forget ring" + honest copy.
@@ -119,9 +122,7 @@ extension RingProtocol {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: same as Step 2. Expected: PASS (3 tests).
+- [ ] **Step 4: Run test to verify it passes** — same command as Step 2. Expected: PASS (3 tests).
 
 - [ ] **Step 5: Regenerate project (new test file) and commit**
 
@@ -158,7 +159,7 @@ struct RingTimeCommandTests {
         cal.timeZone = TimeZone(identifier: "UTC")!
         let date = cal.date(from: DateComponents(year: 2026, month: 6, day: 18,
                                                  hour: 9, minute: 7, second: 5))!
-        let packet = RingTimeCommandTests.bytes(RingProtocol.setTimeCommand(date: date, calendar: cal))
+        let packet = Array(RingProtocol.setTimeCommand(date: date, calendar: cal))
 
         #expect(packet[0] == 0x01)
         #expect(packet[1] == 0x26) // year 26 BCD
@@ -169,15 +170,10 @@ struct RingTimeCommandTests {
         #expect(packet[6] == 0x05) // second
         #expect(packet[7] == 0x01) // language = English
     }
-
-    static func bytes(_ data: Data) -> [UInt8] { Array(data) }
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `... test -only-testing:OopsTests/RingTimeCommandTests`
-Expected: FAIL — `setTimeCommand` not found.
+- [ ] **Step 2: Run test to verify it fails** — `... test -only-testing:OopsTests/RingTimeCommandTests`. Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
@@ -243,7 +239,6 @@ struct RingLiveHRTests {
     }
 
     @Test func parsesBPMWhenNoError() {
-        // [0x69, type, error=0, value]
         var bytes = [UInt8](repeating: 0, count: 16)
         bytes[0] = 0x69; bytes[1] = 0x01; bytes[2] = 0x00; bytes[3] = 65
         #expect(RingProtocol.parseLiveHR(Data(bytes)) == 65)
@@ -375,34 +370,34 @@ extension RingProtocol {
         makePacket(command: 0x15, payload: uint32LE(utcMidnightUnix(for: day, calendar: calendar)))
     }
 
-    private static func subtype(_ packet: Data) -> Int {
+    private static func hrSubtype(_ packet: Data) -> Int {
         packet.count > 1 ? Int(packet[packet.startIndex + 1]) : -1
     }
 
     static func heartRateHistoryComplete(_ packets: [Data]) -> Bool {
-        if packets.contains(where: { subtype($0) == 255 }) { return true }
-        guard let header = packets.first(where: { subtype($0) == 0 }), header.count >= 3 else { return false }
+        if packets.contains(where: { hrSubtype($0) == 255 }) { return true }
+        guard let header = packets.first(where: { hrSubtype($0) == 0 }), header.count >= 3 else { return false }
         let dataPacketCount = Int(header[header.startIndex + 2])
-        let received = packets.filter { (1...254).contains(subtype($0)) }.count
+        let received = packets.filter { (1...254).contains(hrSubtype($0)) }.count
         return received >= dataPacketCount
     }
 
     static func parseHeartRateHistory(_ packets: [Data]) -> [MetricSample] {
-        guard let header = packets.first(where: { subtype($0) == 0 }), header.count >= 4 else { return [] }
+        guard let header = packets.first(where: { hrSubtype($0) == 0 }), header.count >= 4 else { return [] }
         let intervalSeconds = TimeInterval(max(1, Int(header[header.startIndex + 3])) * 60)
-        let data = packets.filter { (1...254).contains(subtype($0)) }.sorted { subtype($0) < subtype($1) }
-        guard let first = data.first(where: { subtype($0) == 1 }), first.count >= 6 else { return [] }
+        let data = packets.filter { (1...254).contains(hrSubtype($0)) }.sorted { hrSubtype($0) < hrSubtype($1) }
+        guard let first = data.first(where: { hrSubtype($0) == 1 }), first.count >= 6 else { return [] }
         let startTS = UInt32(first[first.startIndex + 2])
             | UInt32(first[first.startIndex + 3]) << 8
             | UInt32(first[first.startIndex + 4]) << 16
             | UInt32(first[first.startIndex + 5]) << 24
-        var start = Date(timeIntervalSince1970: TimeInterval(startTS))
+        let start = Date(timeIntervalSince1970: TimeInterval(startTS))
 
         var samples: [MetricSample] = []
         var slot = 0
         for packet in data {
             let bytes = Array(packet)
-            let values = subtype(packet) == 1 ? Array(bytes[6..<16]) : Array(bytes[2..<16])
+            let values = hrSubtype(packet) == 1 ? Array(bytes[6..<16]) : Array(bytes[2..<16])
             for value in values {
                 if value > 0 {
                     samples.append(MetricSample(date: start.addingTimeInterval(Double(slot) * intervalSeconds),
@@ -411,7 +406,6 @@ extension RingProtocol {
                 slot += 1
             }
         }
-        _ = start // start is the slot-0 reference
         return samples
     }
 }
@@ -440,7 +434,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `RingProtocol.activityHistoryCommand(dayOffset: Int) -> Data`, `RingProtocol.activityHistoryComplete(_ packets: [Data]) -> Bool`, `RingProtocol.parseActivityHistory(_ packets: [Data], calendar: Calendar) -> [ActivitySamplePoint]`, and struct `ActivitySamplePoint { let date: Date; let steps: Int; let calories: Int; let distanceMeters: Int }`.
 
-**Layout (documented):** request `[dayOffset, 0x0f, 0x00, 0x5f, 0x01]`. Header packet `byte[1]` is `0xF0`(240) for the ×10-calorie protocol or a packet count otherwise; we read header `byte[2]` as the number of following data packets. Each data packet: `bytes[1..3]`=BCD date (year-2000, month, day), `byte[4]`=time index (hour=idx/4, min=(idx%4)*15), `bytes[7..8]`=calories LE (×10 when header is `0xF0`), `bytes[9..10]`=steps LE, `bytes[11..12]`=distance meters LE.
+**Layout (documented):** request `[dayOffset, 0x0f, 0x00, 0x5f, 0x01]`. The FIRST received packet is the header: `byte[1]` is `0xF0`(240) for the ×10-calorie protocol (else ×1), `byte[2]`=number of following data packets. Each data packet: `bytes[1..3]`=BCD date (year-2000, month, day), `byte[4]`=time index (hour=idx/4, min=(idx%4)*15), `bytes[7..8]`=calories LE (×10 when header is `0xF0`), `bytes[9..10]`=steps LE, `bytes[11..12]`=distance meters LE.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -486,12 +480,8 @@ struct RingActivityHistoryTests {
         var b = [UInt8](repeating: 0, count: 16); b[0] = 0x43; b[1] = flag; b[2] = count; return Data(b)
     }
     static func dataPacket(steps: Int, cal: Int, dist: Int, idx: UInt8) -> Data {
-        var b = [UInt8](repeating: 0, count: 16)
-        b[0] = 0x43; b[1] = 0x10                          // any non-header subtype
-        b[1] = 0x01; b[2] = RingProtocol.bcd(26); b[3] = 0x06; b[4] = RingProtocol.bcd(18) // wrong slot? see note
-        // NOTE: date BCD lives in bytes[1..3] per layout; rewrite explicitly:
-        b = [UInt8](repeating: 0, count: 16); b[0] = 0x43
-        b[1] = RingProtocol.bcd(26); b[2] = 0x06; b[3] = RingProtocol.bcd(18); b[4] = idx
+        var b = [UInt8](repeating: 0, count: 16); b[0] = 0x43
+        b[1] = RingProtocol.bcd(26); b[2] = 0x06; b[3] = RingProtocol.bcd(18); b[4] = idx  // date BCD + time index
         b[7] = UInt8(cal & 0xFF); b[8] = UInt8(cal >> 8)
         b[9] = UInt8(steps & 0xFF); b[10] = UInt8(steps >> 8)
         b[11] = UInt8(dist & 0xFF); b[12] = UInt8(dist >> 8)
@@ -500,7 +490,7 @@ struct RingActivityHistoryTests {
 }
 ```
 
-> Implementer note: the header and data packets share `byte[0]=0x43`. Distinguish the header as the FIRST received packet; all subsequent packets are data. (The `0xF0` flag lives in the header's `byte[1]`.) The helper above rebuilds `b` cleanly — keep only the final construction.
+> Implementer note: header and data packets share `byte[0]=0x43`. The header is the FIRST received packet; every subsequent packet is data. The `0xF0` calorie-scale flag is the header's `byte[1]`.
 
 - [ ] **Step 2: Run test to verify it fails** — Expected: FAIL.
 
@@ -575,9 +565,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
   - `RingProtocol.sleepHistoryCommand(day: Date, calendar: Calendar) -> Data`, `RingProtocol.sleepHistoryComplete(_:) -> Bool`, `RingProtocol.parseSleep(_ packets: [Data], dayStart: Date) -> [SleepStageInterval]`.
   - `RingProtocol.stressHistoryCommand(day: Date, calendar: Calendar) -> Data`, `RingProtocol.stressHistoryComplete(_:) -> Bool`, `RingProtocol.parseStress(_ packets: [Data], dayStart: Date) -> [MetricSample]`.
 
-**Sleep layout (Gadgetbridge-documented):** header `byte[1]==0` with `byte[2]`=data packet count; data packets carry `(stageCode, durationMinutes)` pairs starting at `byte[2]`, stage codes `1=light, 2=deep, 3=rem, 4=awake` (the ring computes stages). Stress: header + data packets of one byte per ~30-min slot starting at the day start; `byte[1]` subtype `0` header (`byte[2]`=count, `byte[3]`=interval minutes), data packets values in `bytes[2..14]`, `0`=no reading.
+**Sleep layout (Gadgetbridge-documented):** header `byte[1]==0` with `byte[2]`=data packet count; data packets carry `(stageCode, durationMinutes)` pairs starting at `byte[2]`, stage codes `1=light, 2=deep, 3=rem, 4=awake`. Stress: header subtype `0` (`byte[2]`=count, `byte[3]`=interval minutes), data values in `bytes[2..14]`, `0`=no reading.
 
-> Exact offsets are reverse-engineered; the on-device step in Task 12 confirms them. Encode to this layout; a mismatch is a localized fix here.
+> Exact offsets are reverse-engineered; the on-device step (Task 14) confirms them. Encode to this layout; a mismatch is a localized fix here.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -659,7 +649,7 @@ extension RingProtocol {
         return packets.filter { $0.count > 1 && $0[$0.startIndex + 1] != 0 }.count >= Int(header[header.startIndex + 2])
     }
 
-    private static func stage(for code: UInt8) -> SleepStage? {
+    private static func sleepStage(for code: UInt8) -> SleepStage? {
         switch code { case 1: return .light; case 2: return .deep; case 3: return .rem; case 4: return .awake; default: return nil }
     }
 
@@ -673,7 +663,7 @@ extension RingProtocol {
             while i + 1 < b.count {
                 let code = b[i]; let minutes = Int(b[i + 1]); i += 2
                 if minutes == 0 { continue }
-                guard let stage = stage(for: code) else { continue }
+                guard let stage = sleepStage(for: code) else { continue }
                 let end = cursor.addingTimeInterval(Double(minutes) * 60)
                 intervals.append(SleepStageInterval(stage: stage, start: cursor, end: end))
                 cursor = end
@@ -738,7 +728,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `RingProtocol.liveSpO2StartCommand() -> Data`, `RingProtocol.parseLiveSpO2(_:) -> Int?`, `RingProtocol.spo2HistoryCommand(day: Date, calendar: Calendar) -> Data`, `RingProtocol.spo2HistoryComplete(_:) -> Bool`, `RingProtocol.parseSpO2History(_ packets: [Data], dayStart: Date) -> [MetricSample]`.
 
-**Layout:** live via `0x69` with type `3`; response `[0x69, 3, error, value%]`. History via `0x2C` request with 4-byte LE UTC midnight; paged like stress (header subtype 0 with count+interval; data values in `bytes[2..14]`, percentage, 0=no reading).
+**Layout:** live via `0x69` type `3`; response `[0x69, 3, error, value%]`. History via `0x2C` with 4-byte LE UTC midnight; paged like stress (header subtype 0 with count+interval; data values in `bytes[2..14]`, 0=no reading).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -830,7 +820,152 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 8: SwiftData models + container registration
+## Task 8: Body temperature protocol (V1 enable `0x3A` + V2 Big-Data `0xBC/0x25`)
+
+**Files:**
+- Create: `Shared/Ring/Protocol/RingTemperature.swift`
+- Test: `OopsTests/RingTemperatureTests.swift`
+
+**Interfaces:**
+- Produces (V1, 16-byte): `RingProtocol.enableAllDayTemperatureCommand() -> Data`.
+- Produces (V2 Big-Data namespace — NOT 16-byte, NO checksum):
+  - `enum RingBigData` with `static let serviceUUID/writeUUID/notifyUUID: String` constants.
+  - `RingBigData.temperatureRequest() -> Data` → raw bytes `BC 25 01 00 3E 81 02`.
+  - `RingBigData.temperatureComplete(_ packets: [Data]) -> Bool`.
+  - `RingBigData.parseTemperature(_ packets: [Data], today: Date, calendar: Calendar) -> [TemperatureReading]`.
+  - `struct TemperatureReading: Equatable { let date: Date; let celsius: Double }`.
+
+**Layout:** response = concatenated notify packets. Header `byte[0]=0xBC, byte[1]=0x25`, `bytes[2..3]`=uint16 LE payload length (bytes following the 4-byte header). Per-day blocks begin at **index 6**: `[days_ago][0x1E skip]` then **48 bytes** = 24h × half-hourly slots. Each slot byte → `tempC = (Double(byte & 0xFF) / 10.0) + 20.0`; raw `0` = no reading. Slot k = `dayStart + k*1800s`, `dayStart = startOfDay(today) - days_ago days`.
+
+- [ ] **Step 1: Write the failing test**
+
+```swift
+import Foundation
+import Testing
+@testable import Oops
+
+struct RingTemperatureTests {
+    static var utc: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
+
+    @Test func enableCommandIsV1ChecksummedPacket() {
+        let p = Array(RingProtocol.enableAllDayTemperatureCommand())
+        #expect(p.count == 16)
+        #expect(p[0] == 0x3A && p[1] == 0x03 && p[2] == 0x02 && p[3] == 0x01)
+        #expect(p[15] == UInt8(p[0..<15].reduce(0) { $0 + Int($1) } % 255)) // checksum present
+    }
+
+    @Test func temperatureRequestIsRawSevenBytes() {
+        #expect(Array(RingBigData.temperatureRequest()) == [0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02])
+    }
+
+    @Test func completeWhenDeclaredLengthReached() {
+        // header [BC 25 len_lo len_hi] + payload of `len` bytes
+        let payload = [UInt8](repeating: 0, count: 8)
+        let len = payload.count
+        var full = [0xBC, 0x25, UInt8(len & 0xFF), UInt8(len >> 8)]; full += payload
+        #expect(RingBigData.temperatureComplete([Data(full)]))
+        #expect(!RingBigData.temperatureComplete([Data(full.prefix(6))]))
+    }
+
+    @Test func parsesUnsignedScalingAndHalfHourSlots() {
+        let today = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18, hour: 10))!
+        // payload (from index 4): [pad0, pad1] then block [days_ago=0][0x1E][48 slots]
+        var block: [UInt8] = [0x00, 0x00, 0x00, 0x1E]
+        var slots = [UInt8](repeating: 0, count: 48)
+        slots[0] = 165   // (165/10)+20 = 36.5°C
+        slots[2] = 200   // (200 & 0xFF)/10 + 20 = 40.0°C — unsigned read matters (>127)
+        block += slots
+        let len = block.count
+        var full: [UInt8] = [0xBC, 0x25, UInt8(len & 0xFF), UInt8(len >> 8)]; full += block
+        let readings = RingBigData.parseTemperature([Data(full)], today: today, calendar: Self.utc)
+        #expect(readings.count == 2)
+        #expect(abs(readings[0].celsius - 36.5) < 0.001)
+        #expect(abs(readings[1].celsius - 40.0) < 0.001)
+        // slot 0 is at start-of-day; slot 2 is 60 min later
+        #expect(readings[1].date.timeIntervalSince(readings[0].date) == 2 * 1800)
+        #expect(readings[0].date == Self.utc.startOfDay(for: today))
+    }
+}
+```
+
+- [ ] **Step 2: Run test to verify it fails** — `... -only-testing:OopsTests/RingTemperatureTests`. Expected: FAIL.
+
+- [ ] **Step 3: Implement**
+
+```swift
+import Foundation
+
+extension RingProtocol {
+    /// `0x3A`: enable all-day temperature monitoring on the V1 channel. Without this the ring
+    /// returns no temperature history (the upstream "stuck fetching" bug).
+    static func enableAllDayTemperatureCommand() -> Data { makePacket(command: 0x3A, payload: [0x03, 0x02, 0x01]) }
+}
+
+/// The ring's "Big Data V2" channel — a SEPARATE GATT service with variable-length,
+/// un-checksummed framing. Body temperature lives here, not on the 16-byte V1 protocol, so it
+/// never goes through `RingProtocol.makePacket`.
+enum RingBigData {
+    static let serviceUUID = "de5bf728-d711-4e47-af26-65e3012a5dc7"
+    static let writeUUID = "de5bf72a-d711-4e47-af26-65e3012a5dc7"
+    static let notifyUUID = "de5bf729-d711-4e47-af26-65e3012a5dc7"
+
+    /// Raw historical-temperature request (NOT padded, NO checksum). `0xBC`=Big Data V2,
+    /// `0x25`=temperature; `01 00`=LE length; `3E 81 02`=fixed trailer observed in QRing traffic.
+    static func temperatureRequest() -> Data { Data([0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02]) }
+
+    /// Header [0xBC, 0x25, len_lo, len_hi]; complete when the declared payload length is in hand.
+    static func temperatureComplete(_ packets: [Data]) -> Bool {
+        let all = packets.reduce(Data(), +)
+        guard all.count >= 4, all[all.startIndex] == 0xBC, all[all.startIndex + 1] == 0x25 else { return false }
+        let len = Int(all[all.startIndex + 2]) | Int(all[all.startIndex + 3]) << 8
+        return all.count >= 4 + len
+    }
+
+    static func parseTemperature(_ packets: [Data], today: Date, calendar: Calendar) -> [TemperatureReading] {
+        let all = Array(packets.reduce(Data(), +))
+        guard all.count > 6, all[0] == 0xBC, all[1] == 0x25 else { return [] }
+        var cal = calendar; cal.timeZone = TimeZone(identifier: "UTC")!
+        let todayStart = cal.startOfDay(for: today)
+        var readings: [TemperatureReading] = []
+        var i = 6                                   // per-day blocks begin at index 6
+        while i + 2 + 48 <= all.count {             // [days_ago][skip 0x1E][48 slots]
+            let daysAgo = Int(all[i])
+            let blockStart = i + 2
+            guard let dayStart = cal.date(byAdding: .day, value: -daysAgo, to: todayStart) else { break }
+            for slot in 0..<48 {
+                let raw = Int(all[blockStart + slot]) & 0xFF
+                if raw > 0 {
+                    readings.append(TemperatureReading(date: dayStart.addingTimeInterval(Double(slot) * 1800),
+                                                       celsius: Double(raw) / 10.0 + 20.0))
+                }
+            }
+            i = blockStart + 48
+        }
+        return readings
+    }
+}
+
+struct TemperatureReading: Equatable {
+    let date: Date
+    let celsius: Double
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes** — Expected: PASS (4 tests).
+
+- [ ] **Step 5: Regenerate + commit**
+
+```bash
+xcodegen generate
+git add project.yml Oops.xcodeproj Shared/Ring/Protocol/RingTemperature.swift OopsTests/RingTemperatureTests.swift
+git commit -m "feat: body-temperature protocol (V1 0x3A enable + V2 Big-Data 0xBC/0x25)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 9: SwiftData models + container registration
 
 **Files:**
 - Create: `Shared/Model/RingSamples.swift`, `Shared/Model/SleepSessionRecord.swift`, `Shared/Model/RingSyncMeta.swift`
@@ -838,7 +973,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Test: `OopsTests/RingPersistenceTests.swift`
 
 **Interfaces:**
-- Produces `@Model` classes: `HeartRateSample(timestamp: Date, bpm: Int)`, `ActivitySample(timestamp: Date, steps: Int, calories: Int, distanceMeters: Int)`, `SpO2Sample(timestamp: Date, percent: Int)`, `StressSample(timestamp: Date, value: Int)`, `SleepSessionRecord(dayStart: Date, intervals: [SleepStageIntervalRecord])` + `SleepStageIntervalRecord(stageRaw: Int, start: Date, end: Date)`, `RingSyncMeta(boundRingID: String?, boundRingName: String?, lastSyncedDay: [String: Date])`.
+- Produces `@Model` classes: `HeartRateSample(timestamp: Date, bpm: Int)`, `ActivitySample(timestamp: Date, steps: Int, calories: Int, distanceMeters: Int)`, `SpO2Sample(timestamp: Date, percent: Int)`, `StressSample(timestamp: Date, value: Int)`, `TemperatureSample(timestamp: Date, celsius: Double)`, `SleepSessionRecord(dayStart: Date, intervals: [SleepStageIntervalRecord])` + `SleepStageIntervalRecord(stageRaw: Int, start: Date, end: Date)`, `RingSyncMeta(boundRingID: String?, boundRingName: String?, lastSyncedDay: [String: Date])`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -850,17 +985,17 @@ import Testing
 
 struct RingPersistenceTests {
     @MainActor
-    @Test func insertsAndFetchesHeartRateSamples() throws {
+    @Test func insertsAndFetchesHeartRateAndTemperature() throws {
         let container = try ModelContainer(
-            for: HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-                StressSample.self, SleepSessionRecord.self, RingSyncMeta.self,
+            for: HeartRateSample.self, ActivitySample.self, SpO2Sample.self, StressSample.self,
+                TemperatureSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = container.mainContext
         ctx.insert(HeartRateSample(timestamp: .init(timeIntervalSince1970: 1), bpm: 60))
+        ctx.insert(TemperatureSample(timestamp: .init(timeIntervalSince1970: 1), celsius: 36.5))
         try ctx.save()
-        let fetched = try ctx.fetch(FetchDescriptor<HeartRateSample>())
-        #expect(fetched.count == 1)
-        #expect(fetched[0].bpm == 60)
+        #expect(try ctx.fetch(FetchDescriptor<HeartRateSample>()).first?.bpm == 60)
+        #expect(try ctx.fetch(FetchDescriptor<TemperatureSample>()).first?.celsius == 36.5)
     }
 }
 ```
@@ -895,6 +1030,11 @@ import SwiftData
     var timestamp: Date; var value: Int
     init(timestamp: Date, value: Int) { self.timestamp = timestamp; self.value = value }
 }
+
+@Model final class TemperatureSample {
+    var timestamp: Date; var celsius: Double
+    init(timestamp: Date, celsius: Double) { self.timestamp = timestamp; self.celsius = celsius }
+}
 ```
 
 ```swift
@@ -922,7 +1062,7 @@ import SwiftData
 @Model final class RingSyncMeta {
     var boundRingID: String?
     var boundRingName: String?
-    /// Keyed by metric name ("hr","activity","sleep","stress","spo2") -> last synced day-start.
+    /// Keyed by metric name ("hr","activity","sleep","stress","spo2","temperature") -> last synced day-start.
     var lastSyncedDay: [String: Date]
     init(boundRingID: String? = nil, boundRingName: String? = nil, lastSyncedDay: [String: Date] = [:]) {
         self.boundRingID = boundRingID; self.boundRingName = boundRingName; self.lastSyncedDay = lastSyncedDay
@@ -932,13 +1072,13 @@ import SwiftData
 
 - [ ] **Step 4: Register the models in the app container**
 
-In `iOS/OopsApp.swift`, add the new types to the `Schema`/`ModelContainer` `for:` list alongside `BatteryReading`, `WorkoutRecord`, `SyncLogEntry` (keep the existing try / wipe-and-recreate guard). Example addition:
+In `iOS/OopsApp.swift`, add the new types to the `Schema`/`ModelContainer` `for:` list alongside the existing models (keep the try / wipe-and-recreate guard):
 
 ```swift
 let schema = Schema([
     BatteryReading.self, WorkoutRecord.self, SyncLogEntry.self,
-    HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-    StressSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self
+    HeartRateSample.self, ActivitySample.self, SpO2Sample.self, StressSample.self,
+    TemperatureSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self
 ])
 ```
 
@@ -952,14 +1092,14 @@ Run: `... test -only-testing:OopsTests/RingPersistenceTests` (PASS), then
 ```bash
 xcodegen generate
 git add project.yml Oops.xcodeproj Shared/Model/RingSamples.swift Shared/Model/SleepSessionRecord.swift Shared/Model/RingSyncMeta.swift iOS/OopsApp.swift OopsTests/RingPersistenceTests.swift
-git commit -m "feat: SwiftData models for ring samples + sync meta
+git commit -m "feat: SwiftData models for ring samples (incl. temperature) + sync meta
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 9: Paged transport read
+## Task 10: Paged transport read
 
 **Files:**
 - Modify: `Shared/Ring/RingTransport.swift`, `Shared/Ring/MockRingTransport.swift`, `iOS/Ring/BLERingTransport.swift`
@@ -976,7 +1116,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 @Test func pagedSendCollectsUntilComplete() async throws {
     let mock = MockRingTransport()
     try await mock.connect()
-    // History HR command -> mock yields a header + data packets; complete predicate from RingProtocol.
     let cmd = RingProtocol.heartRateHistoryCommand(day: .init(timeIntervalSince1970: 0), calendar: .current)
     let packets = try await mock.send(cmd, isComplete: RingProtocol.heartRateHistoryComplete)
     #expect(packets.count >= 2)
@@ -988,34 +1127,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 3: Add the protocol requirement and implement for both transports**
 
-In `RingTransport.swift`:
+In `RingTransport.swift` add the requirement:
 
 ```swift
 func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]
 ```
 
-In `BLERingTransport.swift`, accumulate notify packets instead of resolving on the first:
+In `BLERingTransport.swift`, add a paged path alongside the single-shot one: a `collected: [Data]` buffer, an `isCompletePredicate`, and a `pagedContinuation`. `send(_:isComplete:)` writes the command and returns the buffer when the predicate passes; in `didUpdateValueFor` (V1 notify), when a paged read is in flight, append the packet, re-arm the per-packet timeout, and resolve when `isCompletePredicate?(collected) == true`. Mirror the existing idempotent resolver guards (`guard let continuation = … else { return }`). A per-packet timeout resolves the paged read with `.timeout`. Add a `trace("Write paged command: …hex…")` line.
 
-```swift
-private var collected: [Data] = []
-private var isCompletePredicate: (([Data]) -> Bool)?
-
-func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
-    guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
-    collected = []; isCompletePredicate = isComplete
-    trace("Write paged command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
-    return try await withCheckedThrowingContinuation { continuation in
-        pagedContinuation = continuation
-        let type: CBCharacteristicWriteType = writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
-        peripheral.writeValue(command, for: writeChar, type: type)
-        armResponseTimeout()
-    }
-}
-```
-
-In `didUpdateValueFor`, when a paged read is in flight: append to `collected`, re-arm the per-packet timeout, and resolve `pagedContinuation` when `isCompletePredicate?(collected) == true`. Add `pagedContinuation`/`armResponseTimeout()` mirroring the existing single-shot machinery, and make the new resolvers idempotent (same guard pattern as `answer`/`failResponse`). The per-packet timeout failing resolves the paged read with `.timeout`.
-
-In `MockRingTransport.swift`, switch on `command[0]` to return deterministic packets:
+In `MockRingTransport.swift`, switch on `command[0]` to return deterministic packets matching the Task 4–7 layouts:
 
 ```swift
 func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
@@ -1030,7 +1150,7 @@ func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws 
 }
 ```
 
-Add the small static packet builders (header + a couple of data packets each, matching the Task 4–7 layouts) so simulator runs produce non-empty, deterministic data.
+Add the small static packet builders (header + a couple of data packets each) so simulator runs produce non-empty, deterministic data.
 
 - [ ] **Step 4: Run to verify it passes** — Expected: PASS.
 
@@ -1046,7 +1166,60 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 10: Ring binding (remember my ring)
+## Task 11: Big-Data V2 transport channel (temperature)
+
+**Files:**
+- Modify: `Shared/Ring/RingTransport.swift`, `Shared/Ring/MockRingTransport.swift`, `iOS/Ring/BLERingTransport.swift`
+- Test: `OopsTests/MockRingTransportTests.swift` (extend)
+
+**Interfaces:**
+- Adds to `RingTransport`: `func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]` and `var supportsBigData: Bool { get }` (false when the ring lacks the V2 service).
+
+**Why a separate channel:** temperature lives on a SECOND GATT service (`RingBigData.serviceUUID`) with its own write/notify characteristics and variable-length, un-checksummed framing. `sendBigData` writes raw bytes to the V2 write characteristic and accumulates V2 notify packets — completely separate from the V1 packet machinery.
+
+- [ ] **Step 1: Write the failing test (mock answers Big-Data temperature)**
+
+```swift
+@MainActor
+@Test func bigDataSendReturnsTemperaturePackets() async throws {
+    let mock = MockRingTransport()
+    try await mock.connect()
+    #expect(mock.supportsBigData)
+    let packets = try await mock.sendBigData(RingBigData.temperatureRequest(), isComplete: RingBigData.temperatureComplete)
+    let readings = RingBigData.parseTemperature(packets, today: .now, calendar: .current)
+    #expect(!readings.isEmpty)
+}
+```
+
+- [ ] **Step 2: Run to verify it fails** — Expected: FAIL.
+
+- [ ] **Step 3: Implement**
+
+In `RingTransport.swift`, add `sendBigData(_:isComplete:)` and `var supportsBigData: Bool { get }` to the protocol.
+
+In `BLERingTransport.swift`:
+- In `didDiscoverServices`, discover `[serviceUUID, CBUUID(string: RingBigData.serviceUUID)]`; for the V2 service, discover its write/notify characteristics and `setNotifyValue(true)` on the V2 notify char. Track `v2WriteChar`/`v2NotifyChar`; set `supportsBigData = (both present)`.
+- **Readiness must NOT depend on V2** — a ring without the V2 service still connects; treat V2 discovery as best-effort, log its presence/absence via `trace`. Keep `succeedReady()` gated on the V1 notify enabling as today.
+- In `didUpdateValueFor`, route by `characteristic.uuid`: V1 notify → existing handling; V2 notify → append to a `bigDataCollected` buffer, re-arm timeout, resolve `bigDataContinuation` when `bigDataComplete?(bigDataCollected)`.
+- `sendBigData` throws `.notConnected` if `v2WriteChar` is nil; writes raw `data` to `v2WriteChar` (use `.withoutResponse` if the char lacks `.write`); arms the per-packet timeout; returns the buffer. Idempotent resolvers, as elsewhere.
+
+In `MockRingTransport.swift`: `supportsBigData = true`; `sendBigData` returns a deterministic temperature response built to the Task 8 layout (header `BC 25 len` + one day block with a couple of non-zero slots).
+
+- [ ] **Step 4: Run to verify it passes** — Expected: PASS.
+
+- [ ] **Step 5: Regenerate + commit**
+
+```bash
+xcodegen generate
+git add project.yml Oops.xcodeproj Shared/Ring/RingTransport.swift Shared/Ring/MockRingTransport.swift iOS/Ring/BLERingTransport.swift OopsTests/MockRingTransportTests.swift
+git commit -m "feat: Big-Data V2 transport channel for temperature
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 12: Ring binding (remember my ring)
 
 **Files:**
 - Modify: `iOS/Ring/BLERingTransport.swift` (accept a bound identifier), `Shared/Ring/RingManager.swift` (read/write `RingSyncMeta`)
@@ -1054,7 +1227,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Interfaces:**
 - Adds `RingScanMatcher.matches(name:advertisedServiceUUIDs:boundID:peripheralID:)` overload: when `boundID != nil`, require `peripheralID == boundID`; else fall back to the existing name/UUID match.
-- `BLERingTransport` gains `var boundRingID: UUID?` set by `RingManager` before `connect()`.
+- `BLERingTransport` gains `var boundRingID: UUID?` set by `RingManager` before `connect()`, and exposes the connected `peripheral.identifier` after a successful connect.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1063,7 +1236,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
     let bound = UUID(); let other = UUID()
     #expect(RingScanMatcher.matches(name: "R09_4301", advertisedServiceUUIDs: [], boundID: bound, peripheralID: bound))
     #expect(!RingScanMatcher.matches(name: "R09_4301", advertisedServiceUUIDs: [], boundID: bound, peripheralID: other))
-    // Unbound: falls back to name match
     #expect(RingScanMatcher.matches(name: "R09_4301", advertisedServiceUUIDs: [], boundID: nil, peripheralID: other))
 }
 ```
@@ -1082,7 +1254,7 @@ extension RingScanMatcher {
 }
 ```
 
-In `BLERingTransport.didDiscover`, call the new overload with `boundRingID` and `peripheral.identifier`. On a successful `connect()`, expose the connected `peripheral.identifier` so `RingManager` can persist it. In `RingManager`, load `RingSyncMeta` (create if absent); set `transport.boundRingID` before connecting; after the first successful connect, store `boundRingID`/`boundRingName` if not already bound.
+In `BLERingTransport.didDiscover`, call the new overload with `boundRingID` and `peripheral.identifier`. Expose `connectedPeripheralID: UUID?` after a successful connect. In `RingManager`, load `RingSyncMeta` (create if absent); set `transport.boundRingID` (parsed from `meta.boundRingID`) before connecting; after the first successful connect, store `boundRingID`/`boundRingName` if not already bound.
 
 - [ ] **Step 4: Run to verify it passes** — Expected: PASS.
 
@@ -1098,7 +1270,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 11: Sync session in `RingManager`
+## Task 13: Sync session in `RingManager` (incl. temperature)
 
 **Files:**
 - Modify: `Shared/Ring/RingManager.swift`
@@ -1112,16 +1284,18 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ```swift
 @MainActor
-@Test func syncPersistsBatteryLiveHRAndHistory() async throws {
+@Test func syncPersistsBatteryLiveHRHistoryAndTemperature() async throws {
     let container = try ModelContainer(
         for: BatteryReading.self, HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
-            StressSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self,
+            StressSample.self, TemperatureSample.self, SleepSessionRecord.self,
+            SleepStageIntervalRecord.self, RingSyncMeta.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let manager = RingManager(transport: MockRingTransport(), modelContext: container.mainContext)
     await manager.sync()
     #expect(manager.batteryStatus != nil)
     #expect(manager.liveHR != nil)
     #expect(try container.mainContext.fetch(FetchDescriptor<HeartRateSample>()).count > 0)
+    #expect(try container.mainContext.fetch(FetchDescriptor<TemperatureSample>()).count > 0)
 }
 ```
 
@@ -1133,11 +1307,12 @@ Replace `refreshBattery()` with `sync()` that, after the `guard !isBusy` re-entr
 1. `try? transport.send(RingProtocol.setTimeCommand(date: .now, calendar: .current))`
 2. battery via existing one-shot `send`; publish + insert `BatteryReading`.
 3. live HR: send start (paged read collecting until a valid `parseLiveHR`), publish `liveHR`, send stop.
-4. for each day from `min(lastSynced, today-6)` … today (per metric), call the paged `send` with the matching command + `isComplete`, parse, and `upsert` samples (skip a timestamp that already exists), then set `lastSyncedDay[metric] = today`.
-5. each metric/day wrapped in `do/catch` that `trace`s and continues (partial-failure tolerant).
-6. `transport.disconnect()` in all paths; `try? modelContext.save()`.
+4. for each missing day (from `min(lastSynced, today-6)` … today, per metric): call the paged `send` with each command + `isComplete`, parse, and `upsert` samples (skip a timestamp already present), then set `lastSyncedDay[metric] = today`. Metrics: `heartRateHistoryCommand`→`HeartRateSample`, `activityHistoryCommand(dayOffset:)`→`ActivitySample`, `sleepHistoryCommand`→`SleepSessionRecord`, `stressHistoryCommand`→`StressSample`, `spo2HistoryCommand`→`SpO2Sample`.
+5. temperature: if `transport.supportsBigData` — `try? transport.send(RingProtocol.enableAllDayTemperatureCommand())`, then `transport.sendBigData(RingBigData.temperatureRequest(), isComplete: RingBigData.temperatureComplete)`, `RingBigData.parseTemperature(_, today: .now, calendar: .current)`, upsert `TemperatureSample`, set `lastSyncedDay["temperature"]`.
+6. each metric/day wrapped in `do/catch` that `trace`s and continues (partial-failure tolerant).
+7. `transport.disconnect()` in all paths; `try? modelContext.save()`.
 
-Add a private `upsert` that fetches existing timestamps for the day and inserts only new ones (dedupe).
+Add a private `upsert` that fetches existing timestamps for the affected range and inserts only new ones (dedupe).
 
 - [ ] **Step 4: Run to verify it passes** — Expected: PASS.
 
@@ -1146,16 +1321,16 @@ Add a private `upsert` that fetches existing timestamps for the day and inserts 
 ```bash
 xcodegen generate
 git add -A
-git commit -m "feat: RingManager.sync() session (time, live, 7-day backfill)
+git commit -m "feat: RingManager.sync() session (time, live, 7-day backfill, temperature)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 12: On-device protocol verification (manual)
+## Task 14: On-device protocol verification (manual, incl. temperature)
 
-**Files:** none (verification + any localized parser offset fixes from Tasks 4–7)
+**Files:** none (verification + any localized parser offset fixes from Tasks 4–8)
 
 - [ ] **Step 1: Build + install to the iPhone**
 
@@ -1173,9 +1348,11 @@ xcrun devicectl device process launch --device D60C8FB9-3DCA-57B5-8569-EE2845150
 
 - [ ] **Step 3: Inspect each command's raw packets**
 
-`grep "BLE:" /tmp/oops_sync.log` — confirm, per opcode, that header/data byte offsets match the layouts encoded in Tasks 4–7 (subtype byte, counts, BCD date, LE values). For any mismatch, fix the offending parser's offsets and its synthetic-fixture test, re-run that suite, rebuild.
+`grep "BLE:" /tmp/oops_sync.log` — confirm, per opcode, that header/data byte offsets match the layouts encoded in Tasks 4–8 (subtype byte, counts, BCD date, LE values; for temperature, that the V2 service was found, the `BC 25` response arrived, and decoded °C are plausible). For any mismatch, fix the offending parser's offsets and its synthetic-fixture test, re-run that suite, rebuild.
 
-- [ ] **Step 4: Sanity-check values** — live HR within a plausible range; today's steps non-decreasing; sleep intervals fall in the overnight window; SpO2 ~95–99.
+- [ ] **Step 4: Sanity-check values** — live HR plausible; today's steps non-decreasing; sleep intervals in the overnight window; SpO2 ~95–99; **body temperature ~33–37 °C skin range** (NOT 36.5–37 core unless measured warm).
+
+> If the R09 lacks the V2 service or returns no `BC 25` data, fall back per the temperature reference doc: try real-time `0x69`+`0x0B`, else capture QRing traffic. Record the outcome; do not block the other metrics.
 
 - [ ] **Step 5: Commit any offset fixes**
 
@@ -1188,7 +1365,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 13: `HealthData` provider protocol + mock conformance
+## Task 15: `HealthData` provider protocol + mock conformance
 
 **Files:**
 - Create: `Shared/Model/HealthData.swift`
@@ -1197,7 +1374,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Interfaces:**
 - `protocol HealthData` with the methods the screens use: `func dayMetrics(for date: Date) -> DayMetrics`, `func hrvSeries(days: Int) -> [MetricSample]`, `restingHRSeries`, `stepsSeries`, `sleepScoreSeries`, `strainSeries`, `func sleepSession(for date: Date) -> SleepSession`, `func hrZones(for date: Date) -> [HRZone]`.
-- `DayMetrics` deferred fields (`hrv`, `bodyTempDelta`, `respiratoryRate`, and the computed `score`/`recovery`/`strain`) become `Int?`/`Double?`.
+- `DayMetrics` deferred fields become optional: `hrv: Int?`, `respiratoryRate: Double?`, and the computed `score: Int?`/`recovery: Double?`/`strain: Double?`. **`bodyTempDelta: Double?`** is now real-sourced (nil when no temperature data).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1211,7 +1388,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL.
 
-- [ ] **Step 3: Implement** the protocol; make `MockHealthData` conform (it already has matching methods — add `for date:` parameters, ignoring the date to keep deterministic output). Change `DayMetrics` deferred fields to optionals; update `MockHealthData.dayMetrics` to supply sample values (mock can still provide them). Update any screen reads broken by optionality minimally (full UI wiring is Task 14).
+- [ ] **Step 3: Implement** the protocol; make `MockHealthData` conform (add `for date:` parameters, ignoring the date to keep deterministic output). Change `DayMetrics` deferred fields to optionals; `MockHealthData.dayMetrics` still supplies sample values (mock can provide them). Update any screen reads broken by optionality minimally (full UI wiring is Task 16).
 
 - [ ] **Step 4: Run to verify it passes** + `build`. Expected: PASS / BUILD SUCCEEDED.
 
@@ -1227,7 +1404,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 14: `RingHealthData` (SwiftData-backed) + screen injection
+## Task 16: `RingHealthData` (SwiftData-backed) + screen injection (incl. temperature)
 
 **Files:**
 - Create: `Shared/Model/RingHealthData.swift`
@@ -1235,19 +1412,22 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Test: `OopsTests/RingHealthDataTests.swift`
 
 **Interfaces:**
-- `RingHealthData(modelContext:)` conforms to `HealthData`, computing daily aggregates from the stored samples (steps = sum of the day's `ActivitySample.steps`, current HR = latest `HeartRateSample`, etc.). Deferred metrics return `nil`.
+- `RingHealthData(modelContext:)` conforms to `HealthData`, computing daily aggregates from the stored samples (steps = sum of the day's `ActivitySample.steps`; current HR = latest `HeartRateSample`; **`bodyTempDelta` = mean of the day's `TemperatureSample.celsius` minus the trailing 7-day mean baseline**, nil if no data). The other deferred metrics (recovery/strain/hrv/respiratoryRate) return `nil`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```swift
 @MainActor
-@Test func aggregatesStepsForADay() throws {
-    let container = try ModelContainer(for: ActivitySample.self, /* …all models… */,
+@Test func aggregatesStepsAndTemperatureDelta() throws {
+    let container = try ModelContainer(
+        for: HeartRateSample.self, ActivitySample.self, SpO2Sample.self, StressSample.self,
+            TemperatureSample.self, SleepSessionRecord.self, SleepStageIntervalRecord.self, RingSyncMeta.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let ctx = container.mainContext
     let day = Calendar.current.startOfDay(for: .now)
     ctx.insert(ActivitySample(timestamp: day, steps: 100, calories: 5, distanceMeters: 70))
     ctx.insert(ActivitySample(timestamp: day.addingTimeInterval(900), steps: 150, calories: 7, distanceMeters: 110))
+    ctx.insert(TemperatureSample(timestamp: day.addingTimeInterval(3600), celsius: 34.0))
     try ctx.save()
     let provider = RingHealthData(modelContext: ctx)
     #expect(provider.dayMetrics(for: day).steps == 250)
@@ -1256,7 +1436,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 2: Run to verify it fails** — Expected: FAIL.
 
-- [ ] **Step 3: Implement** `RingHealthData`: fetch samples per day via `FetchDescriptor` with date-range predicates; aggregate. Inject the provider through a SwiftUI `Environment` value (`\.healthData`); in `HomeRootView`, build `RingHealthData(modelContext:)` and set it on the environment; in each screen, read `@Environment(\.healthData)` and replace the inline `MockHealthData()` with it; previews inject `MockHealthData()`. Render `nil` deferred metrics as a dash via the existing `LabeledContent`/`metricValueStyle` (e.g., a `formatted(_ value: Int?) -> String` returning "—" for nil).
+- [ ] **Step 3: Implement** `RingHealthData`: fetch samples per day via `FetchDescriptor` with date-range predicates; aggregate (incl. the temperature-delta baseline). Inject the provider through a SwiftUI `Environment` value (`\.healthData`); in `HomeRootView`, build `RingHealthData(modelContext:)` and set it on the environment; in each screen, read `@Environment(\.healthData)` and replace the inline `MockHealthData()` with it; previews inject `MockHealthData()`. Render `nil` deferred metrics as a dash via a `formatted(_ value: Int?) -> String`/`Double?` helper returning "—".
 
 - [ ] **Step 4: Run to verify it passes** + `build`. Expected: PASS / BUILD SUCCEEDED.
 
@@ -1265,18 +1445,18 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```bash
 xcodegen generate
 git add -A
-git commit -m "feat: SwiftData-backed HealthData; screens read real per-day data
+git commit -m "feat: SwiftData-backed HealthData; screens read real per-day data incl. temperature
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 15: Wire `HomeRootView` to `sync()`; "Forget ring" in Profile
+## Task 17: Wire `HomeRootView` to `sync()`; "Forget ring" in Profile
 
 **Files:**
 - Modify: `iOS/Home/HomeRootView.swift`, `Shared/Screens/Profile/ProfileView.swift`
-- Test: covered by build + the existing `RingManagerSyncTests` (no new unit test; UI wiring)
+- Test: build + the existing `RingManagerSyncTests` (no new unit test; UI wiring)
 
 - [ ] **Step 1: Replace battery refresh with sync**
 
@@ -1288,7 +1468,7 @@ Add a section showing the bound ring name (from `RingSyncMeta`) and a **"Forget 
 
 - [ ] **Step 3: Build + run on Simulator**
 
-Run: `xcodebuild ... -destination 'platform=iOS Simulator,name=iPhone 17' build` → BUILD SUCCEEDED. Launch in Simulator; confirm screens show mock-via-`RingHealthData`-empty → placeholders where no data, and no crash.
+Run: `xcodebuild ... -destination 'platform=iOS Simulator,name=iPhone 17' build` → BUILD SUCCEEDED. Launch in Simulator; confirm screens populate from `RingHealthData` (mock-backed transport in Simulator) and there is no crash.
 
 - [ ] **Step 4: Full test suite**
 
@@ -1307,15 +1487,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 16: End-to-end on-device verification + lint
+## Task 18: End-to-end on-device verification + lint
 
 **Files:** none (verification)
 
-- [ ] **Step 1:** Build + install to iPhone (commands as in Task 12).
-- [ ] **Step 2:** Wear the ring, open the app, confirm via `/tmp` console log: time set, battery, live HR, and each history day fetched; screens populate with real values; deferred metrics show "—".
+- [ ] **Step 1:** Build + install to iPhone (commands as in Task 14).
+- [ ] **Step 2:** Wear the ring, open the app, confirm via `/tmp` console log: time set, battery, live HR, each history day fetched, temperature enabled + fetched; screens populate with real values; deferred metrics (recovery/strain/HRV/respiratory) show "—"; body temperature shows a real delta.
 - [ ] **Step 3:** Background/foreground → sync re-runs; second open backfills only missing days (check `lastSyncedDay`).
 - [ ] **Step 4:** `swiftlint lint --config .swiftlint.yml` → 0 violations.
-- [ ] **Step 5:** Final commit if any fixes, then per `superpowers:finishing-a-development-branch`, merge to main (verified work merges directly per project convention).
+- [ ] **Step 5:** Final commit if any fixes; completion handled by `superpowers:finishing-a-development-branch`.
 
 ```bash
 git add -A && git commit -m "chore: end-to-end real-data verification
@@ -1328,10 +1508,10 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ## Self-Review
 
 **Spec coverage:**
-- Sync session → Tasks 9, 11, 15. Protocol expansion → Tasks 1–7. Persistence → Task 8. Ring binding → Tasks 10, 15. UI wiring/placeholders → Tasks 13, 14, 15. Testing discipline → every task + 12, 16. Deferred metrics (recovery/strain/HRV/temp/respiratory) → optionals in Task 13, "—" rendering in Task 14. ✓ All spec sections map to tasks.
+- Sync session → Tasks 10, 11, 13, 17. V1 protocol expansion → Tasks 1–7. Temperature (V2) → Tasks 8, 11, 13, 16. Persistence → Task 9. Ring binding → Tasks 12, 17. UI wiring/placeholders → Tasks 15, 16, 17. Testing discipline → every task + 14, 18. Deferred metrics (recovery/strain/HRV/respiratory) → optionals in Task 15, "—" in Task 16; **body temp is now real-sourced** (Tasks 8/11/13/16), no longer deferred. ✓
 
-**Placeholder scan:** Integration tasks (9–11, 14–15) describe edits in prose with concrete signatures and the key code shapes rather than every line — acceptable because they modify large existing files whose surrounding code the implementer reads in situ; all *new types and signatures* are given explicitly. Pure-protocol tasks (1–8) have complete code. No "TBD/handle edge cases/similar to" left.
+**Placeholder scan:** Integration tasks (10–13, 16–17) describe edits in prose with concrete signatures and key code shapes rather than every line — acceptable because they modify large existing files read in situ; all *new types and signatures* are given explicitly. Pure-protocol tasks (1–8) and models (9) have complete code. No "TBD/handle edge cases/similar to" left.
 
-**Type consistency:** `HealthData` method set is identical in Tasks 13 and 14. `RingSyncMeta.lastSyncedDay` keys ("hr/activity/sleep/stress/spo2") used consistently in Tasks 8 and 11. `parse*`/`*Command`/`*Complete` names match between their defining task and their use in Tasks 9/11. `ActivitySamplePoint` (protocol parse result) vs `ActivitySample` (`@Model`) are intentionally distinct — the former is decoded, the latter persisted in Task 11.
+**Type consistency:** `HealthData` method set identical in Tasks 15 and 16. `RingSyncMeta.lastSyncedDay` keys ("hr/activity/sleep/stress/spo2/temperature") consistent in Tasks 9 and 13. `RingBigData` service/char UUIDs defined in Task 8, consumed in Task 11. `TemperatureReading` (decoded, Task 8) vs `TemperatureSample` (`@Model`, Task 9) intentionally distinct, bridged in Task 13. `parse*`/`*Command`/`*Complete` names match between defining task and use in Tasks 10/11/13.
 
-**Note on reverse-engineered layouts:** Tasks 6–7 (sleep/stress/SpO2) and the paging headers in 4–5 encode the best-documented layout; Task 12 verifies against real packets and localizes any offset fix. This is explicit, not a hidden placeholder.
+**Note on reverse-engineered layouts:** Tasks 6–8 (sleep/stress/SpO2/temperature) and the paging headers in 4–5 encode the best-documented layout; Task 14 verifies against real packets and localizes any offset fix — explicit, not a hidden placeholder. The temperature V2 request trailer (`3E 81 02`) is verbatim from QRing traffic and is flagged for on-device byte-confirmation in Task 14.

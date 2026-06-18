@@ -98,7 +98,10 @@ final class RingManager {
                 let frames = try await transport.send(
                     RingProtocol.liveHRStartCommand(),
                     isComplete: { packets in
-                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 30
+                        // The PPG sensor takes ~25-30s to lock on (verified on-device: real BPM
+                        // first appeared at frame ~52). Frames stream ~0.5s apart, so cap at 70
+                        // (~35s) to give it time, but stop as soon as a non-zero BPM arrives.
+                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
                     },
                     perPacketTimeout: 4
                 )

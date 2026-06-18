@@ -47,25 +47,32 @@ func setTimeCmd() -> Data {
                              bcd(c.hour ?? 0), bcd(c.minute ?? 0), bcd(c.second ?? 0), 0x01])
 }
 
-// Command sequence: (label, packet, sendToV2)
-// Focus: prove SpO2 + sleep are Big-Data V2 commands (like temperature), not V1.
+// FULL real-data verification: enable everything, then fetch every metric and dump responses.
 let sequence: [(String, Data, Bool)] = [
     ("setTime(UTC)",        setTimeCmd(), false),
-    ("enableSpO2 2C0201",   makePacket(0x2C, [0x02, 0x01]), false),   // V1 enable toggle (echo-ack)
-    ("enableTemp 0x3A",     makePacket(0x3A, [0x03, 0x02, 0x01]), false),
-    ("enableHRV 380201",    makePacket(0x38, [0x02, 0x01]), false),   // try enabling HRV
-    ("enableStress 360201", makePacket(0x36, [0x02, 0x01]), false),   // try enabling stress
-    // --- Big-Data V2 fetches (written to de5bf72a, reply on de5bf729) ---
+    ("enable HRlog 16",     makePacket(0x16, [0x02, 0x01, 0x05]), false),
+    ("enable SpO2 2C",      makePacket(0x2C, [0x02, 0x01]), false),
+    ("enable HRV 38",       makePacket(0x38, [0x02, 0x01]), false),
+    ("enable stress 36",    makePacket(0x36, [0x02, 0x01]), false),
+    ("enable temp 3A",      makePacket(0x3A, [0x03, 0x02, 0x01]), false),
+    ("battery 03",          makePacket(0x03), false),
+    // live HR — start, let it stream a few seconds (frames log automatically), then stop
+    ("liveHR start 69",     makePacket(0x69, [0x01, 0x01]), false),
+    ("(wait for stream)",   makePacket(0x03), false),
+    ("(wait for stream)",   makePacket(0x03), false),
+    ("(wait for stream)",   makePacket(0x03), false),
+    ("liveHR stop 6A",      makePacket(0x6A, [0x01, 0x00, 0x00]), false),
+    // V1 history fetches
+    ("HR history 0x15",     makePacket(0x15, ts4()), false),
+    ("steps 0x43 off0",     makePacket(0x43, [0x00, 0x0f, 0x00, 0x5f, 0x01]), false),
+    ("stress 0x37",         makePacket(0x37, ts4()), false),
+    ("HRV 0x39",            makePacket(0x39, ts4()), false),
+    // Big-Data V2 fetches
     ("SpO2 V2 BC2A",        Data([0xBC, 0x2A, 0x01, 0x00, 0xFF, 0x00, 0xFF]), true),
     ("sleep V2 BC27",       Data([0xBC, 0x27, 0x01, 0x00, 0xFF, 0x00, 0xFF]), true),
-    ("temp V2 BC25 (ctrl)", Data([0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02]), true),
-    ("HRV V2 BC39?",        Data([0xBC, 0x39, 0x01, 0x00, 0xFF, 0x00, 0xFF]), true),  // guess
-    // --- real-time SpO2 spot (V1 0x69 type 3) ---
-    ("rtSpO2 start 690301", makePacket(0x69, [0x03, 0x01]), false),
-    ("rtSpO2 keepalive",    makePacket(0x1E, [0x33]), false),
-    ("rtSpO2 keepalive",    makePacket(0x1E, [0x33]), false),
-    ("rtSpO2 stop",         makePacket(0x6A, [0x03, 0x00, 0x00]), false),
+    ("temp V2 BC25",        Data([0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02]), true),
 ]
+func ts4() -> [UInt8] { uint32LE(todayMidnightUTC) }
 
 final class Delegate: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var central: CBCentralManager!

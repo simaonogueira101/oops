@@ -87,18 +87,20 @@ final class RingManager {
                 trace("battery step failed: \(error)")
             }
 
-            // c. Live HR — the ring needs poking: start once, then send the keepalive
-            // repeatedly (~1s apart) until a non-zero BPM arrives (the sensor takes several
-            // seconds to lock on), then stop.
+            // c. Live HR — after start, the ring STREAMS 0x69 frames on its own (the 0x1E
+            // "keepalive" is unsupported — verified on-device, it returns 0x9E 0xEE). So we just
+            // start the measurement and passively collect the streamed frames until a non-zero
+            // BPM arrives (the sensor takes several seconds to lock on) or we cap the window.
             do {
-                try? await transport.send(RingProtocol.liveHRStartCommand())
-                for _ in 0..<18 {
-                    let response = try await transport.send(RingProtocol.liveHRKeepaliveCommand())
-                    if let bpm = RingProtocol.parseLiveHR(response) {
-                        liveHR = bpm
-                        break
-                    }
-                    try? await Task.sleep(for: .seconds(1))
+                let frames = try await transport.send(
+                    RingProtocol.liveHRStartCommand(),
+                    isComplete: { packets in
+                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 30
+                    },
+                    perPacketTimeout: 4
+                )
+                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
+                    liveHR = bpm
                 }
                 try? await transport.send(RingProtocol.liveHRStopCommand())
             } catch {

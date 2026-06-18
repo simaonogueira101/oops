@@ -35,4 +35,20 @@ enum RingProtocol {
         let isCharging = data[data.startIndex + 2] != 0
         return BatteryStatus(level: level, isCharging: isCharging)
     }
+
+    /// 4-byte little-endian encoding (ring uses LE Unix timestamps).
+    static func uint32LE(_ value: UInt32) -> [UInt8] {
+        [UInt8(value & 0xFF), UInt8((value >> 8) & 0xFF),
+         UInt8((value >> 16) & 0xFF), UInt8((value >> 24) & 0xFF)]
+    }
+
+    /// Binary-coded decimal: 26 -> 0x26. The ring's clock uses BCD.
+    static func bcd(_ value: Int) -> UInt8 {
+        UInt8((value / 10) * 16 + (value % 10))
+    }
+
+    /// UTC midnight (start of `date`'s day in the given calendar) as a Unix timestamp.
+    static func utcMidnightUnix(for date: Date, calendar: Calendar) -> UInt32 {
+        UInt32(calendar.startOfDay(for: date).timeIntervalSince1970)
+    }
 }

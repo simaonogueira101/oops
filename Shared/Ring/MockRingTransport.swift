@@ -31,7 +31,7 @@ final class MockRingTransport: RingTransport {
         }
     }
 
-    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool, perPacketTimeout: TimeInterval) async throws -> [Data] {
         switch command.first {
         case 0x15: return MockRingTransport.hrHistoryPackets()
         case 0x43: return MockRingTransport.activityPackets()

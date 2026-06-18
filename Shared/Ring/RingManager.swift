@@ -65,6 +65,9 @@ final class RingManager {
             // a. Set clock (best-effort)
             try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: .current))
 
+            // a2. Enable HR logging (best-effort; harmless to repeat each sync)
+            try? await transport.send(RingProtocol.enableHeartRateLoggingCommand())
+
             // b. Battery
             do {
                 let response = try await transport.send(RingProtocol.batteryCommand())
@@ -82,7 +85,8 @@ final class RingManager {
             do {
                 let packets = try await transport.send(
                     RingProtocol.liveHRStartCommand(),
-                    isComplete: { packets in packets.contains { RingProtocol.parseLiveHR($0) != nil } }
+                    isComplete: { packets in packets.contains { RingProtocol.parseLiveHR($0) != nil } },
+                    perPacketTimeout: 25
                 )
                 if let bpm = packets.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                     liveHR = bpm

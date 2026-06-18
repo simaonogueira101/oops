@@ -69,6 +69,7 @@ final class BLERingTransport: NSObject, RingTransport {
     private var pagedBuffer: [Data] = []
     private var isCompletePredicate: (([Data]) -> Bool)?
     private var pagedTimeoutTask: Task<Void, Never>?
+    private var currentPagedTimeout: TimeInterval = 8
 
     // Big-Data V2 read state — nil when no V2 read is in flight.
     private var bigDataContinuation: CheckedContinuation<[Data], Error>?
@@ -112,7 +113,7 @@ final class BLERingTransport: NSObject, RingTransport {
         responseContinuation?.resume(throwing: RingError.notConnected); responseContinuation = nil
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         pagedContinuation?.resume(throwing: RingError.notConnected)
-        pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil
+        pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil; currentPagedTimeout = 8
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         bigDataContinuation?.resume(throwing: RingError.notConnected)
         bigDataContinuation = nil; bigDataBuffer = []; bigDataComplete = nil
@@ -134,7 +135,7 @@ final class BLERingTransport: NSObject, RingTransport {
         }
     }
 
-    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool, perPacketTimeout: TimeInterval) async throws -> [Data] {
         guard stage == .ready, let peripheral, let writeChar else { throw RingError.notConnected }
         guard responseContinuation == nil, pagedContinuation == nil else { throw RingError.notConnected }
         trace("Write paged command: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
@@ -142,6 +143,7 @@ final class BLERingTransport: NSObject, RingTransport {
             pagedContinuation = continuation
             pagedBuffer = []
             isCompletePredicate = isComplete
+            currentPagedTimeout = perPacketTimeout
             let type: CBCharacteristicWriteType =
                 writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
             peripheral.writeValue(command, for: writeChar, type: type)
@@ -195,7 +197,7 @@ final class BLERingTransport: NSObject, RingTransport {
     private func armPagedTimeout() {
         pagedTimeoutTask?.cancel()
         pagedTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(self?.responseTimeout ?? 8))
+            try? await Task.sleep(for: .seconds(self?.currentPagedTimeout ?? 8))
             self?.failPaged(.timeout)
         }
     }

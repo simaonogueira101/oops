@@ -26,7 +26,8 @@ protocol RingTransport: AnyObject {
     func send(_ command: Data) async throws -> Data
     /// Sends a command and accumulates inbound packets until `isComplete` returns true,
     /// then returns all collected packets. Used for multi-packet history reads.
-    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data]
+    /// `perPacketTimeout` is the maximum wait between consecutive inbound packets.
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool, perPacketTimeout: TimeInterval) async throws -> [Data]
 
     /// Whether the connected ring exposes the Big-Data V2 GATT service. False when the ring
     /// lacks the service or no connection has been established.
@@ -55,6 +56,10 @@ protocol RingTransport: AnyObject {
 
 // Default no-op conformances so existing MockRingTransport / StubTransport compile unchanged.
 extension RingTransport {
+    func send(_ command: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {
+        try await send(command, isComplete: isComplete, perPacketTimeout: 8)
+    }
+
     var boundRingID: UUID? {
         get { nil }
         // swiftlint:disable:next unused_setter_value

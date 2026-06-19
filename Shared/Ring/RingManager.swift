@@ -111,6 +111,12 @@ final class RingManager {
             // channel, and make the paged reads time out. A short settle clears them first.
             try? await Task.sleep(for: .seconds(2))
 
+            // EARLY live HR — the connection interval is still fresh (~30–50ms) right after connect.
+            // The capture shows QRing streams live HR at a 30ms interval; ours relaxes to ~4s after
+            // the long history/V2 reads, at which point the ring aborts the measurement. Running it
+            // here, before those reads, is the test of whether a fresh interval keeps it streaming.
+            await attemptLiveHR(label: "early")
+
             // History backfill (local day boundaries, matching the ring's local clock).
             let calendar = utc
             let today = calendar.startOfDay(for: .now)
@@ -298,43 +304,10 @@ final class RingManager {
                 }
             }
 
-            // Live HR LAST — after the full init/history handshake, when the connection is warm.
-            // The official app sends NO keepalive (verified via PacketLogger): the ring auto-
-            // streams 0x69 echo frames ~0.5s apart after the start; we just listen until a
-            // non-zero BPM (byte[3], byte[2]==0) or a frame cap, then stop.
-            // Best-effort, single short attempt. Real-time live HR is effectively blocked on iOS:
-            // the PPG needs ~20+ streamed 0x69 frames to report a non-zero BPM, but the ring only
-            // streams them on the fast connection interval QRing forces — which an iOS central has
-            // no API to request, so we get exactly ONE frame then silence (verified on-device).
-            // We still try (it's cheap, and would work if the ring ever streams), but the "now" HR
-            // shown in the UI falls back to the latest HR-history sample (RingHealthData.currentHR),
-            // so the user sees a real recent value rather than "—".
-            // Real-time live HR is NOT achievable on iOS for this ring — PROVEN on-device:
-            // iOS relaxes the connection interval to ~4s (a 5Hz keepalive of writes only got
-            // ~5 through in 20s), and the ring aborts the measurement after a single 0x69 frame
-            // because the link is too slow. An iOS central has no API to set the connection
-            // interval (only the peripheral can request one, within Apple's ranges), and app-level
-            // traffic doesn't tighten it. QRing gets a fast interval via a persistent connection we
-            // can't replicate here. So this is one cheap best-effort attempt; the displayed "now"
-            // HR falls back to the latest HR-history sample (RingHealthData.currentHR).
-            do {
-                let frames = try await transport.send(
-                    RingProtocol.liveHRStartCommand(),
-                    isComplete: { packets in
-                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
-                    },
-                    perPacketTimeout: 5
-                )
-                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
-                    liveHR = bpm
-                    trace("liveHR: \(bpm) bpm (\(frames.count) frames)")
-                } else {
-                    trace("liveHR: no lock-on (\(frames.count) frames) — using HR-history fallback")
-                }
-            } catch {
-                trace("liveHR step failed: \(error)")
-            }
-            try? await transport.send(RingProtocol.liveHRStopCommand())
+            // (Live HR is attempted EARLY, right after the init handshake, while the connection
+            // interval is freshest — see above. We don't retry it here: on-device it still yields
+            // one frame, because our connection never gets the fast interval QRing's does. The
+            // "now" HR in the UI falls back to the latest HR-history sample, so it's a real value.)
 
             // h. Disconnect
             transport.disconnect()
@@ -349,6 +322,31 @@ final class RingManager {
             transport.disconnect()
             errorMessage = "Couldn't connect to the ring."
         }
+    }
+
+    /// One live-HR attempt: start streaming, collect 0x69 frames until a non-zero BPM (the PPG
+    /// needs ~20+ frames to lock on) or a cap, then stop. Sets `liveHR` on success. Streaming only
+    /// works while the BLE connection interval is fast, which is why we try it EARLY (fresh
+    /// interval) before the long history reads relax it.
+    private func attemptLiveHR(label: String) async {
+        do {
+            let frames = try await transport.send(
+                RingProtocol.liveHRStartCommand(),
+                isComplete: { packets in
+                    packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
+                },
+                perPacketTimeout: 5
+            )
+            if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
+                liveHR = bpm
+                trace("liveHR (\(label)): \(bpm) bpm (\(frames.count) frames)")
+            } else {
+                trace("liveHR (\(label)): no lock-on (\(frames.count) frames)")
+            }
+        } catch {
+            trace("liveHR (\(label)) failed: \(error)")
+        }
+        try? await transport.send(RingProtocol.liveHRStopCommand())
     }
 
     // MARK: - Per-day metric sync (partial-failure tolerant)

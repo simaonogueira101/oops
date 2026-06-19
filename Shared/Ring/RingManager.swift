@@ -273,6 +273,31 @@ final class RingManager {
                 }
             }
 
+            // Drain late V2 responses. SpO2's large response often arrives AFTER its own read
+            // timed out (during the next read); the transport caches mismatched-action frames so
+            // we can recover them here instead of losing them.
+            if transport.supportsBigData {
+                let lateSpo2 = transport.takeCachedBigData(0x2A)
+                if !lateSpo2.isEmpty {
+                    let samples = RingBigData.parseSpO2(lateSpo2, today: .now, calendar: utc)
+                    let existing = (try? fetchTimestamps(SpO2Sample.self)) ?? []
+                    for s in samples where !existing.contains(s.date) {
+                        modelContext.insert(SpO2Sample(timestamp: s.date, percent: Int(s.value)))
+                    }
+                    if !samples.isEmpty { meta.lastSyncedDay["spo2"] = today }
+                    trace("spo2 drained \(samples.count) samples from cache")
+                }
+                let lateTemp = transport.takeCachedBigData(0x25)
+                if !lateTemp.isEmpty {
+                    let readings = RingBigData.parseTemperature(lateTemp, today: .now, calendar: utc)
+                    let existing = (try? fetchTimestamps(TemperatureSample.self)) ?? []
+                    for r in readings where !existing.contains(r.date) {
+                        modelContext.insert(TemperatureSample(timestamp: r.date, celsius: r.celsius))
+                    }
+                    trace("temp drained \(readings.count) readings from cache")
+                }
+            }
+
             // Live HR LAST — after the full init/history handshake, when the connection is warm.
             // The official app sends NO keepalive (verified via PacketLogger): the ring auto-
             // streams 0x69 echo frames ~0.5s apart after the start; we just listen until a

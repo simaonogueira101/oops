@@ -50,6 +50,11 @@ protocol RingTransport: AnyObject {
     func gather(commands: [Data], opcode: UInt8, gap: TimeInterval,
                 quietPeriod: TimeInterval, maxWindow: TimeInterval) async -> [Data]
 
+    /// Returns + clears V2 (Big-Data) frames that arrived late for a given BC action (cached
+    /// because they came in during a different read). Default []. Lets the caller recover e.g.
+    /// SpO2, whose large response often lands after its own read already timed out.
+    func takeCachedBigData(_ action: UInt8) -> [Data]
+
     /// Repeatedly writes `command` every `interval` seconds until `stopKeepalive()` — the ring
     /// needs a periodic CONTINUE to keep streaming live HR. Default no-ops (mock/stub).
     func startKeepalive(_ command: Data, interval: TimeInterval)
@@ -87,6 +92,7 @@ extension RingTransport {
     var connectedRingName: String? { nil }
     func gather(commands: [Data], opcode: UInt8, gap: TimeInterval,
                 quietPeriod: TimeInterval, maxWindow: TimeInterval) async -> [Data] { [] }
+    func takeCachedBigData(_ action: UInt8) -> [Data] { [] }
     func fireAndForget(_ command: Data) {}
     func startKeepalive(_ command: Data, interval: TimeInterval) {}
     func stopKeepalive() {}

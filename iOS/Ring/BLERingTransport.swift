@@ -84,6 +84,16 @@ final class BLERingTransport: NSObject, RingTransport {
     /// The BC action byte (data[1]) of the in-flight V2 read. Late responses from a previous V2
     /// request carry a different action and are dropped so they don't corrupt this read's buffer.
     private var expectedBigDataAction: UInt8?
+    /// Late V2 responses (wrong action for the in-flight read) keyed by BC action, so the caller
+    /// can drain them after — the ring's big responses (SpO2) arrive during a later read.
+    private var bigDataCache: [UInt8: [Data]] = [:]
+
+    /// Returns and clears any cached late frames for a BC action.
+    func takeCachedBigData(_ action: UInt8) -> [Data] {
+        let frames = bigDataCache[action] ?? []
+        bigDataCache[action] = nil
+        return frames
+    }
 
     override init() {
         super.init()
@@ -127,6 +137,7 @@ final class BLERingTransport: NSObject, RingTransport {
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         bigDataContinuation?.resume(throwing: RingError.notConnected)
         bigDataContinuation = nil; bigDataBuffer = []; bigDataComplete = nil
+        bigDataCache = [:]
         v2NotifyContinuation?.resume(throwing: RingError.notConnected); v2NotifyContinuation = nil
     }
 
@@ -572,11 +583,14 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             }
             guard let value = characteristic.value else { return failBigData(.timeout) }
             trace("V2 notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
-            // Drop late responses from a previous V2 request (different BC action) so they don't
-            // corrupt this read's buffer. Match on byte[1]; allow the BC-header packets through.
+            // A late response from a PREVIOUS V2 request (different BC action) — e.g. SpO2's big
+            // response often lands during the next read. Don't drop it; CACHE it by action so the
+            // caller can drain it afterward (RingManager re-parses cached SpO2/temp/sleep).
             if let expected = expectedBigDataAction, value.count > 1,
                value[value.startIndex] == 0xBC, value[value.startIndex + 1] != expected {
-                trace("…ignoring V2 (expected action \(String(format: "%02X", expected)))")
+                let action = value[value.startIndex + 1]
+                trace("…caching late V2 action \(String(format: "%02X", action)) (expected \(String(format: "%02X", expected)))")
+                bigDataCache[action, default: []].append(value)
                 return
             }
             bigDataBuffer.append(value)

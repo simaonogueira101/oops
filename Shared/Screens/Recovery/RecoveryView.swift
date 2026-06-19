@@ -4,7 +4,7 @@ import SwiftUI
 /// a `Card` that deep-links into a detail screen.
 struct RecoveryView: View {
     var date: Date = .now
-    @State private var period: Period = .week
+    @State private var period: Period = .today
     @Environment(\.healthData) private var health
     private var metrics: DayMetrics { health.dayMetrics(for: date) }
     private var band: ScoreBand { ScoreBand(score: metrics.score ?? 0) }

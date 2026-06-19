@@ -4,7 +4,7 @@ import SwiftData
 /// The Strain tab: day strain, the activity that drove it, heart-rate zones, and workouts.
 struct StrainView: View {
     var date: Date = .now
-    @State private var period: Period = .week
+    @State private var period: Period = .today
     @Environment(\.healthData) private var health
     @Query(sort: \WorkoutRecord.start, order: .reverse) private var workouts: [WorkoutRecord]
     private var metrics: DayMetrics { health.dayMetrics(for: date) }

@@ -89,7 +89,7 @@ struct MetricDetailScreen: View {
     }
 
     let metric: Metric
-    @State private var period: Period = .week
+    @State private var period: Period = .today
     @Environment(\.healthData) private var health
 
     private var samples: [MetricSample] { metric.series(health, period.days) }

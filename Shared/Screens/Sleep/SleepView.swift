@@ -4,7 +4,7 @@ import SwiftUI
 /// supporting overnight metrics — all composed from `Card`.
 struct SleepView: View {
     var date: Date = .now
-    @State private var period: Period = .week
+    @State private var period: Period = .today
     @Environment(\.healthData) private var health
     private var session: SleepSession { health.sleepSession(for: date) }
     private var metrics: DayMetrics { health.dayMetrics(for: date) }

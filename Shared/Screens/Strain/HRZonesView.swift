@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Heart-rate zones: the gradient scale plus one card per zone (range + time in zone).
 struct HRZonesView: View {
-    @State private var period: Period = .week
+    @State private var period: Period = .today
     @Environment(\.healthData) private var health
     /// Real zone time, scaled by the selected window until real per-period data exists.
     private var zones: [HRZone] {

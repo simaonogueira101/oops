@@ -329,18 +329,20 @@ final class RingManager {
     /// works while the BLE connection interval is fast, which is why we try it EARLY (fresh
     /// interval) before the long history reads relax it.
     private func attemptLiveHR(label: String) async {
-        // Hold the connection interval fast: once the link goes quiet iOS relaxes it (to seconds)
-        // and the ring aborts the stream. A steady benign keepalive write keeps the link active so
-        // iOS keeps the ~30ms interval we already have coming out of the HR gather. (The 0x03
-        // responses are dropped by the 0x69 opcode correlation, so they don't pollute the read.)
-        transport.startKeepalive(RingProtocol.batteryCommand(), interval: 0.15)
+        // One cheap best-effort attempt. Real-time live HR doesn't work on iOS for this ring: the
+        // ring only streams while the BLE connection interval is fast, and ours relaxes the moment
+        // the link goes quiet during the read. The ring never sends the L2CAP connection-parameter
+        // request that QRing's does (which iOS would honor at 25-50ms), and an iOS central can't set
+        // the interval itself — keeping the link busy with app writes doesn't hold it either (proven
+        // on-device). So the ring sends one warm-up frame, then nothing. The "now" HR shown in the
+        // UI falls back to the latest HR-history sample, so it's a real recent value regardless.
         do {
             let frames = try await transport.send(
                 RingProtocol.liveHRStartCommand(),
                 isComplete: { packets in
                     packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
                 },
-                perPacketTimeout: 15
+                perPacketTimeout: 4
             )
             if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                 liveHR = bpm
@@ -351,7 +353,6 @@ final class RingManager {
         } catch {
             trace("liveHR (\(label)) failed: \(error)")
         }
-        transport.stopKeepalive()
         try? await transport.send(RingProtocol.liveHRStopCommand())
     }
 

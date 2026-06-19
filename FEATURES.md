@@ -14,10 +14,12 @@ Feature set for the app (modeled on Whoop + Oura, rendered stock-Apple).
   _Implemented_ means "complete and functional".
 
 **What the ring delivers today** (verified on-device): battery, heart-rate history (via a global
-frame collector) + live HR, HRV, SpO₂ (recovered via a late-V2-response cache), stress, skin
-temperature, sleep stages, steps / distance / calories. Sparse where the ring wasn't worn.
-**Not available from the R09 / not yet derived:** recovery score, strain score, respiratory rate,
-and the qualitative contributor bands — these render "—".
+frame collector), HRV, SpO₂ (recovered via a late-V2-response cache), stress, skin temperature,
+sleep stages, steps / distance / calories. Sparse where the ring wasn't worn. The "now" HR is the
+latest HR-history sample. **Real-time live HR is effectively blocked on iOS** — the ring only
+streams continuously on the fast connection interval an iOS central can't request, so it sends one
+frame then goes silent (confirmed on-device). **Not available from the R09 / not yet derived:**
+recovery score, strain score, respiratory rate, the contributor bands — these render "—".
 
 ## Design system (Implemented = component complete & functional)
 
@@ -112,7 +114,7 @@ One `MetricDetailScreen` template — trend + stats + explainer — per metric.
 | Profile                | Photo + name + appearance, stored locally                                        | ✅       | ✅          |
 | Settings               | Goals, units, notifications, about (controls not yet persisted)                  | ✅       | ⬜          |
 | Welcome / onboarding   | Tour screen (reachable from Settings; first-launch wiring is future)             | ✅       | ⬜          |
-| iPhone → Mac sync      | Bonjour newline-JSON sync (existing, real)                                       | ✅       | ✅          |
+| iPhone → Mac sync      | Bonjour newline-JSON sync — battery **+ all sensor samples** (HR/HRV/SpO₂/stress/temp/activity/sleep), deduped on the Mac | ✅       | ✅          |
 | Ring sync + force-sync | Full bind/init handshake + history pull; manual force-sync button in the top bar | ✅       | ✅          |
 | Ring battery read      | Battery via `RingProtocol`/`RingManager` over BLE                                | ✅       | ✅          |
 | BLE transport          | `BLERingTransport` — real CoreBluetooth link to the Colmi R09                    | ✅       | ✅          |

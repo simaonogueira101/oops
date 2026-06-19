@@ -17,7 +17,7 @@ final class RingManager {
     /// V1 history reads (HR/activity/stress/HRV) page in bursts with multi-second gaps between
     /// bursts; the default 8s per-packet timeout fires mid-stream and drops the whole read. A
     /// longer per-packet window lets all ~24 pages arrive so the data is parsed and persisted.
-    private let historyPerPacketTimeout: Double = 40
+    private let historyPerPacketTimeout: Double = 15
     var errorMessage: String?
     /// Distinct from a generic error: Bluetooth itself is off/unauthorized, so the UI can
     /// point the user at Settings rather than offer a plain "try again".
@@ -106,6 +106,11 @@ final class RingManager {
             try? await transport.send(RingProtocol.enable3BCommand())                           // 3b 01 01
             try? await transport.send(RingProtocol.enableTempMonitorCommand())                  // 3a 03 01
 
+            // Let the init responses fully drain before history. iOS batches notifications, so
+            // the init replies otherwise dribble out DURING the first history read, congest its
+            // channel, and make the paged reads time out. A short settle clears them first.
+            try? await Task.sleep(for: .seconds(2))
+
             // History backfill (local day boundaries, matching the ring's local clock).
             let calendar = utc
             let today = calendar.startOfDay(for: .now)
@@ -140,6 +145,9 @@ final class RingManager {
                         trace("\(metricKey) history day=\(day) failed: \(error) — stopping this metric")
                         break
                     }
+                    // Pace queries so the ring (and iOS's notification batching) isn't overrun;
+                    // back-to-back paged reads on this connection drop responses.
+                    try? await Task.sleep(for: .milliseconds(200))
                     day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                 }
             }

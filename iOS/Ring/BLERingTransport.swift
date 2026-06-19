@@ -172,10 +172,14 @@ final class BLERingTransport: NSObject, RingTransport {
             currentPagedTimeout = perPacketTimeout
             expectedV1Opcode = command.first
             let type: CBCharacteristicWriteType =
-                // Write WITHOUT response (like the tahnok client): a with-response write makes iOS
-                // wait for an ATT ack each time, consuming connection events the ring needs to send
-                // its notification packets back — which stalls multi-packet reads (HR's 24 pages).
-                writeChar.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+                // History reads write WITHOUT response (like the tahnok client): a with-response
+                // write makes iOS wait for an ATT ack each time, consuming connection events the
+                // ring needs to send its notification packets back — which stalls HR's 24 pages.
+                // EXCEPTION: the live-HR start (0x69) is written WITH response, exactly as the
+                // QRing capture shows (ATT opcode 0x12) — without it the ring echoes one frame and
+                // never streams. The ack round-trip also keeps the connection interval tighter.
+                command.first == 0x69 && writeChar.properties.contains(.write) ? .withResponse
+                : (writeChar.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse)
             peripheral.writeValue(command, for: writeChar, type: type)
             armPagedTimeout()
         }

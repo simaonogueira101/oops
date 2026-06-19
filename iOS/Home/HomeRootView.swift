@@ -46,7 +46,7 @@ struct HomeRootView: View {
     var body: some View {
         tabs
             .id(dataRevision)
-            .environment(\.healthData, health ?? MockHealthData())
+            .environment(\.healthData, health ?? RingHealthData(modelContext: modelContext))
             .overlay(alignment: .top) { topChrome }
             .scrollEdgeEffectStyle(.soft, for: .all)
             .environment(\.scrollToTopSignal, scrollSignal)
@@ -150,7 +150,7 @@ struct HomeRootView: View {
     }
 
     @ViewBuilder private func screen(for tab: HomeTab) -> some View {
-        let provider = health ?? MockHealthData()
+        let provider = health ?? RingHealthData(modelContext: modelContext)
         switch tab {
         case .summary:
             DayPager(date: $date) { day in

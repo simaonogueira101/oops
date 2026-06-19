@@ -267,7 +267,19 @@ final class BLERingTransport: NSObject, RingTransport {
         pagedTimeoutTask?.cancel()
         pagedTimeoutTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(self?.currentPagedTimeout ?? 8))
-            self?.failPaged(.timeout)
+            self?.pagedTimedOut()
+        }
+    }
+
+    /// A per-packet timeout on a paged read means the ring paused longer than expected — for the
+    /// ring's bursty history paging that means "no more packets coming". If we already collected
+    /// packets, RESOLVE with them (parse/persist what arrived and let the sync advance) instead
+    /// of throwing the whole read away. Only a truly empty response is a real failure.
+    private func pagedTimedOut() {
+        if pagedBuffer.isEmpty {
+            failPaged(.timeout)
+        } else {
+            answerPaged(pagedBuffer)
         }
     }
 

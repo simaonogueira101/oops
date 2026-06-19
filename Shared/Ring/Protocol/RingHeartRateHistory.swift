@@ -12,9 +12,12 @@ extension RingProtocol {
     static func heartRateHistoryComplete(_ packets: [Data]) -> Bool {
         if packets.contains(where: { hrSubtype($0) == 255 }) { return true }
         guard let header = packets.first(where: { hrSubtype($0) == 0 }), header.count >= 3 else { return false }
+        // The header's count includes the header packet itself, so the ring sends count-1 DATA
+        // packets (subtypes 1…count-1). Requiring `received >= count` never fires and forces a
+        // timeout; `>= count - 1` completes as soon as the last data page lands.
         let dataPacketCount = Int(header[header.startIndex + 2])
         let received = packets.filter { (1...254).contains(hrSubtype($0)) }.count
-        return received >= dataPacketCount
+        return received >= max(1, dataPacketCount - 1)
     }
 
     static func parseHeartRateHistory(_ packets: [Data]) -> [MetricSample] {

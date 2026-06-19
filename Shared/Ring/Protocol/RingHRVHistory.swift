@@ -7,10 +7,11 @@ extension RingProtocol {
         makePacket(command: 0x38, payload: [0x02, 0x01])
     }
 
-    /// `0x39`: request HRV history for a given day (UTC midnight timestamp, 4-byte LE).
-    /// Same shape as HR history (0x15) and stress history (0x37).
+    /// `0x39` with an EMPTY payload (`39 00 … 39`) — matches the official app, which sends no
+    /// timestamp. The ring returns the current day's HRV series. (Our earlier timestamp payload
+    /// returned nothing.) The `day`/`calendar` args are kept for call-site symmetry.
     static func hrvHistoryCommand(day: Date, calendar: Calendar) -> Data {
-        makePacket(command: 0x39, payload: uint32LE(utcMidnightUnix(for: day, calendar: calendar)))
+        makePacket(command: 0x39, payload: [])
     }
 
     static func hrvHistoryComplete(_ packets: [Data]) -> Bool {

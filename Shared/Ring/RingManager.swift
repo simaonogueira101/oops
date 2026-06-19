@@ -14,6 +14,10 @@ final class RingManager {
     var batteryStatus: BatteryStatus?
     var lastUpdated: Date?
     var isBusy = false
+    /// V1 history reads (HR/activity/stress/HRV) page in bursts with multi-second gaps between
+    /// bursts; the default 8s per-packet timeout fires mid-stream and drops the whole read. A
+    /// longer per-packet window lets all ~24 pages arrive so the data is parsed and persisted.
+    private let historyPerPacketTimeout: Double = 40
     var errorMessage: String?
     /// Distinct from a generic error: Bluetooth itself is off/unauthorized, so the UI can
     /// point the user at Settings rather than offer a plain "try again".
@@ -73,11 +77,12 @@ final class RingManager {
             transport.fireAndForget(RingProtocol.bindSuccessCommand())
             try? await Task.sleep(for: .milliseconds(300))
 
-            // Ring-facing time is UTC (tahnok convention): clock set in UTC, history requested
-            // at UTC midnights. Sample timestamps come back as absolute instants; the display
-            // layer (RingHealthData) buckets them by the local calendar.
-            var utc = Calendar(identifier: .gregorian)
-            utc.timeZone = TimeZone(identifier: "UTC")!
+            // Ring-facing time is LOCAL: the official app sets the ring clock to local time
+            // (BCD local) and requests history at LOCAL midnights. Querying at UTC midnights
+            // (our earlier assumption) shifts the day window off by the timezone offset, so
+            // HR/stress/HRV reads land on empty ranges. RingHealthData also buckets by the
+            // local calendar, so local keeps the clock, the queries, and the UI aligned.
+            let utc = Calendar.current
 
             // b. Set clock (best-effort)
             try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: utc))
@@ -118,38 +123,41 @@ final class RingManager {
 
             let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
 
-            // SpO2 and sleep are now fetched via Big Data V2 after the per-day loop.
-            for metricKey in ["hr", "activity", "stress", "hrv"] {
-                let lastSynced = meta.lastSyncedDay[metricKey]
-                let from: Date
-                if let last = lastSynced, !force {
-                    from = calendar.date(byAdding: .day, value: 1, to: last) ?? weekStart
-                } else {
-                    // Force sync (or first sync) re-pulls the whole window. Dedup by timestamp
-                    // keeps re-fetched days from creating duplicates.
-                    from = weekStart
+            // HR/stress/HRV are served by the ring for the CURRENT day only (the official app
+            // queries just today; stress/HRV carry no day at all) and accumulate through the day,
+            // so re-query them every sync regardless of lastSyncedDay. Dedup by timestamp.
+            for metricKey in ["hr", "stress", "hrv"] {
+                var existingTimestamps = fetchTimestampsForMetric(metricKey)
+                do {
+                    try await syncDayThrowing(day: today, dayOffset: 0, metricKey: metricKey,
+                                               calendar: calendar, existingTimestamps: &existingTimestamps)
+                } catch {
+                    trace("\(metricKey) today failed: \(error)")
                 }
-                // Clamp to at most 7 days back
+            }
+
+            // Activity (0x43) backfills per-day across the week.
+            do {
+                let lastSynced = meta.lastSyncedDay["activity"]
+                let from = (lastSynced != nil && !force)
+                    ? (calendar.date(byAdding: .day, value: 1, to: lastSynced!) ?? weekStart)
+                    : weekStart
                 let clampedFrom = max(from, weekStart)
-                guard clampedFrom <= today else { continue }
-
-                // Fetch existing timestamps once per metric (avoids full-table scan per day).
-                var existingTimestamps: Set<Date> = fetchTimestampsForMetric(metricKey)
-
-                var day = clampedFrom
-                while day <= today {
-                    let dayOffset = calendar.dateComponents([.day], from: day, to: today).day ?? 0
-                    do {
-                        try await syncDayThrowing(day: day, dayOffset: dayOffset, metricKey: metricKey,
-                                                   calendar: calendar,
-                                                   existingTimestamps: &existingTimestamps)
-                        // Advance per-day on success (empty result also counts as success).
-                        meta.lastSyncedDay[metricKey] = day
-                    } catch {
-                        trace("\(metricKey) history day=\(day) failed: \(error) — stopping this metric for this sync")
-                        break  // Stop advancing this metric; retry from this day next sync.
+                if clampedFrom <= today {
+                    var existingTimestamps = fetchTimestampsForMetric("activity")
+                    var day = clampedFrom
+                    while day <= today {
+                        let dayOffset = calendar.dateComponents([.day], from: day, to: today).day ?? 0
+                        do {
+                            try await syncDayThrowing(day: day, dayOffset: dayOffset, metricKey: "activity",
+                                                       calendar: calendar, existingTimestamps: &existingTimestamps)
+                            meta.lastSyncedDay["activity"] = day
+                        } catch {
+                            trace("activity history day=\(day) failed: \(error) — stopping for this sync")
+                            break
+                        }
+                        day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                     }
-                    day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                 }
             }
 
@@ -283,9 +291,11 @@ final class RingManager {
         case "hr":
             let packets = try await transport.send(
                 RingProtocol.heartRateHistoryCommand(day: day, calendar: calendar),
-                isComplete: RingProtocol.heartRateHistoryComplete
+                isComplete: RingProtocol.heartRateHistoryComplete,
+                perPacketTimeout: historyPerPacketTimeout
             )
             let samples = RingProtocol.parseHeartRateHistory(packets)
+            trace("hr: \(packets.count) packets → \(samples.count) samples (first bpm \(samples.first.map { Int($0.value) } ?? -1))")
             for s in samples where !existingTimestamps.contains(s.date) {
                 modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
                 existingTimestamps.insert(s.date)
@@ -294,7 +304,8 @@ final class RingManager {
         case "activity":
             let packets = try await transport.send(
                 RingProtocol.activityHistoryCommand(dayOffset: dayOffset),
-                isComplete: RingProtocol.activityHistoryComplete
+                isComplete: RingProtocol.activityHistoryComplete,
+                perPacketTimeout: historyPerPacketTimeout
             )
             let samples = RingProtocol.parseActivityHistory(packets, calendar: calendar)
             for s in samples where !existingTimestamps.contains(s.date) {
@@ -306,7 +317,8 @@ final class RingManager {
         case "stress":
             let packets = try await transport.send(
                 RingProtocol.stressHistoryCommand(day: day, calendar: calendar),
-                isComplete: RingProtocol.stressHistoryComplete
+                isComplete: RingProtocol.stressHistoryComplete,
+                perPacketTimeout: historyPerPacketTimeout
             )
             let samples = RingProtocol.parseStress(packets, dayStart: dayStart)
             for s in samples where !existingTimestamps.contains(s.date) {
@@ -317,7 +329,8 @@ final class RingManager {
         case "hrv":
             let packets = try await transport.send(
                 RingProtocol.hrvHistoryCommand(day: day, calendar: calendar),
-                isComplete: RingProtocol.hrvHistoryComplete
+                isComplete: RingProtocol.hrvHistoryComplete,
+                perPacketTimeout: historyPerPacketTimeout
             )
             let samples = RingProtocol.parseHRV(packets, dayStart: dayStart)
             for s in samples where !existingTimestamps.contains(s.date) {

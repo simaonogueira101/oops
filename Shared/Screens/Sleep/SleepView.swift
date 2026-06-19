@@ -7,6 +7,8 @@ struct SleepView: View {
     @State private var period: Period = .week
     @Environment(\.healthData) private var health
     private var session: SleepSession { health.sleepSession(for: date) }
+    private var metrics: DayMetrics { health.dayMetrics(for: date) }
+    private var sleepScore: Int { Int((metrics.sleepPerformance * 100).rounded()) }
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
 
     var body: some View {
@@ -38,7 +40,7 @@ struct SleepView: View {
     private var scoreHero: some View {
         Card(label: "Sleep", accent: AppColor.sleep) {
             HStack(spacing: Spacing.lg) {
-                ScoreRing(score: 86, accent: AppColor.sleep, caption: ScoreBand(score: 86).label, size: 120)
+                ScoreRing(score: sleepScore, accent: AppColor.sleep, caption: ScoreBand(score: sleepScore).label, size: 120)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(session.totalAsleep.formattedDuration).font(.title.weight(.semibold))
                     Text("asleep").font(.caption).foregroundStyle(AppColor.secondaryLabel)
@@ -70,19 +72,20 @@ struct SleepView: View {
     private var contributorsCard: some View {
         Card(label: "Contributors") {
             ContributorRows(tint: AppColor.sleep, contributors: [
-                Contributor(name: "Total sleep", fraction: 0.86, band: .optimal),
-                Contributor(name: "Efficiency", fraction: 0.92, band: .optimal),
-                Contributor(name: "Restfulness", fraction: 0.6, band: .good),
-                Contributor(name: "Latency", fraction: 0.7, band: .good),
-                Contributor(name: "Timing", fraction: 0.45, band: .poor)
+                Contributor(name: "Total sleep", fraction: nil, band: nil),
+                Contributor(name: "Efficiency", fraction: nil, band: nil),
+                Contributor(name: "Restfulness", fraction: nil, band: nil),
+                Contributor(name: "Latency", fraction: nil, band: nil),
+                Contributor(name: "Timing", fraction: nil, band: nil)
             ])
         }
     }
 
     private var sleepingHRCard: some View {
-        Card(label: "Sleeping heart rate", accessory: .value("52 bpm")) {
+        Card(label: "Sleeping heart rate",
+             accessory: .value(metrics.restingHR.map { "\($0) bpm" } ?? "—")) {
             LineTrendChart(samples: health.restingHRSeries(days: 14),
-                           color: AppColor.sleep, baseline: 54)
+                           color: AppColor.sleep, baseline: nil)
         }
     }
 

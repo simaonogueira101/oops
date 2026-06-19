@@ -46,7 +46,6 @@ struct WorkoutsView: View {
 /// A recorded workout's summary: stats and a heart-rate trace. (No map — the ring has no GPS.)
 struct WorkoutDetailView: View {
     let workout: WorkoutRecord
-    private var mock: MockHealthData { MockHealthData() }
 
     var body: some View {
         ScrollView {
@@ -60,8 +59,7 @@ struct WorkoutDetailView: View {
                 }
                 Card(label: "Heart rate") {
                     LineTrendChart(
-                        samples: mock.workoutHRSeries(start: workout.start, duration: workout.duration,
-                                                      avgHR: workout.avgHR),
+                        samples: [],
                         color: AppColor.strain, baseline: Double(workout.avgHR),
                         xDomain: workout.start...workout.start.addingTimeInterval(max(60, workout.duration)))
                 }

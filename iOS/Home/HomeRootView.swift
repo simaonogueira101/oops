@@ -113,8 +113,10 @@ struct HomeRootView: View {
                 battery: manager?.batteryStatus,
                 isUpdatingBattery: manager?.isBusy ?? false,
                 syncState: sync.state,
+                isSyncing: manager?.isBusy ?? false,
                 onProfile: { sheet = .profile },
-                onSync: { sheet = .sync }
+                onSync: { sheet = .sync },
+                onForceSync: { Task { await manager?.sync(force: true) } }
             )
             if justUpdated {
                 UpdatedBanner(build: BuildInfo.build) {

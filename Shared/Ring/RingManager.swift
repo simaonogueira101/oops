@@ -39,7 +39,9 @@ final class RingManager {
 
     // MARK: - Full sync session
 
-    func sync() async {
+    /// Runs a full sync session. `force: true` re-pulls all available history (the ring's full
+    /// ~7-day window) instead of only the days not yet synced — used by the manual sync button.
+    func sync(force: Bool = false) async {
         guard !isBusy else { return }
         isBusy = true
         errorMessage = nil
@@ -120,9 +122,11 @@ final class RingManager {
             for metricKey in ["hr", "activity", "stress", "hrv"] {
                 let lastSynced = meta.lastSyncedDay[metricKey]
                 let from: Date
-                if let last = lastSynced {
+                if let last = lastSynced, !force {
                     from = calendar.date(byAdding: .day, value: 1, to: last) ?? weekStart
                 } else {
+                    // Force sync (or first sync) re-pulls the whole window. Dedup by timestamp
+                    // keeps re-fetched days from creating duplicates.
                     from = weekStart
                 }
                 // Clamp to at most 7 days back

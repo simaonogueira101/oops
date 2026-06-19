@@ -9,8 +9,12 @@ struct TopBar: View {
     let battery: BatteryStatus?
     let isUpdatingBattery: Bool
     let syncState: SyncState
+    /// True while a ring sync is in flight — spins the manual-sync glyph.
+    let isSyncing: Bool
     let onProfile: () -> Void
     let onSync: () -> Void
+    /// Force a full ring sync (re-pull all available history).
+    let onForceSync: () -> Void
 
     /// All pills match the avatar pill: 28pt avatar + xxs padding each side.
     private var pillHeight: CGFloat { 28 + Spacing.xxs * 2 }
@@ -28,8 +32,9 @@ struct TopBar: View {
             ZStack {
                 datePill
 
-                HStack {
+                HStack(spacing: Spacing.xxs) {
                     profilePill
+                    forceSyncPill
                     Spacer()
                     syncPill
                 }
@@ -51,6 +56,28 @@ struct TopBar: View {
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
         .accessibilityLabel("Profile")
+    }
+
+    /// Force a full ring sync. Same circular size as the profile pill; the dashed-circle glyph
+    /// spins while a sync is in flight.
+    private var forceSyncPill: some View {
+        Button(action: onForceSync) {
+            Image(systemName: "circle.dashed")
+                .font(.title2)
+                .foregroundStyle(.primary)
+                .frame(width: 28, height: 28)
+                .padding(Spacing.xxs)
+                .frame(height: pillHeight)
+                .contentShape(Circle())
+                .rotationEffect(.degrees(isSyncing ? 360 : 0))
+                .animation(isSyncing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default,
+                           value: isSyncing)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .accessibilityLabel("Sync ring")
+        .accessibilityHint("Downloads all available data from the ring")
+        .disabled(isSyncing)
     }
 
     private var datePill: some View {

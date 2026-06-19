@@ -163,27 +163,36 @@ final class RingManager {
                     calendar.date(byAdding: .day, value: -offset, to: today)
                         .map { RingProtocol.heartRateHistoryCommand(day: $0, calendar: calendar) }
                 }
-                let frames = await transport.gather(commands: hrQueries, opcode: 0x15,
-                                                    gap: 2.0, window: 25.0)
                 var existingHR = fetchTimestampsForMetric("hr")
-                var run: [Data] = []
-                var inserted = 0
-                func flushRun() {
-                    guard !run.isEmpty else { return }
-                    for s in RingProtocol.parseHeartRateHistory(run) where !existingHR.contains(s.date) {
-                        modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
-                        existingHR.insert(s.date); inserted += 1
+                var totalInserted = 0
+                // Dynamic widening: keep running gather rounds while each one still adds NEW
+                // samples (the connection trickles data slowly, so a round often catches frames
+                // the previous one missed). Stop when a round adds nothing new, or after a few
+                // rounds. Each gather itself also self-extends while frames keep arriving.
+                for round in 0..<4 {
+                    let frames = await transport.gather(commands: hrQueries, opcode: 0x15,
+                                                        gap: 1.5, quietPeriod: 8.0, maxWindow: 60.0)
+                    var run: [Data] = []
+                    var inserted = 0
+                    func flushRun() {
+                        guard !run.isEmpty else { return }
+                        for s in RingProtocol.parseHeartRateHistory(run) where !existingHR.contains(s.date) {
+                            modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
+                            existingHR.insert(s.date); inserted += 1
+                        }
+                        run = []
                     }
-                    run = []
+                    for f in frames {
+                        let sub = f.count > 1 ? f[f.startIndex + 1] : 0xFF
+                        if sub == 0 { flushRun() }   // header → start of a new day's run
+                        run.append(f)
+                    }
+                    flushRun()
+                    totalInserted += inserted
+                    trace("hr gather round \(round): \(frames.count) frames → +\(inserted) new (\(totalInserted) total)")
+                    if inserted == 0 { break }   // round added nothing new → data is exhausted
                 }
-                for f in frames {
-                    let sub = f.count > 1 ? f[f.startIndex + 1] : 0xFF
-                    if sub == 0 { flushRun() }   // header → start of a new day's run
-                    run.append(f)
-                }
-                flushRun()
-                trace("hr gather: \(frames.count) frames → \(inserted) samples persisted")
-                if inserted > 0 { meta.lastSyncedDay["hr"] = today }
+                if totalInserted > 0 { meta.lastSyncedDay["hr"] = today }
             }
 
             // e. Temperature (Big Data V2)

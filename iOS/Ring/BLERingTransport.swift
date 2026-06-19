@@ -185,7 +185,8 @@ final class BLERingTransport: NSObject, RingTransport {
     private var collectorOpcode: UInt8?
     private var collectorBuffer: [Data] = []
 
-    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data] {
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval,
+                quietPeriod: TimeInterval, maxWindow: TimeInterval) async -> [Data] {
         guard stage == .ready, let peripheral, let writeChar else { return [] }
         collectorOpcode = opcode
         collectorBuffer = []
@@ -197,11 +198,22 @@ final class BLERingTransport: NSObject, RingTransport {
             peripheral.writeValue(command, for: writeChar, type: type)
             try? await Task.sleep(for: .seconds(gap))
         }
-        try? await Task.sleep(for: .seconds(window))   // tail: catch slowly-delivered frames
+        // Dynamic window: poll, and keep waiting as long as new frames keep arriving. Stop once
+        // none have arrived for `quietPeriod`, or at the `maxWindow` hard cap.
+        let poll = 0.5
+        var lastCount = collectorBuffer.count
+        var quiet = 0.0
+        var elapsed = 0.0
+        while quiet < quietPeriod && elapsed < maxWindow && stage == .ready {
+            try? await Task.sleep(for: .seconds(poll))
+            elapsed += poll
+            if collectorBuffer.count > lastCount { lastCount = collectorBuffer.count; quiet = 0 }
+            else { quiet += poll }
+        }
         let result = collectorBuffer
         collectorOpcode = nil
         collectorBuffer = []
-        trace("Gather collected \(result.count) frames for opcode \(String(format: "%02X", opcode))")
+        trace("Gather collected \(result.count) frames for \(String(format: "%02X", opcode)) in \(Int(elapsed))s")
         return result
     }
 

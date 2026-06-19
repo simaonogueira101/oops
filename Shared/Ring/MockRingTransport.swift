@@ -57,7 +57,8 @@ final class MockRingTransport: RingTransport {
         }
     }
 
-    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data] {
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval,
+                quietPeriod: TimeInterval, maxWindow: TimeInterval) async -> [Data] {
         opcode == 0x15 ? MockRingTransport.hrHistoryPackets() : []
     }
 

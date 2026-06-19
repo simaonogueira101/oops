@@ -62,35 +62,14 @@ final class RingManager {
                 try? modelContext.save()
             }
 
-            // a. Live HR FIRST — verified on-device that the ring only streams real-time HR
-            // when the live-read is the FIRST command after connect. Prepending any other
-            // command (setTime, enables, battery) makes the ring emit one frame then shut the
-            // sensor off; a bare start streams BPM after a ~26s warm-up. So measure now, before
-            // anything else. The 0x69 frames stream on their own (no keepalive); collect until a
-            // non-zero BPM or a 70-frame cap, with a long per-packet timeout to span the warm-up.
-            do {
-                // The ring measures once and shuts the sensor off unless it gets a periodic
-                // CONTINUE keepalive (0x1E 03) — that's how the official app sustains a live
-                // read. Fire it every ~2s while the paged read collects 0x69 frames until a
-                // non-zero BPM (the PPG takes ~26s to lock on) or the frame cap.
-                transport.startKeepalive(RingProtocol.liveHRKeepaliveCommand(), interval: 0.8)
-                defer { transport.stopKeepalive() }
-                let frames = try await transport.send(
-                    RingProtocol.liveHRStartCommand(),
-                    isComplete: { packets in
-                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
-                    },
-                    perPacketTimeout: 12
-                )
-                transport.stopKeepalive()
-                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
-                    liveHR = bpm
-                }
-                try? await transport.send(RingProtocol.liveHRStopCommand())
-            } catch {
-                trace("liveHR step failed: \(error)")
-                try? await transport.send(RingProtocol.liveHRStopCommand())
-            }
+            // a. Bind FIRST — register this phone as the ring's bound host (CMD_BIND_SUCCESS).
+            // The official app sends this on its "bind a device" step, and the ring gates
+            // real-time streaming (live HR) and history logging (sleep/HRV) on being bound.
+            // Fire-and-forget (the ring doesn't reply), then a brief pause so it's processed
+            // before we start reading.
+            trace("Sending bind (0x10 CMD_BIND_SUCCESS)")
+            transport.fireAndForget(RingProtocol.bindSuccessCommand())
+            try? await Task.sleep(for: .milliseconds(300))
 
             // Ring-facing time is UTC (tahnok convention): clock set in UTC, history requested
             // at UTC midnights. Sample timestamps come back as absolute instants; the display
@@ -236,6 +215,30 @@ final class RingManager {
                 } catch {
                     trace("sleep V2 step failed: \(error)")
                 }
+            }
+
+            // Live HR LAST — the official app does its live read after the full init/history
+            // handshake, when the connection is warm and active (PacketLogger showed the ring
+            // streams ~60 frames at a fast interval in that state, vs one frame from a cold
+            // connection). Collect 0x69 frames until a non-zero BPM (byte[3], byte[2]==0) or cap.
+            do {
+                transport.startKeepalive(RingProtocol.liveHRKeepaliveCommand(), interval: 0.8)
+                defer { transport.stopKeepalive() }
+                let frames = try await transport.send(
+                    RingProtocol.liveHRStartCommand(),
+                    isComplete: { packets in
+                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 70
+                    },
+                    perPacketTimeout: 12
+                )
+                transport.stopKeepalive()
+                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
+                    liveHR = bpm
+                }
+                try? await transport.send(RingProtocol.liveHRStopCommand())
+            } catch {
+                trace("liveHR step failed: \(error)")
+                try? await transport.send(RingProtocol.liveHRStopCommand())
             }
 
             // h. Disconnect

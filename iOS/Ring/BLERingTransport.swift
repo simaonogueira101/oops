@@ -81,6 +81,9 @@ final class BLERingTransport: NSObject, RingTransport {
     private var bigDataBuffer: [Data] = []
     private var bigDataComplete: (([Data]) -> Bool)?
     private var bigDataTimeoutTask: Task<Void, Never>?
+    /// The BC action byte (data[1]) of the in-flight V2 read. Late responses from a previous V2
+    /// request carry a different action and are dropped so they don't corrupt this read's buffer.
+    private var expectedBigDataAction: UInt8?
 
     override init() {
         super.init()
@@ -120,10 +123,11 @@ final class BLERingTransport: NSObject, RingTransport {
         pagedTimeoutTask?.cancel(); pagedTimeoutTask = nil
         pagedContinuation?.resume(throwing: RingError.notConnected)
         pagedContinuation = nil; pagedBuffer = []; isCompletePredicate = nil; currentPagedTimeout = 8
-        expectedV1Opcode = nil
+        expectedV1Opcode = nil; expectedBigDataAction = nil
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         bigDataContinuation?.resume(throwing: RingError.notConnected)
         bigDataContinuation = nil; bigDataBuffer = []; bigDataComplete = nil
+        v2NotifyContinuation?.resume(throwing: RingError.notConnected); v2NotifyContinuation = nil
     }
 
     func send(_ command: Data) async throws -> Data {
@@ -195,11 +199,17 @@ final class BLERingTransport: NSObject, RingTransport {
         guard responseContinuation == nil, pagedContinuation == nil, bigDataContinuation == nil else {
             throw RingError.notConnected
         }
+        try await enableV2NotifyIfNeeded()
         trace("Write Big-Data V2: \(data.map { String(format: "%02X", $0) }.joined(separator: " "))")
         return try await withCheckedThrowingContinuation { continuation in
             bigDataContinuation = continuation
             bigDataBuffer = []
             bigDataComplete = isComplete
+            // Correlate the response by its BC action byte (data[1]). V2 responses are slow to
+            // assemble and arrive out of order; without this, a late response from a previous
+            // request (e.g. spo2's BC 2A) bleeds into this request's buffer and breaks its
+            // complete-check, cascading into a timeout. Drop packets whose action != this one's.
+            expectedBigDataAction = data.count > 1 ? data[data.startIndex + 1] : nil
             let type: CBCharacteristicWriteType =
                 v2WriteChar.properties.contains(.write) ? .withResponse : .withoutResponse
             peripheral.writeValue(data, for: v2WriteChar, type: type)
@@ -207,10 +217,28 @@ final class BLERingTransport: NSObject, RingTransport {
         }
     }
 
+    private var v2NotifyContinuation: CheckedContinuation<Void, Error>?
+
+    /// Enables the V2 (Big-Data) notify characteristic on demand and awaits confirmation. Kept
+    /// OFF during normal/live-HR operation because subscribing to it stops live-HR streaming.
+    private func enableV2NotifyIfNeeded() async throws {
+        guard let peripheral, let v2NotifyChar else { throw RingError.notConnected }
+        if v2NotifyChar.isNotifying { return }
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            v2NotifyContinuation = cont
+            peripheral.setNotifyValue(true, for: v2NotifyChar)
+        }
+    }
+
+    // Big-Data responses can be slow to assemble on the ring — the sleep hypnogram (0x27)
+    // arrives ~9-10s after the request (verified on-device), past the 8s V1 timeout. Give the
+    // V2 channel a longer window so the response isn't dropped just before it lands.
+    private let bigDataTimeout: Double = 30
+
     private func armBigDataTimeout() {
         bigDataTimeoutTask?.cancel()
         bigDataTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(self?.responseTimeout ?? 8))
+            try? await Task.sleep(for: .seconds(self?.bigDataTimeout ?? 30))
             self?.failBigData(.timeout)
         }
     }
@@ -220,6 +248,7 @@ final class BLERingTransport: NSObject, RingTransport {
         bigDataContinuation = nil
         bigDataBuffer = []
         bigDataComplete = nil
+        expectedBigDataAction = nil
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         continuation.resume(returning: packets)
     }
@@ -229,6 +258,7 @@ final class BLERingTransport: NSObject, RingTransport {
         bigDataContinuation = nil
         bigDataBuffer = []
         bigDataComplete = nil
+        expectedBigDataAction = nil
         bigDataTimeoutTask?.cancel(); bigDataTimeoutTask = nil
         continuation.resume(throwing: error)
     }
@@ -433,8 +463,12 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
                let notify = chars.first(where: { $0.uuid == v2NotifyUUID }) {
                 v2WriteChar = write
                 v2NotifyChar = notify
-                peripheral.setNotifyValue(true, for: notify)
-                trace("Big-Data V2 chars found — enabling notifications")
+                supportsBigData = true
+                // Do NOT enable the V2 notify here. Subscribing to the Big-Data notify
+                // characteristic stops the ring from streaming live HR (confirmed: the official
+                // app keeps it OFF and enables it only for a transfer). It's enabled lazily in
+                // sendBigData() — by then the live-HR read (which runs first) is already done.
+                trace("Big-Data V2 chars found — notify deferred until a Big-Data read")
             } else {
                 trace("Big-Data V2 chars missing")
             }
@@ -454,13 +488,13 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
                     didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         if characteristic.uuid == v2NotifyUUID {
-            // V2 notification enable/fail is best-effort — does not affect V1 readiness.
+            // Resumes the lazy enableV2NotifyIfNeeded() awaiter. Does not affect V1 readiness.
             if error == nil && characteristic.isNotifying {
-                supportsBigData = true
-                trace("Big-Data V2 notifications enabled — temperature available")
+                trace("Big-Data V2 notifications enabled")
+                v2NotifyContinuation?.resume(); v2NotifyContinuation = nil
             } else {
-                supportsBigData = false
-                trace("Big-Data V2 notification enable failed — temperature unavailable")
+                trace("Big-Data V2 notification enable failed")
+                v2NotifyContinuation?.resume(throwing: RingError.connectionFailed); v2NotifyContinuation = nil
             }
             return
         }
@@ -483,6 +517,13 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             }
             guard let value = characteristic.value else { return failBigData(.timeout) }
             trace("V2 notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
+            // Drop late responses from a previous V2 request (different BC action) so they don't
+            // corrupt this read's buffer. Match on byte[1]; allow the BC-header packets through.
+            if let expected = expectedBigDataAction, value.count > 1,
+               value[value.startIndex] == 0xBC, value[value.startIndex + 1] != expected {
+                trace("…ignoring V2 (expected action \(String(format: "%02X", expected)))")
+                return
+            }
             bigDataBuffer.append(value)
             armBigDataTimeout()
             if bigDataComplete?(bigDataBuffer) == true {

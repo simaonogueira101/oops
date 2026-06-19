@@ -21,9 +21,14 @@ targets:
       path: iOS/Info.plist
       properties:
         NSBluetoothAlwaysUsageDescription: "Oops uses Bluetooth to connect to your smart ring and read its data."
+        NSMotionUsageDescription: "Oops uses motion and fitness activity to complement your ring's step and activity data."
         NSLocalNetworkUsageDescription: "Oops syncs your ring data to your Mac on the same Wi-Fi."
         NSBonjourServices:
           - _oops._tcp
+        # Match the official app: keep the BLE connection alive in the background so the ring
+        # keeps streaming/syncing (live HR, history) when the app isn't foregrounded.
+        UIBackgroundModes:
+          - bluetooth-central
         UILaunchScreen: {}
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"

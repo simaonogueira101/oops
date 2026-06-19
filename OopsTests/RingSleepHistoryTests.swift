@@ -30,10 +30,10 @@ struct RingSleepHistoryTests {
 
     // MARK: - V2 Big Data (0x27) — QRing/oudmon SDK protocol
 
-    /// sleepRequest() must produce exactly BC 27 02 00 81 80 FF 01
+    /// sleepRequest() must produce exactly BC 27 02 00 C1 E0 01 01 (matches the official QRing app)
     @Test func sleepRequestBytes() {
         let req = Array(RingBigData.sleepRequest())
-        #expect(req == [0xBC, 0x27, 0x02, 0x00, 0x81, 0x80, 0xFF, 0x01])
+        #expect(req == [0xBC, 0x27, 0x02, 0x00, 0xC1, 0xE0, 0x01, 0x01])
     }
 
     @Test func sleepCompleteReturnsFalseOnEmpty() {

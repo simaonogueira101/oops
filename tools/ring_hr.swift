@@ -32,20 +32,25 @@ final class D: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         guard (p.name ?? "").uppercased().contains("R09") else { return }
         cm.stopScan(); ring = p; p.delegate = self; cm.connect(p)
     }
-    func centralManager(_ cm: CBCentralManager, didConnect p: CBPeripheral) { p.discoverServices([svcV1]) }
+    let chNotifyV2 = CBUUID(string: "de5bf729-d711-4e47-af26-65e3012a5dc7")
+    var started = false
+    func centralManager(_ cm: CBCentralManager, didConnect p: CBPeripheral) { p.discoverServices([svcV1, svcV2]) }
     func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
-        for s in p.services ?? [] { p.discoverCharacteristics([chWrite, chNotify], for: s) }
+        for s in p.services ?? [] { p.discoverCharacteristics(nil, for: s) }
     }
     func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         for ch in s.characteristics ?? [] {
             if ch.uuid == chWrite { w = ch }
             if ch.uuid == chNotify { p.setNotifyValue(true, for: ch) }
+            // TEST: also enable the V2 Big-Data notify (de5bf729), exactly like our app does.
+            if ch.uuid == chNotifyV2 { log("enabling V2 notify (de5bf729) — like the app"); p.setNotifyValue(true, for: ch) }
         }
     }
     func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic, error: Error?) {
-        guard let w else { return }
-        log("▶ start HR measurement (69 01 01) — keep the ring snug, listening 30s…")
-        p.writeValue(mk(0x69, [0x01, 0x01]), for: w, type: .withResponse)
+        guard let w, !started else { return }
+        started = true
+        log("▶ start HR (bare 69 01 00) with V1+V2 notify enabled — listening 30s…")
+        p.writeValue(mk(0x69, [0x01, 0x00]), for: w, type: .withResponse)
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
             p.writeValue(mk(0x6A, [0x01, 0x00, 0x00]), for: w, type: .withResponse)
             log("⏹ stop. Best non-zero BPM seen: \(self?.best ?? 0)")

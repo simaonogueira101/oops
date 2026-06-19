@@ -82,8 +82,9 @@ struct TemperatureReading: Equatable {
 // MARK: - SpO2 (0x2A)
 
 extension RingBigData {
-    /// Big Data V2 request for all-day SpO2 history.
-    static func spo2Request() -> Data { Data([0xBC, 0x2A, 0x01, 0x00, 0xFF, 0x00, 0xFF]) }
+    /// Big Data V2 request for all-day SpO2 history. action=0x2A, payload=[0x02] →
+    /// BC 2A 01 00 3E 81 02, matching the official QRing app (our earlier FF 00 FF was malformed).
+    static func spo2Request() -> Data { bigDataRequest(action: 0x2A, payload: [0x02]) }
 
     /// Header [0xBC, 0x2A, len_lo, len_hi]; complete when the declared payload length is in hand.
     /// If len==0, complete immediately.
@@ -129,8 +130,10 @@ extension RingBigData {
 
 extension RingBigData {
     /// Big Data V2 request for all-day sleep history.
-    /// action=0x27, payload=[0xFF, 0x01] → BC 27 02 00 81 80 FF 01
-    static func sleepRequest() -> Data { bigDataRequest(action: 0x27, payload: [0xFF, 0x01]) }
+    /// action=0x27, payload=[0x01, 0x01] → BC 27 02 00 C1 E0 01 01. Payload [0x01, 0x01] matches
+    /// the official QRing app on the wire (verified via PacketLogger); our earlier [0xFF, 0x01]
+    /// got no response from the R09.
+    static func sleepRequest() -> Data { bigDataRequest(action: 0x27, payload: [0x01, 0x01]) }
 
     /// Header [0xBC, 0x27, len_lo, len_hi, crc_lo, crc_hi]; complete when
     /// the concatenated bytes >= 6 + declared payload length.

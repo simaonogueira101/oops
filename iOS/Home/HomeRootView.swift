@@ -111,7 +111,6 @@ struct HomeRootView: View {
                 profile: profile,
                 date: $date,
                 battery: manager?.batteryStatus,
-                isUpdatingBattery: manager?.isBusy ?? false,
                 syncState: sync.state,
                 isSyncing: manager?.isBusy ?? false,
                 onProfile: { sheet = .profile },

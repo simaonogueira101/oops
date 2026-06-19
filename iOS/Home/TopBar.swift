@@ -7,7 +7,6 @@ struct TopBar: View {
     let profile: ProfileStore
     @Binding var date: Date
     let battery: BatteryStatus?
-    let isUpdatingBattery: Bool
     let syncState: SyncState
     /// True while a ring sync is in flight — spins the manual-sync glyph.
     let isSyncing: Bool
@@ -120,22 +119,15 @@ struct TopBar: View {
         .accessibilityHint("Opens Mac sync")
     }
 
-    /// The battery icon stays put; only the percentage swaps to a spinner while updating. The
-    /// text/spinner lives in a fixed-width slot so the swap doesn't change the pill's size.
+    /// The percentage updates in place when a new reading lands (no spinner). It sits in a
+    /// fixed-width slot, right-aligned, so "%" always lands in the same spot regardless of digits.
     private var batterySlot: some View {
         HStack(spacing: batteryGap) {
-            ZStack {
-                if isUpdatingBattery {
-                    ProgressView().controlSize(.mini)
-                } else if let battery {
-                    Text("\(battery.level)%")
-                        .font(.system(size: batteryFontSize, weight: .medium))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-            }
-            .frame(width: batteryTextWidth)
+            Text(battery.map { "\($0.level)%" } ?? "")
+                .font(.system(size: batteryFontSize, weight: .medium))
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(width: batteryTextWidth, alignment: .trailing)
 
             Image(systemName: batterySymbol)
                 .imageScale(.small)

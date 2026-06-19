@@ -15,6 +15,7 @@ struct DayMetrics: Equatable {
     var steps: Int
     var stepGoal: Int
     var activeCalories: Int
+    var distanceMeters: Int        // total distance for the day, from the ring's activity log
     var stress: Int?                // 0...100; nil when no samples
     var spo2: Int?                  // %; nil when no samples
 

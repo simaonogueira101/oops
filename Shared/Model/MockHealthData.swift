@@ -19,7 +19,8 @@ struct MockHealthData: HealthData {
     func dayMetrics(for date: Date) -> DayMetrics {
         DayMetrics(score: 72, recovery: 0.72, strain: 8.4, hrv: 48, restingHR: 54, currentHR: 61,
                    bodyTempDelta: -0.2, respiratoryRate: 14.1, sleepPerformance: 0.86,
-                   steps: 9240, stepGoal: 12000, activeCalories: 430, stress: 32, spo2: 97)
+                   steps: 9240, stepGoal: 12000, activeCalories: 430, distanceMeters: 6800,
+                   stress: 32, spo2: 97)
     }
 
     /// Convenience accessor kept for existing screen code that doesn't have a date context.

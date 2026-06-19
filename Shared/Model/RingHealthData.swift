@@ -26,6 +26,7 @@ struct RingHealthData: HealthData {
 
         let steps = activitySamples.reduce(0) { $0 + $1.steps }
         let activeCalories = activitySamples.reduce(0) { $0 + $1.calories }
+        let distanceMeters = activitySamples.reduce(0) { $0 + $1.distanceMeters }
 
         let currentHR: Int? = hrSamples.sorted { $0.timestamp > $1.timestamp }.first.map(\.bpm)
         let restingHR: Int? = hrSamples.map(\.bpm).min()
@@ -54,6 +55,7 @@ struct RingHealthData: HealthData {
             steps: steps,
             stepGoal: 10_000,
             activeCalories: activeCalories,
+            distanceMeters: distanceMeters,
             stress: stress,
             spo2: spo2
         )

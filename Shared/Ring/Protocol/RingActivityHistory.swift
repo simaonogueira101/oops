@@ -22,7 +22,9 @@ extension RingProtocol {
 
     static func parseActivityHistory(_ packets: [Data], calendar: Calendar) -> [ActivitySamplePoint] {
         guard let header = packets.first, header.count >= 2 else { return [] }
-        let calorieScale = header[header.startIndex + 1] == 0xF0 ? 10 : 1
+        // byte[1]==0xF0 is just the header marker (always true), so the old `?10:1` ALWAYS ×10'd
+        // calories — inflating them ~10x (61 steps showed 1700 cal). Use the ring's raw value.
+        let calorieScale = 1
         return packets.dropFirst().compactMap { packet in
             let b = Array(packet)
             guard b.count >= 13 else { return nil }

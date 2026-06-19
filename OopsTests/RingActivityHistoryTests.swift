@@ -29,10 +29,12 @@ struct RingActivityHistoryTests {
         #expect(comps.hour == 1 && comps.minute == 15)
     }
 
-    @Test func caloriesScaledWhenHeaderIs240() {
+    @Test func caloriesAreNotScaled() {
+        // byte[1]==0xF0 is only the header marker, so it must NOT trigger a ×10 (that bug
+        // inflated calories ~10x). Calories are the ring's raw value.
         let header = Self.header(flag: 0xF0, count: 1)
         let packet = Self.dataPacket(steps: 0, cal: 12, dist: 0, idx: 0)
-        #expect(RingProtocol.parseActivityHistory([header, packet], calendar: Self.utc)[0].calories == 120)
+        #expect(RingProtocol.parseActivityHistory([header, packet], calendar: Self.utc)[0].calories == 12)
     }
 
     static func header(flag: UInt8, count: UInt8) -> Data {

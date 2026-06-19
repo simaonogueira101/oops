@@ -58,8 +58,8 @@ struct WorkoutDetailView: View {
                     }
                 }
                 Card(label: "Heart rate") {
-                    LineTrendChart(
-                        samples: [],
+                    BarSeriesChart(
+                        samples: [], period: .today,
                         color: AppColor.strain, baseline: Double(workout.avgHR),
                         xDomain: workout.start...workout.start.addingTimeInterval(max(60, workout.duration)))
                 }

@@ -1,25 +1,17 @@
 import SwiftUI
 import Charts
 
-/// A tiny axis-less line for inline trends inside cards.
+/// A tiny axis-less bar series for inline trends inside cards.
 struct Sparkline: View {
     var samples: [MetricSample]
     var color: Color
     @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 40
 
-    private var floorValue: Double { samples.map(\.value).min() ?? 0 }
-
     var body: some View {
         Chart(samples) { sample in
-            LineMark(x: .value("t", sample.date), y: .value("v", sample.value))
-                .interpolationMethod(.linear)
+            BarMark(x: .value("t", sample.date, unit: .day), y: .value("v", sample.value))
+                .cornerRadius(2)
                 .foregroundStyle(color)
-            AreaMark(x: .value("t", sample.date),
-                     yStart: .value("floor", floorValue),
-                     yEnd: .value("v", sample.value))
-                .interpolationMethod(.linear)
-                .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), .clear],
-                                                startPoint: .top, endPoint: .bottom))
         }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)

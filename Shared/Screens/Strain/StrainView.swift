@@ -91,7 +91,8 @@ struct StrainView: View {
         Card(label: "Strain trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                BarSeriesChart(samples: health.stepsSeries(days: period.days), color: AppColor.strain)
+                BarSeriesChart(samples: health.stepsSeries(days: period.days),
+                               period: period, color: AppColor.strain, baseline: nil)
                     .animation(.snappy, value: period)
             }
         }

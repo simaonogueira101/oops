@@ -115,8 +115,8 @@ struct RecoveryView: View {
         Card(label: "Recovery trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                LineTrendChart(samples: health.restingHRSeries(days: period.days),
-                               color: AppColor.recovery, baseline: nil)
+                BarSeriesChart(samples: health.restingHRSeries(days: period.days),
+                               period: period, color: AppColor.recovery, baseline: nil)
                     .animation(.snappy, value: period)
             }
         }

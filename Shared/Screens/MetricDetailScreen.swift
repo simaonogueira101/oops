@@ -105,7 +105,8 @@ struct MetricDetailScreen: View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 Card(label: metric.title, title: currentValue, accent: metric.accent) {
-                    LineTrendChart(samples: samples, color: metric.accent, baseline: baseline)
+                    BarSeriesChart(samples: samples, period: period,
+                                   color: metric.accent, baseline: baseline)
                 }
 
                 Card(label: "Statistics") {

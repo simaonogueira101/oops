@@ -84,7 +84,7 @@ struct SleepView: View {
     private var sleepingHRCard: some View {
         Card(label: "Sleeping heart rate",
              accessory: .value(metrics.restingHR.map { "\($0) bpm" } ?? "—")) {
-            LineTrendChart(samples: health.restingHRSeries(days: 14),
+            BarSeriesChart(samples: health.restingHRSeries(days: 7), period: .week,
                            color: AppColor.sleep, baseline: nil)
         }
     }
@@ -102,7 +102,8 @@ struct SleepView: View {
         Card(label: "Sleep trends") {
             VStack(spacing: Spacing.sm) {
                 PeriodPicker(period: $period)
-                BarSeriesChart(samples: health.sleepScoreSeries(days: period.days), color: AppColor.sleep)
+                BarSeriesChart(samples: health.sleepScoreSeries(days: period.days),
+                               period: period, color: AppColor.sleep, baseline: nil)
                     .animation(.snappy, value: period)
             }
         }

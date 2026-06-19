@@ -41,6 +41,11 @@ protocol RingTransport: AnyObject {
     /// paged read is collecting heart-rate frames. Default no-op (mock/stub ignore it).
     func fireAndForget(_ command: Data)
 
+    /// Repeatedly writes `command` every `interval` seconds until `stopKeepalive()` — the ring
+    /// needs a periodic CONTINUE to keep streaming live HR. Default no-ops (mock/stub).
+    func startKeepalive(_ command: Data, interval: TimeInterval)
+    func stopKeepalive()
+
     // MARK: Ring binding (remember my ring)
 
     /// When non-nil, `connect()` must only accept a peripheral with this identifier.
@@ -72,4 +77,6 @@ extension RingTransport {
     var connectedRingID: UUID? { nil }
     var connectedRingName: String? { nil }
     func fireAndForget(_ command: Data) {}
+    func startKeepalive(_ command: Data, interval: TimeInterval) {}
+    func stopKeepalive() {}
 }

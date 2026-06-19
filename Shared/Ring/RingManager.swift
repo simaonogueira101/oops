@@ -73,14 +73,8 @@ final class RingManager {
                 // CONTINUE keepalive (0x1E 03) — that's how the official app sustains a live
                 // read. Fire it every ~2s while the paged read collects 0x69 frames until a
                 // non-zero BPM (the PPG takes ~26s to lock on) or the frame cap.
-                let keepalive = Task { [transport] in
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(2))
-                        if Task.isCancelled { break }
-                        transport.fireAndForget(RingProtocol.liveHRKeepaliveCommand())
-                    }
-                }
-                defer { keepalive.cancel() }
+                transport.startKeepalive(RingProtocol.liveHRKeepaliveCommand(), interval: 0.8)
+                defer { transport.stopKeepalive() }
                 let frames = try await transport.send(
                     RingProtocol.liveHRStartCommand(),
                     isComplete: { packets in
@@ -88,7 +82,7 @@ final class RingManager {
                     },
                     perPacketTimeout: 12
                 )
-                keepalive.cancel()
+                transport.stopKeepalive()
                 if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                     liveHR = bpm
                 }

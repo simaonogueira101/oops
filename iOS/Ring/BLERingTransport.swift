@@ -106,6 +106,7 @@ final class BLERingTransport: NSObject, RingTransport {
     }
 
     func disconnect() {
+        stopKeepalive()
         connectTimeoutTask?.cancel(); connectTimeoutTask = nil
         responseTimeoutTask?.cancel(); responseTimeoutTask = nil
         if central.isScanning { central.stopScan() }
@@ -163,9 +164,30 @@ final class BLERingTransport: NSObject, RingTransport {
     /// read. Does not touch any continuation/buffer, so it won't disturb an in-flight read.
     func fireAndForget(_ command: Data) {
         guard stage == .ready, let peripheral, let writeChar else { return }
+        trace("Fire-and-forget: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
         let type: CBCharacteristicWriteType =
             writeChar.properties.contains(.write) ? .withResponse : .withoutResponse
         peripheral.writeValue(command, for: writeChar, type: type)
+    }
+
+    private var keepaliveTimer: DispatchSourceTimer?
+
+    /// A repeating main-queue timer firing the keepalive — robust against actor scheduling
+    /// (unlike a Task-sleep loop, which we found only fired once during an awaited read).
+    func startKeepalive(_ command: Data, interval: TimeInterval) {
+        stopKeepalive()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + interval, repeating: interval)
+        timer.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.fireAndForget(command) }
+        }
+        timer.resume()
+        keepaliveTimer = timer
+    }
+
+    func stopKeepalive() {
+        keepaliveTimer?.cancel()
+        keepaliveTimer = nil
     }
 
     func sendBigData(_ data: Data, isComplete: @escaping ([Data]) -> Bool) async throws -> [Data] {

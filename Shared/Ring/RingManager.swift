@@ -302,28 +302,29 @@ final class RingManager {
             // The official app sends NO keepalive (verified via PacketLogger): the ring auto-
             // streams 0x69 echo frames ~0.5s apart after the start; we just listen until a
             // non-zero BPM (byte[3], byte[2]==0) or a frame cap, then stop.
-            // The PPG needs ~20+ frames to lock on before it reports a non-zero BPM, and iOS
-            // delivers the streamed 0x69 frames slowly (a central can't request the fast
-            // connection interval QRing uses). So retry the start a few times — without stopping
-            // between, to keep the sensor warm — until a non-zero BPM appears or attempts run out.
-            for attempt in 0..<3 {
-                do {
-                    let frames = try await transport.send(
-                        RingProtocol.liveHRStartCommand(),
-                        isComplete: { packets in
-                            packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
-                        },
-                        perPacketTimeout: 8
-                    )
-                    if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
-                        liveHR = bpm
-                        trace("liveHR: \(bpm) bpm (attempt \(attempt), \(frames.count) frames)")
-                        break
-                    }
-                    trace("liveHR attempt \(attempt): \(frames.count) frames, still locking on")
-                } catch {
-                    trace("liveHR attempt \(attempt) failed: \(error)")
+            // Best-effort, single short attempt. Real-time live HR is effectively blocked on iOS:
+            // the PPG needs ~20+ streamed 0x69 frames to report a non-zero BPM, but the ring only
+            // streams them on the fast connection interval QRing forces — which an iOS central has
+            // no API to request, so we get exactly ONE frame then silence (verified on-device).
+            // We still try (it's cheap, and would work if the ring ever streams), but the "now" HR
+            // shown in the UI falls back to the latest HR-history sample (RingHealthData.currentHR),
+            // so the user sees a real recent value rather than "—".
+            do {
+                let frames = try await transport.send(
+                    RingProtocol.liveHRStartCommand(),
+                    isComplete: { packets in
+                        packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
+                    },
+                    perPacketTimeout: 5
+                )
+                if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
+                    liveHR = bpm
+                    trace("liveHR: \(bpm) bpm (\(frames.count) frames)")
+                } else {
+                    trace("liveHR: no lock-on (\(frames.count) frames) — using HR-history fallback")
                 }
+            } catch {
+                trace("liveHR step failed: \(error)")
             }
             try? await transport.send(RingProtocol.liveHRStopCommand())
 

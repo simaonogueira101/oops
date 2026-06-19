@@ -111,12 +111,6 @@ final class RingManager {
             // channel, and make the paged reads time out. A short settle clears them first.
             try? await Task.sleep(for: .seconds(2))
 
-            // EARLY live HR — the connection interval is still fresh (~30–50ms) right after connect.
-            // The capture shows QRing streams live HR at a 30ms interval; ours relaxes to ~4s after
-            // the long history/V2 reads, at which point the ring aborts the measurement. Running it
-            // here, before those reads, is the test of whether a fresh interval keeps it streaming.
-            await attemptLiveHR(label: "early")
-
             // History backfill (local day boundaries, matching the ring's local clock).
             let calendar = utc
             let today = calendar.startOfDay(for: .now)
@@ -200,6 +194,12 @@ final class RingManager {
                 }
                 if totalInserted > 0 { meta.lastSyncedDay["hr"] = today }
             }
+
+            // Live HR RIGHT AFTER the HR gather — the connection interval is still ~30ms here
+            // (the gather's continuous traffic kept it fast; verified in oops.pklg). The ring only
+            // streams 0x69 frames while the interval is fast, and ours relaxes the moment the link
+            // goes quiet. attemptLiveHR fires a keepalive to hold the interval during the wait.
+            await attemptLiveHR(label: "post-gather")
 
             // e. Temperature (Big Data V2)
             if transport.supportsBigData {
@@ -329,13 +329,18 @@ final class RingManager {
     /// works while the BLE connection interval is fast, which is why we try it EARLY (fresh
     /// interval) before the long history reads relax it.
     private func attemptLiveHR(label: String) async {
+        // Hold the connection interval fast: once the link goes quiet iOS relaxes it (to seconds)
+        // and the ring aborts the stream. A steady benign keepalive write keeps the link active so
+        // iOS keeps the ~30ms interval we already have coming out of the HR gather. (The 0x03
+        // responses are dropped by the 0x69 opcode correlation, so they don't pollute the read.)
+        transport.startKeepalive(RingProtocol.batteryCommand(), interval: 0.15)
         do {
             let frames = try await transport.send(
                 RingProtocol.liveHRStartCommand(),
                 isComplete: { packets in
                     packets.contains { RingProtocol.parseLiveHR($0) != nil } || packets.count >= 80
                 },
-                perPacketTimeout: 5
+                perPacketTimeout: 15
             )
             if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                 liveHR = bpm
@@ -346,6 +351,7 @@ final class RingManager {
         } catch {
             trace("liveHR (\(label)) failed: \(error)")
         }
+        transport.stopKeepalive()
         try? await transport.send(RingProtocol.liveHRStopCommand())
     }
 

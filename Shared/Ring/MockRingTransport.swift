@@ -8,6 +8,17 @@ final class MockRingTransport: RingTransport {
     var isCharging: Bool
     var supportsBigData: Bool = true
 
+    // Test hooks for the V2 late-response cache-drain path (mirrors BLERingTransport): when
+    // `spo2LiveReturnsEmpty` is set the live SpO2 read returns nothing, and `cachedBigData`
+    // feeds `takeCachedBigData(_:)` so a test can verify RingManager recovers SpO2 from the cache.
+    var cachedBigData: [UInt8: [Data]] = [:]
+    var spo2LiveReturnsEmpty = false
+
+    func takeCachedBigData(_ action: UInt8) -> [Data] {
+        defer { cachedBigData[action] = nil }
+        return cachedBigData[action] ?? []
+    }
+
     init(batteryLevel: Int = 72, isCharging: Bool = false) {
         self.batteryLevel = batteryLevel
         self.isCharging = isCharging
@@ -51,7 +62,7 @@ final class MockRingTransport: RingTransport {
         guard data.count >= 2 else { return [] }
         switch data[data.startIndex + 1] {
         case 0x25: return MockRingTransport.temperaturePackets()
-        case 0x2A: return MockRingTransport.spo2BigDataPackets()
+        case 0x2A: return spo2LiveReturnsEmpty ? [] : MockRingTransport.spo2BigDataPackets()
         case 0x27: return MockRingTransport.sleepBigDataPackets()
         default:   return []
         }

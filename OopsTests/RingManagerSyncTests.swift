@@ -43,6 +43,32 @@ struct RingManagerSyncTests {
         }
     }
 
+    /// SpO2's big V2 response often arrives AFTER its own read times out, so the live read yields
+    /// nothing and the data must be recovered from the transport's late-response cache. Exercises
+    /// RingManager's cache-drain path (the SpO2-showed-no-data fix).
+    @MainActor
+    @Test func recoversSpO2FromLateResponseCache() async throws {
+        let container = try ModelContainer(
+            for: BatteryReading.self, HeartRateSample.self, ActivitySample.self, SpO2Sample.self,
+                StressSample.self, TemperatureSample.self, HRVSample.self, SleepSessionRecord.self,
+                SleepStageIntervalRecord.self, RingSyncMeta.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let mock = MockRingTransport()
+        mock.spo2LiveReturnsEmpty = true   // live read returns nothing — only the cache has data
+        // A real captured BC2A SpO2 response (97% values), same fixture as RingV2RealCaptureTests.
+        let spo2Hex = "bc2a62006b060100000000000000000000000000000000000000000000000000000000000000000000000000000000000000006161616100606060606363606060606060616100000000616100000000616100000000000000000000000000000000000000000000"
+        var data = Data(); var i = spo2Hex.startIndex
+        while i < spo2Hex.endIndex {
+            let j = spo2Hex.index(i, offsetBy: 2)
+            data.append(UInt8(spo2Hex[i..<j], radix: 16)!); i = j
+        }
+        mock.cachedBigData[0x2A] = [data]
+        let manager = RingManager(transport: mock, modelContext: container.mainContext)
+        await manager.sync()
+        #expect(try container.mainContext.fetch(FetchDescriptor<SpO2Sample>()).count > 0,
+                "SpO2 should be recovered from the late-response cache when the live read is empty")
+    }
+
     @MainActor
     @Test func secondSyncDoesNotDuplicate() async throws {
         let container = try ModelContainer(

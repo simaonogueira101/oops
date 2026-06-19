@@ -40,79 +40,79 @@ and the qualitative contributor bands — these render "—".
 
 ## Overview (Today)
 
-| Name                  | Description                                                            | Designed | Implemented |
-| --------------------- | ---------------------------------------------------------------------- | -------- | ----------- |
-| Today card feed       | Scrollable feed; each card deep-links into its domain                  | ✅       | ✅          |
+| Name                  | Description                                                            | Designed | Implemented                       |
+| --------------------- | ---------------------------------------------------------------------- | -------- | --------------------------------- |
+| Today card feed       | Scrollable feed; each card deep-links into its domain                  | ✅       | ✅                                |
 | Recovery hero         | Composite ring (score + HRV/RHR/strain/sleep)                          | ✅       | 🟡 HRV/RHR real; score/strain "—" |
-| Sleep summary card    | Score + sparkline → Sleep                                              | ✅       | ✅          |
-| Strain summary card   | Day strain + sparkline → Strain                                        | ✅       | 🟡 steps real; strain score "—" |
-| Steps goal card       | Progress toward step goal                                              | ✅       | ✅          |
-| Heart-rate card       | Resting/now + sparkline → Heart Rate                                   | ✅       | ✅          |
-| Day swipe paging      | Swipe left/right on the feed to change day (push transition + haptic)  | ✅       | ✅          |
-| Active workout banner | Thin live banner below the hero while recording; opens the live drawer | ✅       | ✅          |
+| Sleep summary card    | Score + sparkline → Sleep                                              | ✅       | ✅                                |
+| Strain summary card   | Day strain + sparkline → Strain                                        | ✅       | 🟡 steps real; strain score "—"   |
+| Steps goal card       | Progress toward step goal                                              | ✅       | ✅                                |
+| Heart-rate card       | Resting/now + sparkline → Heart Rate                                   | ✅       | ✅                                |
+| Day swipe paging      | Swipe left/right on the feed to change day (push transition + haptic)  | ✅       | ✅                                |
+| Active workout banner | Thin live banner below the hero while recording; opens the live drawer | ✅       | ✅                                |
 
 ## Sleep
 
-| Name                  | Description                                 | Designed | Implemented |
-| --------------------- | ------------------------------------------- | -------- | ----------- |
+| Name                  | Description                                 | Designed | Implemented                       |
+| --------------------- | ------------------------------------------- | -------- | --------------------------------- |
 | Sleep score hero      | Score ring + time asleep + insight          | ✅       | ✅ (score from sleep performance) |
-| Sleep-stage hypnogram | Staggered horizontal columns over the night | ✅       | ✅          |
-| Stage breakdown       | Awake/REM/Light/Deep %, + duration          | ✅       | ✅          |
-| Sleep contributors    | Efficiency, restfulness, latency, timing    | ✅       | 🟡 not derived → "—" |
-| Sleeping heart rate   | Overnight HR trend                          | ✅       | ✅ (resting HR + trend) |
-| Bedtime / timing      | Bedtime & wake                              | ✅       | ✅          |
-| Sleep trends          | Inline period selector + trend chart        | ✅       | ✅          |
+| Sleep-stage hypnogram | Staggered horizontal columns over the night | ✅       | ✅                                |
+| Stage breakdown       | Awake/REM/Light/Deep %, + duration          | ✅       | ✅                                |
+| Sleep contributors    | Efficiency, restfulness, latency, timing    | ✅       | 🟡 not derived → "—"              |
+| Sleeping heart rate   | Overnight HR trend                          | ✅       | ✅ (resting HR + trend)           |
+| Bedtime / timing      | Bedtime & wake                              | ✅       | ✅                                |
+| Sleep trends          | Inline period selector + trend chart        | ✅       | ✅                                |
 
 ## Recovery
 
-| Name                      | Description                                                           | Designed | Implemented |
-| ------------------------- | --------------------------------------------------------------------- | -------- | ----------- |
+| Name                      | Description                                                           | Designed | Implemented                |
+| ------------------------- | --------------------------------------------------------------------- | -------- | -------------------------- |
 | Recovery score hero       | Score ring + band + insight                                           | ✅       | 🟡 score not derived → "—" |
-| Recovery contributors     | HRV balance, RHR, body temp, recovery index, sleep & activity balance | ✅       | 🟡 not derived → "—" |
-| HRV detail + trend        | Sparkline card → HRV detail                                           | ✅       | ✅          |
-| Resting HR detail + trend | Sparkline card → Heart Rate detail                                    | ✅       | ✅          |
-| Body temperature          | Skin temp card (absolute °C) → detail                                 | ✅       | ✅          |
-| Blood oxygen (SpO₂)       | SpO₂ card + trend → detail                                            | ✅       | ✅          |
-| Stress                    | Stress card + trend → detail                                          | ✅       | ✅          |
-| Respiratory rate          | Card → detail                                                         | ✅       | 🟡 no R09 source → "—" |
-| Recovery trends           | Inline period selector + trend chart                                  | ✅       | ✅          |
+| Recovery contributors     | HRV balance, RHR, body temp, recovery index, sleep & activity balance | ✅       | 🟡 not derived → "—"       |
+| HRV detail + trend        | Sparkline card → HRV detail                                           | ✅       | ✅                         |
+| Resting HR detail + trend | Sparkline card → Heart Rate detail                                    | ✅       | ✅                         |
+| Body temperature          | Skin temp card (absolute °C) → detail                                 | ✅       | ✅                         |
+| Blood oxygen (SpO₂)       | SpO₂ card + trend → detail                                            | ✅       | ✅                         |
+| Stress                    | Stress card + trend → detail                                          | ✅       | ✅                         |
+| Respiratory rate          | Card → detail                                                         | ✅       | 🟡 no R09 source → "—"     |
+| Recovery trends           | Inline period selector + trend chart                                  | ✅       | ✅                         |
 
 ## Strain & Activity
 
-| Name                        | Description                                                             | Designed | Implemented |
-| --------------------------- | ----------------------------------------------------------------------- | -------- | ----------- |
+| Name                        | Description                                                             | Designed | Implemented                              |
+| --------------------------- | ----------------------------------------------------------------------- | -------- | ---------------------------------------- |
 | Day strain hero             | Strain ring (0–21) + calories/steps                                     | ✅       | 🟡 calories/steps real; strain score "—" |
-| Steps / distance / calories | Activity stat grid (all real from the ring's activity log)              | ✅       | ✅          |
-| Heart-rate zones            | Zone scale → HR Zones                                                   | ✅       | ✅          |
-| Workouts list + detail      | Live recorded history → detail (summary, HR trace)                      | ✅       | ✅          |
-| Workout history persistence | Ending a recording saves a `WorkoutRecord` to the local SwiftData store | ✅       | ✅          |
-| Record workout              | Separated "+" tab button → type picker drawer → start/end recording     | ✅       | ✅          |
-| Live workout stats          | Elapsed time real; live HR/calories during a recording not yet wired    | ✅       | 🟡 elapsed real; HR/cal pending |
-| Cardio fitness (VO₂max)     | Estimated fitness (cut — not measurable by the R09)                     | ⬜       | ⬜          |
-| Strain trends               | Inline period selector + trend chart                                    | ✅       | ✅          |
-| HR zones screen             | Period picker + per-zone cards                                          | ✅       | ✅          |
+| Steps / distance / calories | Activity stat grid (all real from the ring's activity log)              | ✅       | ✅                                       |
+| Heart-rate zones            | Zone scale → HR Zones                                                   | ✅       | ✅                                       |
+| Workouts list + detail      | Live recorded history → detail (summary, HR trace)                      | ✅       | ✅                                       |
+| Workout history persistence | Ending a recording saves a `WorkoutRecord` to the local SwiftData store | ✅       | ✅                                       |
+| Record workout              | Separated "+" tab button → type picker drawer → start/end recording     | ✅       | ✅                                       |
+| Live workout stats          | Elapsed time real; live HR/calories during a recording not yet wired    | ✅       | 🟡 elapsed real; HR/cal pending          |
+| Cardio fitness (VO₂max)     | Estimated fitness (cut — not measurable by the R09)                     | ⬜       | ⬜                                       |
+| Strain trends               | Inline period selector + trend chart                                    | ✅       | ✅                                       |
+| HR zones screen             | Period picker + per-zone cards                                          | ✅       | ✅                                       |
 
 ## Vitals (detail screens)
 
 One `MetricDetailScreen` template — trend + stats + explainer — per metric.
 
-| Name                | Description                                               | Designed | Implemented |
-| ------------------- | --------------------------------------------------------- | -------- | ----------- |
-| Heart rate          | Trend + stats                                             | ✅       | ✅          |
-| HRV                 | Trend + stats                                             | ✅       | ✅          |
-| Blood oxygen (SpO₂) | Trend + stats                                             | ✅       | ✅          |
-| Stress              | Trend + stats                                             | ✅       | ✅          |
-| Skin temperature    | Trend + stats (absolute °C)                               | ✅       | ✅          |
-| Respiratory rate    | Trend + stats                                             | ✅       | 🟡 no R09 source → "—" |
+| Name                | Description                 | Designed | Implemented            |
+| ------------------- | --------------------------- | -------- | ---------------------- |
+| Heart rate          | Trend + stats               | ✅       | ✅                     |
+| HRV                 | Trend + stats               | ✅       | ✅                     |
+| Blood oxygen (SpO₂) | Trend + stats               | ✅       | ✅                     |
+| Stress              | Trend + stats               | ✅       | ✅                     |
+| Skin temperature    | Trend + stats (absolute °C) | ✅       | ✅                     |
+| Respiratory rate    | Trend + stats               | ✅       | 🟡 no R09 source → "—" |
 
 ## App & infrastructure
 
-| Name                 | Description                                                                        | Designed | Implemented |
-| -------------------- | ---------------------------------------------------------------------------------- | -------- | ----------- |
-| Profile              | Photo + name + appearance, stored locally                                          | ✅       | ✅          |
-| Settings             | Goals, units, notifications, about (controls not yet persisted)                    | ✅       | ⬜          |
-| Welcome / onboarding | Tour screen (reachable from Settings; first-launch wiring is future)               | ✅       | ⬜          |
-| iPhone → Mac sync    | Bonjour newline-JSON sync (existing, real)                                         | ✅       | ✅          |
+| Name                   | Description                                                                      | Designed | Implemented |
+| ---------------------- | -------------------------------------------------------------------------------- | -------- | ----------- |
+| Profile                | Photo + name + appearance, stored locally                                        | ✅       | ✅          |
+| Settings               | Goals, units, notifications, about (controls not yet persisted)                  | ✅       | ⬜          |
+| Welcome / onboarding   | Tour screen (reachable from Settings; first-launch wiring is future)             | ✅       | ⬜          |
+| iPhone → Mac sync      | Bonjour newline-JSON sync (existing, real)                                       | ✅       | ✅          |
 | Ring sync + force-sync | Full bind/init handshake + history pull; manual force-sync button in the top bar | ✅       | ✅          |
-| Ring battery read    | Battery via `RingProtocol`/`RingManager` over BLE                                  | ✅       | ✅          |
-| BLE transport        | `BLERingTransport` — real CoreBluetooth link to the Colmi R09                       | ✅       | ✅          |
+| Ring battery read      | Battery via `RingProtocol`/`RingManager` over BLE                                | ✅       | ✅          |
+| BLE transport          | `BLERingTransport` — real CoreBluetooth link to the Colmi R09                    | ✅       | ✅          |

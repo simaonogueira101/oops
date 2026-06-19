@@ -47,7 +47,9 @@ enum RingBigData {
 
     /// Raw historical-temperature request (NOT padded, NO checksum). `0xBC`=Big Data V2,
     /// `0x25`=temperature; `01 00`=LE length; `3E 81 02`=fixed trailer observed in QRing traffic.
-    static func temperatureRequest() -> Data { Data([0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02]) }
+    /// payload [0x06] = "6 days back" — the ring streams the whole week to today in one response,
+    /// matching the official app (`BC 25 01 00 <crc> 06`). (Was [0x02] = 2 days.)
+    static func temperatureRequest() -> Data { bigDataRequest(action: 0x25, payload: [0x06]) }
 
     /// Header [0xBC, 0x25, len_lo, len_hi]; complete when the declared payload length is in hand.
     static func temperatureComplete(_ packets: [Data]) -> Bool {
@@ -90,7 +92,7 @@ struct TemperatureReading: Equatable {
 extension RingBigData {
     /// Big Data V2 request for all-day SpO2 history. action=0x2A, payload=[0x02] →
     /// BC 2A 01 00 3E 81 02, matching the official QRing app (our earlier FF 00 FF was malformed).
-    static func spo2Request() -> Data { bigDataRequest(action: 0x2A, payload: [0x02]) }
+    static func spo2Request() -> Data { bigDataRequest(action: 0x2A, payload: [0x06]) }
 
     /// Header [0xBC, 0x2A, len_lo, len_hi]; complete when the declared payload length is in hand.
     /// If len==0, complete immediately.
@@ -139,7 +141,7 @@ extension RingBigData {
     /// action=0x27, payload=[0x01, 0x01] → BC 27 02 00 C1 E0 01 01. Payload [0x01, 0x01] matches
     /// the official QRing app on the wire (verified via PacketLogger); our earlier [0xFF, 0x01]
     /// got no response from the R09.
-    static func sleepRequest() -> Data { bigDataRequest(action: 0x27, payload: [0x01, 0x01]) }
+    static func sleepRequest() -> Data { bigDataRequest(action: 0x27, payload: [0x06, 0x01]) }
 
     /// Header [0xBC, 0x27, len_lo, len_hi, crc_lo, crc_hi]; complete when
     /// the concatenated bytes >= 6 + declared payload length.

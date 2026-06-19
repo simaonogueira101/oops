@@ -5,9 +5,10 @@ import Testing
 struct RingStressHistoryTests {
     static var utc: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
 
-    @Test func commandUses0x37() {
-        let day = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
-        #expect(Array(RingProtocol.stressHistoryCommand(day: day, calendar: Self.utc))[0] == 0x37)
+    @Test func commandUses0x37WithDayIndex() {
+        let p = Array(RingProtocol.stressHistoryCommand(dayOffset: 3))
+        #expect(p[0] == 0x37)
+        #expect(p[1] == 0x03) // day index payload
     }
 
     @Test func parsesNonZeroStressAtInterval() {

@@ -12,8 +12,10 @@ struct RingTemperatureTests {
         #expect(p[15] == UInt8(p[0..<15].reduce(0) { $0 + Int($1) } % 255)) // checksum present
     }
 
-    @Test func temperatureRequestIsRawSevenBytes() {
-        #expect(Array(RingBigData.temperatureRequest()) == [0xBC, 0x25, 0x01, 0x00, 0x3E, 0x81, 0x02])
+    @Test func temperatureRequestRequestsFullWeek() {
+        let req = Array(RingBigData.temperatureRequest())
+        #expect(Array(req[0...3]) == [0xBC, 0x25, 0x01, 0x00]) // action 0x25, payload len 1
+        #expect(req[6] == 0x06)                                // payload: 6 days back (full week)
     }
 
     @Test func completeWhenDeclaredLengthReached() {

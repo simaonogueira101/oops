@@ -5,9 +5,10 @@ import Testing
 struct RingHRVHistoryTests {
     static var utc: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
 
-    @Test func commandUses0x39() {
-        let day = Self.utc.date(from: DateComponents(year: 2026, month: 6, day: 18))!
-        #expect(Array(RingProtocol.hrvHistoryCommand(day: day, calendar: Self.utc))[0] == 0x39)
+    @Test func commandUses0x39WithDayIndex() {
+        let p = Array(RingProtocol.hrvHistoryCommand(dayOffset: 3))
+        #expect(p[0] == 0x39)
+        #expect(p[1] == 0x03) // day index payload
     }
 
     @Test func parsesNonZeroHRVAtInterval() {

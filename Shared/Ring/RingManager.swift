@@ -123,41 +123,34 @@ final class RingManager {
 
             let weekStart = calendar.date(byAdding: .day, value: -6, to: today) ?? today
 
-            // HR/stress/HRV are served by the ring for the CURRENT day only (the official app
-            // queries just today; stress/HRV carry no day at all) and accumulate through the day,
-            // so re-query them every sync regardless of lastSyncedDay. Dedup by timestamp.
-            for metricKey in ["hr", "stress", "hrv"] {
-                var existingTimestamps = fetchTimestampsForMetric(metricKey)
-                do {
-                    try await syncDayThrowing(day: today, dayOffset: 0, metricKey: metricKey,
-                                               calendar: calendar, existingTimestamps: &existingTimestamps)
-                } catch {
-                    trace("\(metricKey) today failed: \(error)")
+            // Per-day history backfill across the week. The official app loops all 7 days for
+            // every metric on bind (HR by day-midnight timestamp; stress/HRV/activity by day
+            // index). We do the same; timestamp dedup keeps re-fetched days from duplicating.
+            // Today re-syncs every time (it's still accumulating); past days stop once stored.
+            for metricKey in ["hr", "activity", "stress", "hrv"] {
+                let lastSynced = meta.lastSyncedDay[metricKey]
+                let from: Date
+                if let last = lastSynced, !force {
+                    from = calendar.date(byAdding: .day, value: 1, to: last) ?? weekStart
+                } else {
+                    from = weekStart
                 }
-            }
-
-            // Activity (0x43) backfills per-day across the week.
-            do {
-                let lastSynced = meta.lastSyncedDay["activity"]
-                let from = (lastSynced != nil && !force)
-                    ? (calendar.date(byAdding: .day, value: 1, to: lastSynced!) ?? weekStart)
-                    : weekStart
                 let clampedFrom = max(from, weekStart)
-                if clampedFrom <= today {
-                    var existingTimestamps = fetchTimestampsForMetric("activity")
-                    var day = clampedFrom
-                    while day <= today {
-                        let dayOffset = calendar.dateComponents([.day], from: day, to: today).day ?? 0
-                        do {
-                            try await syncDayThrowing(day: day, dayOffset: dayOffset, metricKey: "activity",
-                                                       calendar: calendar, existingTimestamps: &existingTimestamps)
-                            meta.lastSyncedDay["activity"] = day
-                        } catch {
-                            trace("activity history day=\(day) failed: \(error) — stopping for this sync")
-                            break
-                        }
-                        day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
+                guard clampedFrom <= today else { continue }
+
+                var existingTimestamps = fetchTimestampsForMetric(metricKey)
+                var day = clampedFrom
+                while day <= today {
+                    let dayOffset = calendar.dateComponents([.day], from: day, to: today).day ?? 0
+                    do {
+                        try await syncDayThrowing(day: day, dayOffset: dayOffset, metricKey: metricKey,
+                                                   calendar: calendar, existingTimestamps: &existingTimestamps)
+                        meta.lastSyncedDay[metricKey] = day
+                    } catch {
+                        trace("\(metricKey) history day=\(day) failed: \(error) — stopping this metric")
+                        break
                     }
+                    day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                 }
             }
 
@@ -316,7 +309,7 @@ final class RingManager {
 
         case "stress":
             let packets = try await transport.send(
-                RingProtocol.stressHistoryCommand(day: day, calendar: calendar),
+                RingProtocol.stressHistoryCommand(dayOffset: dayOffset),
                 isComplete: RingProtocol.stressHistoryComplete,
                 perPacketTimeout: historyPerPacketTimeout
             )
@@ -328,7 +321,7 @@ final class RingManager {
 
         case "hrv":
             let packets = try await transport.send(
-                RingProtocol.hrvHistoryCommand(day: day, calendar: calendar),
+                RingProtocol.hrvHistoryCommand(dayOffset: dayOffset),
                 isComplete: RingProtocol.hrvHistoryComplete,
                 perPacketTimeout: historyPerPacketTimeout
             )

@@ -1,11 +1,11 @@
 import Foundation
 
 extension RingProtocol {
-    /// `0x37` with an EMPTY payload (`37 00 … 37`) — matches the official app, which sends no
-    /// timestamp. The ring returns the current day's stress series. (Our earlier timestamp
-    /// payload returned nothing.) The `day`/`calendar` args are kept for call-site symmetry.
-    static func stressHistoryCommand(day: Date, calendar: Calendar) -> Data {
-        makePacket(command: 0x37, payload: [])
+    /// `0x37` with a single DAY-INDEX byte (`37 00` today … `37 06` six days ago) — matches the
+    /// official app, which loops the week as `37 00`…`37 06`. (A timestamp payload returned
+    /// nothing.) `dayOffset` 0 = today.
+    static func stressHistoryCommand(dayOffset: Int) -> Data {
+        makePacket(command: 0x37, payload: [UInt8(max(0, min(255, dayOffset)))])
     }
 
     static func stressHistoryComplete(_ packets: [Data]) -> Bool {

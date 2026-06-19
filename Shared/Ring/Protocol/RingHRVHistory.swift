@@ -7,11 +7,11 @@ extension RingProtocol {
         makePacket(command: 0x38, payload: [0x02, 0x01])
     }
 
-    /// `0x39` with an EMPTY payload (`39 00 … 39`) — matches the official app, which sends no
-    /// timestamp. The ring returns the current day's HRV series. (Our earlier timestamp payload
-    /// returned nothing.) The `day`/`calendar` args are kept for call-site symmetry.
-    static func hrvHistoryCommand(day: Date, calendar: Calendar) -> Data {
-        makePacket(command: 0x39, payload: [])
+    /// `0x39` with a single DAY-INDEX byte (`39 00` today … `39 06` six days ago) — matches the
+    /// official app, which loops the week as `39 00`…`39 06`. (A timestamp payload returned
+    /// nothing.) `dayOffset` 0 = today.
+    static func hrvHistoryCommand(dayOffset: Int) -> Data {
+        makePacket(command: 0x39, payload: [UInt8(max(0, min(255, dayOffset)))])
     }
 
     static func hrvHistoryComplete(_ packets: [Data]) -> Bool {

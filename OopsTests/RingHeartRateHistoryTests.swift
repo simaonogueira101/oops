@@ -14,7 +14,9 @@ struct RingHeartRateHistoryTests {
     }
 
     @Test func completeWhenAllDataPacketsReceived() {
-        let header = Self.packet(sub: 0, payload: [2, 5])      // 2 data packets, 5-min interval
+        // The header count INCLUDES the header packet (QRing: count 0x18=24 → 23 data pages),
+        // so completion fires at count-1 data packets. Here count 3 = header + 2 data pages.
+        let header = Self.packet(sub: 0, payload: [3, 5])
         let d1 = Self.packet(sub: 1, payload: [])
         #expect(!RingProtocol.heartRateHistoryComplete([header]))
         #expect(!RingProtocol.heartRateHistoryComplete([header, d1]))

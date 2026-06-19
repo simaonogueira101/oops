@@ -35,10 +35,8 @@ struct RingManagerSyncTests {
 
         let metas = try container.mainContext.fetch(FetchDescriptor<RingSyncMeta>())
         let meta = try #require(metas.first)
-        // sync() uses UTC day boundaries to match the ring's UTC clock.
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        let today = utc.startOfDay(for: .now)
+        // sync() uses local day boundaries (Calendar.current) to match the ring's local clock.
+        let today = Calendar.current.startOfDay(for: .now)
         for key in ["hr", "activity", "sleep", "stress", "spo2", "hrv"] {
             let advanced = meta.lastSyncedDay[key]
             #expect(advanced == today, "lastSyncedDay[\(key)] should equal today after a full successful sync")

@@ -6,19 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Oops** is a native **iOS + macOS** app for the **Colmi R09 smart ring**. It deliberately
 looks like a stock Apple app (Apple Health is the visual reference — **not** Whoop), and is
-built in tiny vertical slices. The current slice reads ring **battery** over a mock transport
-and syncs it from iPhone to a macOS menu-bar companion. Full background and the protocol
-reference live in `docs/superpowers/specs/2026-06-11-oops-ring-app-design.md` (note: that
-spec describes "iteration 0"; the code has since grown the Home UI, Bonjour sync, the macOS
-companion, auto-redeploy, and design tokens).
+built in tiny vertical slices. It now reads **all the ring's sensors over real Bluetooth**
+(`BLERingTransport`): HR history + live HR, HRV, SpO2, stress, skin temperature, sleep stages,
+steps/distance/calories, and battery — persisted locally and synced from iPhone to a macOS
+menu-bar companion. Full background and the protocol reference live in
+`docs/superpowers/specs/2026-06-11-oops-ring-app-design.md` (note: that spec describes
+"iteration 0"; the code has since grown the Home UI, the real BLE link, Bonjour sync, the
+macOS companion, auto-redeploy, and design tokens). Current feature status is in `FEATURES.md`.
 
 ## Hard constraints (do not violate)
 
 - **Local-only SwiftData. No iCloud / CloudKit, ever.** This is a chosen constraint, not a deferral.
 - **Stock-Apple look** (Apple Health), never Whoop styling.
 - **Never handle the user's Apple ID / signing in our code** — signing stays in Xcode.
-- **Free Apple tier**: HealthKit and CoreBluetooth-on-device are deferred; today everything
-  runs in the Simulator on `MockRingTransport`.
+- **Free Apple tier**: HealthKit is deferred (needs the paid program). CoreBluetooth runs
+  **on the real device** (`BLERingTransport`); `MockRingTransport` now only backs the Simulator
+  and previews/tests. Real-ring work is verified on the physical iPhone, not the Simulator.
 - App icons must be **full-bleed, opaque, PNG color-type 2 (no alpha)** — the OS masks them.
 
 ## Project generation (read before building)
@@ -91,25 +94,40 @@ via `@ScaledMetric`; durations/numbers go through Foundation format styles; the 
 (pinned via `safeAreaInset`) drives every series via `Period.days`. Settings live in
 **`ProfileView`** (goals/units/notifications/about) — there is no separate Settings screen.
 Screens are grouped by domain under `Screens/` (Overview/Sleep/Recovery/Strain, the
-`MetricDetailScreen` template, Onboarding); per-domain trends are inline cards. All
-data comes from **`MockHealthData`** (seeded, deterministic) until the ring lands. Feature
-coverage is tracked in `FEATURES.md`.
+`MetricDetailScreen` template, Onboarding); per-domain trends are inline cards. In the app,
+data comes from **`RingHealthData`** (real, SwiftData-backed); **`MockHealthData`** now only
+backs `#Preview`s. **Every displayed value is real or "—" — never fabricated** (use
+`dashFormatted`; contributor rows pass `fraction/band: nil` when not derived). Skin temp shows
+the **absolute** day-average °C, not a baseline-delta. All trends are **bar charts** (the old
+`LineTrendChart` was deleted; `Sparkline` is bars too); the trend chart's X axis spans the whole
+selected `Period` via `chartXScale(domain: period.dateRange())` and the default period is
+**`.today`**. These display rules are deliberate — see the project memory. Feature coverage is
+tracked in `FEATURES.md`.
 
 ### Ring data path (the core abstraction — `Shared/Ring/`)
 A transport seam keeps the deterministic protocol/persistence separate from the flaky,
-hardware-bound transport, so we develop against a fake ring today and swap in BLE later:
+hardware-bound transport: pure parsing on one side, real CoreBluetooth on the other.
 
-- `RingProtocol` — pure Swift, **zero CoreBluetooth**: builds/parses the fixed 16-byte
-  packets (`byte[0]`=command, `byte[15]`=checksum). Fully unit-tested on the Mac.
-- `RingTransport` — the swappable `@MainActor` protocol (`connect`/`disconnect`/`send`).
-  `MockRingTransport` is the only implementation today; `BLERingTransport` (CoreBluetooth)
-  is planned but **not yet written**.
-- `RingManager` — `@Observable` orchestrator, transport-agnostic: `connect → send → parse →
-  persist (SwiftData) → publish`. The composition root (`iOS/OopsApp`) injects the transport.
+- `RingProtocol` — pure Swift, **zero CoreBluetooth**: builds/parses the fixed 16-byte V1
+  packets (`byte[0]`=command, `byte[15]`=checksum `&0xFF`) and the Big-Data V2 frames. Fully
+  unit-tested on the Mac, including **replay tests** that feed real captured hex to the parsers.
+- `RingTransport` — the swappable `@MainActor` protocol. `BLERingTransport` (CoreBluetooth) is
+  the **real, working** implementation used on-device; `MockRingTransport` backs Simulator/tests.
+- `RingManager` — `@Observable` orchestrator: runs the full QRing bind/init handshake, then
+  history → V2 → live HR, and `parse → persist (SwiftData) → publish`. `iOS/OopsApp` injects the
+  transport.
+- **iOS-BLE delivery is the hard part** (iOS batches notifications + can't set the connection
+  interval). Three workarounds make HR/SpO2 land — write V1 **without response**; pull HR via a
+  **global frame collector** (`transport.gather`) not per-day reads; recover SpO2 from a
+  **late-V2-response cache** (`takeCachedBigData`). These are documented in detail in the project
+  memory; don't "simplify" them away.
 
 ### Persistence
-`@Model` types (`BatteryReading`, `WorkoutRecord`, and iOS-only `SyncLogEntry`) in a **local-only**
-`ModelContainer` (no `cloudKitDatabase`). `iOS/OopsApp` wraps container creation in a
+`@Model` types — `BatteryReading`, the sensor samples (`HeartRateSample`, `HRVSample`,
+`SpO2Sample`, `StressSample`, `TemperatureSample`, `ActivitySample`), `SleepSessionRecord` +
+`SleepStageIntervalRecord`, `RingSyncMeta` (per-metric `lastSyncedDay`), `WorkoutRecord`, and
+iOS-only `SyncLogEntry` — in a **local-only** `ModelContainer` (no `cloudKitDatabase`). Re-fetched
+days dedupe by timestamp. `iOS/OopsApp` wraps container creation in a
 **try / wipe-and-recreate guard** — adding a `@Model` to the schema can make the on-disk
 store fail to open, which would otherwise crash on launch on a device with an existing store.
 

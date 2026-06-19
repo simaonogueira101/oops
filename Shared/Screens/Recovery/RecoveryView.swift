@@ -24,6 +24,7 @@ struct RecoveryView: View {
                 hrvCard
                 restingHRCard
                 bodyTempCard
+                bloodOxygenCard
                 respiratoryCard
                 trendsCard
             }
@@ -83,6 +84,14 @@ struct RecoveryView: View {
             Sparkline(samples: [], color: AppColor.recovery)
         }
         .navigates(to: .bodyTemp)
+    }
+
+    private var bloodOxygenCard: some View {
+        Card(label: "Blood oxygen", accent: AppColor.recovery,
+             accessory: .value(metrics.spo2.map { "\($0)%" } ?? "—"), showsChevron: true) {
+            Sparkline(samples: [], color: AppColor.recovery)
+        }
+        .navigates(to: .bloodOxygen)
     }
 
     private var respiratoryCard: some View {

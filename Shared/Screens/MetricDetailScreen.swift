@@ -75,6 +75,11 @@ extension MetricDetailScreen {
               baseline: 14, series: { MockHealthData().series(days: $0, base: 14, spread: 2) },
               about: "Breaths per minute during sleep is typically stable; changes can signal strain.")
     }
+    static func bloodOxygen() -> MetricDetailScreen {
+        .init(title: "Blood Oxygen", accent: AppColor.recovery, unit: "%", currentValue: "97 %",
+              baseline: 97, series: { MockHealthData().series(days: $0, base: 97, spread: 2) },
+              about: "Blood oxygen (SpO₂) is the percentage of oxygen your red blood cells carry; the ring samples it through the day and overnight.")
+    }
 }
 
 #Preview {

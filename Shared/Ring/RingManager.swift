@@ -99,6 +99,16 @@ final class RingManager {
                 trace("battery step failed: \(error)")
             }
 
+            // c. Init handshake — match the official app: query device support (0x3C) and run the
+            // BC 30 big-data handshake. This appears to put the ring into its real-time-capable
+            // state, the state in which it asks iOS for the fast BLE connection interval that
+            // live-HR streaming requires (a central can't set the interval itself on iOS).
+            try? await transport.send(RingProtocol.deviceSupportCommand())
+            if transport.supportsBigData {
+                _ = try? await transport.sendBigData(RingBigData.handshakeRequest(),
+                                                     isComplete: RingBigData.handshakeComplete)
+            }
+
             // History backfill (UTC day boundaries to match the ring's UTC clock)
             let calendar = utc
             let today = calendar.startOfDay(for: .now)

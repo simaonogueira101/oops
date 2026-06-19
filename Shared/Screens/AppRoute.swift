@@ -3,7 +3,7 @@ import SwiftUI
 /// Value-based routes presented from cards. Domain tabs (Sleep/Recovery/Strain) are NOT routes —
 /// cards for those switch tabs via `openDomain`; drawers are reserved for drill-in content.
 enum AppRoute: Hashable {
-    case heartRate, hrv, bodyTemp, respiratory
+    case heartRate, hrv, bodyTemp, respiratory, bloodOxygen
     case workouts, hrZones
 }
 
@@ -24,6 +24,7 @@ struct RouteDestination: View {
         case .hrv: MetricDetailScreen.hrv()
         case .bodyTemp: MetricDetailScreen.bodyTemp()
         case .respiratory: MetricDetailScreen.respiratory()
+        case .bloodOxygen: MetricDetailScreen.bloodOxygen()
         case .workouts: WorkoutsView()
         case .hrZones: HRZonesView()
         }

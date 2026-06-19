@@ -27,6 +27,12 @@ enum RingBigData {
         return crc
     }
 
+    /// `BC 30 00 00 FF FF` — the big-data handshake the official app sends right after bind,
+    /// before any history/live read. Part of the init that puts the ring in its real-time state.
+    static func handshakeRequest() -> Data { bigDataRequest(action: 0x30, payload: []) }
+    /// Any single response packet completes the handshake.
+    static func handshakeComplete(_ packets: [Data]) -> Bool { !packets.isEmpty }
+
     /// Builds a Big-Data V2 framed request:
     /// `[0xBC, action, len_lo, len_hi, crc_lo, crc_hi] + payload`
     /// where `len = payload.count` and `crc = CRC-16/MODBUS(payload)`.

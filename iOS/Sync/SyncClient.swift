@@ -74,8 +74,12 @@ final class SyncCoordinator {
     }
 
     func push(_ readings: [BatteryDTO]) {
-        pendingCount = readings.count
-        client.push(SyncPayload(source: OopsSync.deviceName, battery: readings))
+        push(SyncPayload(source: OopsSync.deviceName, battery: readings))
+    }
+
+    func push(_ payload: SyncPayload) {
+        pendingCount = payload.battery.count
+        client.push(payload)
     }
 
     private func handle(_ newState: SyncState) {

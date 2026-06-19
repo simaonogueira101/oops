@@ -91,6 +91,8 @@ struct HomeRootView: View {
                 // Re-evaluate health views after each sync; RingHealthData is a plain struct so
                 // SwiftUI won't invalidate it automatically when samples land in ModelContext.
                 dataRevision += 1
+                // Push the freshly-synced ring data (battery + sensors) to the Mac.
+                pushSync()
             }
             .sheet(item: $sheet) { which in
                 switch which {
@@ -184,9 +186,52 @@ struct HomeRootView: View {
     }
 
     private func pushSync() {
-        let dtos = readings.prefix(50).map {
+        let battery = readings.prefix(50).map {
             BatteryDTO(timestamp: $0.timestamp, level: $0.level, isCharging: $0.isCharging)
         }
-        sync.push(Array(dtos))
+        let since = Calendar.current.date(byAdding: .day, value: -14, to: .now) ?? .distantPast
+
+        func recent<T>(_ type: T.Type, _ key: KeyPath<T, Date>) -> [T] where T: PersistentModel {
+            let rows = (try? modelContext.fetch(FetchDescriptor<T>())) ?? []
+            return rows
+                .filter { $0[keyPath: key] >= since }
+                .sorted { $0[keyPath: key] > $1[keyPath: key] }
+                .prefix(2000)
+                .map { $0 }
+        }
+
+        let heartRate = recent(HeartRateSample.self, \.timestamp)
+            .map { HeartRateDTO(timestamp: $0.timestamp, bpm: $0.bpm) }
+        let hrv = recent(HRVSample.self, \.timestamp)
+            .map { HRVDTO(timestamp: $0.timestamp, value: $0.value) }
+        let spo2 = recent(SpO2Sample.self, \.timestamp)
+            .map { SpO2DTO(timestamp: $0.timestamp, percent: $0.percent) }
+        let stress = recent(StressSample.self, \.timestamp)
+            .map { StressDTO(timestamp: $0.timestamp, value: $0.value) }
+        let temperature = recent(TemperatureSample.self, \.timestamp)
+            .map { TemperatureDTO(timestamp: $0.timestamp, celsius: $0.celsius) }
+        let activity = recent(ActivitySample.self, \.timestamp)
+            .map { ActivityDTO(timestamp: $0.timestamp, steps: $0.steps,
+                               calories: $0.calories, distanceMeters: $0.distanceMeters) }
+        let sleep = recent(SleepSessionRecord.self, \.dayStart).map { session in
+            SleepSessionDTO(
+                dayStart: session.dayStart,
+                intervals: session.intervals.map {
+                    SleepStageIntervalDTO(stageRaw: $0.stageRaw, start: $0.start, end: $0.end)
+                }
+            )
+        }
+
+        sync.push(SyncPayload(
+            source: OopsSync.deviceName,
+            battery: Array(battery),
+            heartRate: heartRate,
+            hrv: hrv,
+            spo2: spo2,
+            stress: stress,
+            temperature: temperature,
+            activity: activity,
+            sleep: sleep
+        ))
     }
 }

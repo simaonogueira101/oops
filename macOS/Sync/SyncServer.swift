@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Observation
+import SwiftData
 
 /// Low-level Bonjour listener. Networking runs on a background queue; decoded payloads
 /// are delivered through a @Sendable callback (which hops to the main actor in SyncInbox).
@@ -78,6 +79,7 @@ private final class IncomingConn: @unchecked Sendable {
 final class SyncInbox {
     var lastPayload: SyncPayload?
     var lastSync: Date?
+    @ObservationIgnored var modelContext: ModelContext?
     private var server: SyncServer?
 
     func start() {
@@ -92,6 +94,7 @@ final class SyncInbox {
     private func receive(_ payload: SyncPayload) {
         lastPayload = payload
         lastSync = Date()
+        ingest(payload)
 
         // Append to a log for debugging / verification.
         let dir = (NSHomeDirectory() as NSString).appendingPathComponent("Library/Application Support/Oops")
@@ -104,6 +107,66 @@ final class SyncInbox {
             } else {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
+        }
+    }
+
+    /// Persists synced rows into the Mac's local store, mirroring the iPhone's RingManager:
+    /// timestamp-dedup per sample type, and per-`dayStart` upsert for sleep.
+    private func ingest(_ payload: SyncPayload) {
+        guard let modelContext else { return }
+
+        insertDeduped(payload.heartRate, type: HeartRateSample.self, key: \.timestamp,
+                      stamp: \.timestamp) { HeartRateSample(timestamp: $0.timestamp, bpm: $0.bpm) }
+        insertDeduped(payload.hrv, type: HRVSample.self, key: \.timestamp,
+                      stamp: \.timestamp) { HRVSample(timestamp: $0.timestamp, value: $0.value) }
+        insertDeduped(payload.spo2, type: SpO2Sample.self, key: \.timestamp,
+                      stamp: \.timestamp) { SpO2Sample(timestamp: $0.timestamp, percent: $0.percent) }
+        insertDeduped(payload.stress, type: StressSample.self, key: \.timestamp,
+                      stamp: \.timestamp) { StressSample(timestamp: $0.timestamp, value: $0.value) }
+        insertDeduped(payload.temperature, type: TemperatureSample.self, key: \.timestamp,
+                      stamp: \.timestamp) { TemperatureSample(timestamp: $0.timestamp, celsius: $0.celsius) }
+        insertDeduped(payload.activity, type: ActivitySample.self, key: \.timestamp,
+                      stamp: \.timestamp) {
+            ActivitySample(timestamp: $0.timestamp, steps: $0.steps,
+                           calories: $0.calories, distanceMeters: $0.distanceMeters)
+        }
+        insertDeduped(payload.battery, type: BatteryReading.self, key: \.timestamp,
+                      stamp: \.timestamp) {
+            BatteryReading(timestamp: $0.timestamp, level: $0.level, isCharging: $0.isCharging)
+        }
+
+        // Sleep: replace any existing session for the same day, then insert the new one.
+        for session in payload.sleep {
+            let dayStart = session.dayStart
+            let existing = (try? modelContext.fetch(
+                FetchDescriptor<SleepSessionRecord>(predicate: #Predicate { $0.dayStart == dayStart })
+            )) ?? []
+            for record in existing { modelContext.delete(record) }
+            let intervals = session.intervals.map {
+                SleepStageIntervalRecord(stageRaw: $0.stageRaw, start: $0.start, end: $0.end)
+            }
+            modelContext.insert(SleepSessionRecord(dayStart: dayStart, intervals: intervals))
+        }
+
+        try? modelContext.save()
+    }
+
+    /// Inserts only DTOs whose timestamp isn't already stored for `Model`.
+    private func insertDeduped<DTO, Model: PersistentModel>(
+        _ dtos: [DTO],
+        type: Model.Type,
+        key: KeyPath<Model, Date>,
+        stamp: KeyPath<DTO, Date>,
+        make: (DTO) -> Model
+    ) {
+        guard let modelContext, !dtos.isEmpty else { return }
+        let existing = (try? modelContext.fetch(FetchDescriptor<Model>())) ?? []
+        var seen = Set(existing.map { $0[keyPath: key] })
+        for dto in dtos {
+            let ts = dto[keyPath: stamp]
+            guard !seen.contains(ts) else { continue }
+            modelContext.insert(make(dto))
+            seen.insert(ts)
         }
     }
 }

@@ -10,9 +10,10 @@ struct RecoveryView: View {
     private var band: ScoreBand { ScoreBand(score: metrics.score ?? 0) }
 
     private var bodyTempAccessory: String {
-        guard let delta = metrics.bodyTempDelta else { return "—" }
-        let sign = delta >= 0 ? "+" : ""
-        return "\(sign)\(delta.formatted(.number.precision(.fractionLength(1)))) °C"
+        // Show the absolute skin temperature (day average) — we have it directly. A deviation-
+        // from-baseline needs a week of prior data we rarely have, so don't gate the display on it.
+        guard let temp = metrics.bodyTemp else { return "—" }
+        return "\(temp.formatted(.number.precision(.fractionLength(1)))) °C"
     }
 
     var body: some View {

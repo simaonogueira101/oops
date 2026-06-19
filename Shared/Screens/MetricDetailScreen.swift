@@ -75,9 +75,7 @@ struct MetricDetailScreen: View {
             case .restingHR:
                 return metrics.restingHR.map { "\($0) bpm" } ?? "—"
             case .bodyTemp:
-                guard let delta = metrics.bodyTempDelta else { return "—" }
-                let sign = delta >= 0 ? "+" : ""
-                return "\(sign)\(delta.formatted(.number.precision(.fractionLength(1)))) °C"
+                return metrics.bodyTemp.map { "\($0.formatted(.number.precision(.fractionLength(1)))) °C" } ?? "—"
             case .respiratory:
                 return metrics.respiratoryRate.map { dashFormatted($0) } ?? "—"
             case .bloodOxygen:

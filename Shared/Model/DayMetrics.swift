@@ -10,6 +10,7 @@ struct DayMetrics: Equatable {
     var restingHR: Int?             // bpm; nil when no samples
     var currentHR: Int?             // bpm, latest reading; nil when no samples
     var bodyTempDelta: Double?     // °C deviation from baseline; nil when no temperature data
+    var bodyTemp: Double?          // °C, the day's average skin temperature; nil when no data
     var respiratoryRate: Double?   // breaths / min; nil until ring data lands
     var sleepPerformance: Double   // 0...1
     var steps: Int

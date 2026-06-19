@@ -37,6 +37,8 @@ struct RingHealthData: HealthData {
             Int(Double(stressSamples.map(\.value).reduce(0, +)) / Double(stressSamples.count))
 
         let bodyTempDelta = computeBodyTempDelta(dayStart: start, dayEnd: end, dayTemps: tempSamples)
+        let bodyTemp: Double? = tempSamples.isEmpty ? nil :
+            tempSamples.map(\.celsius).reduce(0, +) / Double(tempSamples.count)
         let sleepPerf = computeSleepPerformance(for: date)
 
         let hrv: Int? = hrvSamples.isEmpty ? nil :
@@ -50,6 +52,7 @@ struct RingHealthData: HealthData {
             restingHR: restingHR,
             currentHR: currentHR,
             bodyTempDelta: bodyTempDelta,
+            bodyTemp: bodyTemp,
             respiratoryRate: nil,
             sleepPerformance: sleepPerf,
             steps: steps,

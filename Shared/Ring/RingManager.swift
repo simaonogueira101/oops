@@ -309,6 +309,14 @@ final class RingManager {
             // We still try (it's cheap, and would work if the ring ever streams), but the "now" HR
             // shown in the UI falls back to the latest HR-history sample (RingHealthData.currentHR),
             // so the user sees a real recent value rather than "—".
+            // Real-time live HR is NOT achievable on iOS for this ring — PROVEN on-device:
+            // iOS relaxes the connection interval to ~4s (a 5Hz keepalive of writes only got
+            // ~5 through in 20s), and the ring aborts the measurement after a single 0x69 frame
+            // because the link is too slow. An iOS central has no API to set the connection
+            // interval (only the peripheral can request one, within Apple's ranges), and app-level
+            // traffic doesn't tighten it. QRing gets a fast interval via a persistent connection we
+            // can't replicate here. So this is one cheap best-effort attempt; the displayed "now"
+            // HR falls back to the latest HR-history sample (RingHealthData.currentHR).
             do {
                 let frames = try await transport.send(
                     RingProtocol.liveHRStartCommand(),

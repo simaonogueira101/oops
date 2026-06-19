@@ -41,6 +41,13 @@ protocol RingTransport: AnyObject {
     /// paged read is collecting heart-rate frames. Default no-op (mock/stub ignore it).
     func fireAndForget(_ command: Data)
 
+    /// Writes each command (spaced `spacing` apart) and collects EVERY V1 notify frame whose
+    /// opcode == `opcode` into one buffer for the whole window, returning them all. Used for the
+    /// HR history "global collector": the ring delivers a day's 24 packets slowly and out of step
+    /// with per-read windows, so we fire all day queries and gather every 0x15 frame, then split
+    /// by header and parse per day. Default returns [].
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data]
+
     /// Repeatedly writes `command` every `interval` seconds until `stopKeepalive()` — the ring
     /// needs a periodic CONTINUE to keep streaming live HR. Default no-ops (mock/stub).
     func startKeepalive(_ command: Data, interval: TimeInterval)
@@ -76,6 +83,7 @@ extension RingTransport {
     }
     var connectedRingID: UUID? { nil }
     var connectedRingName: String? { nil }
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data] { [] }
     func fireAndForget(_ command: Data) {}
     func startKeepalive(_ command: Data, interval: TimeInterval) {}
     func stopKeepalive() {}

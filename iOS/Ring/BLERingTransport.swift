@@ -180,6 +180,31 @@ final class BLERingTransport: NSObject, RingTransport {
         peripheral.writeValue(command, for: writeChar, type: type)
     }
 
+    // Global frame collector — when set, every matching V1 notify frame is buffered here instead
+    // of (not in addition to) the normal read routing.
+    private var collectorOpcode: UInt8?
+    private var collectorBuffer: [Data] = []
+
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data] {
+        guard stage == .ready, let peripheral, let writeChar else { return [] }
+        collectorOpcode = opcode
+        collectorBuffer = []
+        let type: CBCharacteristicWriteType =
+            writeChar.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        for command in commands {
+            guard stage == .ready else { break }
+            trace("Gather write: \(command.map { String(format: "%02X", $0) }.joined(separator: " "))")
+            peripheral.writeValue(command, for: writeChar, type: type)
+            try? await Task.sleep(for: .seconds(gap))
+        }
+        try? await Task.sleep(for: .seconds(window))   // tail: catch slowly-delivered frames
+        let result = collectorBuffer
+        collectorOpcode = nil
+        collectorBuffer = []
+        trace("Gather collected \(result.count) frames for opcode \(String(format: "%02X", opcode))")
+        return result
+    }
+
     private var keepaliveTimer: DispatchSourceTimer?
 
     /// A repeating main-queue timer firing the keepalive — robust against actor scheduling
@@ -563,6 +588,12 @@ extension BLERingTransport: @preconcurrency CBPeripheralDelegate {
             return failResponse(.timeout)
         }
         trace("Notify packet (\(value.count) bytes): \(value.map { String(format: "%02X", $0) }.joined(separator: " "))")
+        // Global collector active (HR gather): buffer every matching frame, bypassing normal
+        // read routing, so slowly-delivered frames across all day queries are all captured.
+        if let op = collectorOpcode {
+            if value.first == op { collectorBuffer.append(value) }
+            return
+        }
         // Correlate by opcode: drop stale echoes / unsolicited packets that aren't this read's
         // response, so a delayed reply from a previous command can't be mis-attributed here.
         if let expected = expectedV1Opcode, value.first != expected {

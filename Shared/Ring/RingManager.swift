@@ -122,7 +122,8 @@ final class RingManager {
             // every metric on bind (HR by day-midnight timestamp; stress/HRV/activity by day
             // index). We do the same; timestamp dedup keeps re-fetched days from duplicating.
             // Today re-syncs every time (it's still accumulating); past days stop once stored.
-            for metricKey in ["hr", "activity", "stress", "hrv"] {
+            // HR uses a global-frame collector (see below), so it's not in this per-day loop.
+            for metricKey in ["activity", "stress", "hrv"] {
                 let lastSynced = meta.lastSyncedDay[metricKey]
                 let from: Date
                 if let last = lastSynced, !force {
@@ -150,6 +151,39 @@ final class RingManager {
                     try? await Task.sleep(for: .milliseconds(200))
                     day = calendar.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86400)
                 }
+            }
+
+            // HR history via GLOBAL FRAME COLLECTOR. The ring delivers a day's 24 packets slowly
+            // and out of step with per-read windows (the data for one day lands during the next
+            // day's read), so per-day paged reads capture only the header. Instead, fire all 7
+            // day queries and gather EVERY 0x15 frame over a long window, then split the stream
+            // into day-runs at each header (sub_type 0) and parse each independently.
+            do {
+                let hrQueries: [Data] = (0..<7).compactMap { offset in
+                    calendar.date(byAdding: .day, value: -offset, to: today)
+                        .map { RingProtocol.heartRateHistoryCommand(day: $0, calendar: calendar) }
+                }
+                let frames = await transport.gather(commands: hrQueries, opcode: 0x15,
+                                                    gap: 2.0, window: 25.0)
+                var existingHR = fetchTimestampsForMetric("hr")
+                var run: [Data] = []
+                var inserted = 0
+                func flushRun() {
+                    guard !run.isEmpty else { return }
+                    for s in RingProtocol.parseHeartRateHistory(run) where !existingHR.contains(s.date) {
+                        modelContext.insert(HeartRateSample(timestamp: s.date, bpm: Int(s.value)))
+                        existingHR.insert(s.date); inserted += 1
+                    }
+                    run = []
+                }
+                for f in frames {
+                    let sub = f.count > 1 ? f[f.startIndex + 1] : 0xFF
+                    if sub == 0 { flushRun() }   // header → start of a new day's run
+                    run.append(f)
+                }
+                flushRun()
+                trace("hr gather: \(frames.count) frames → \(inserted) samples persisted")
+                if inserted > 0 { meta.lastSyncedDay["hr"] = today }
             }
 
             // e. Temperature (Big Data V2)

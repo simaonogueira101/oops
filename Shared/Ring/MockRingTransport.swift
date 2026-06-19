@@ -57,6 +57,10 @@ final class MockRingTransport: RingTransport {
         }
     }
 
+    func gather(commands: [Data], opcode: UInt8, gap: TimeInterval, window: TimeInterval) async -> [Data] {
+        opcode == 0x15 ? MockRingTransport.hrHistoryPackets() : []
+    }
+
     // MARK: - Deterministic packet builders
 
     /// HR history: subtype 0 = header (count=1, interval=1 min), subtype 1 = data packet.

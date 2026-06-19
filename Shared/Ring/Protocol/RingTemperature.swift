@@ -60,23 +60,24 @@ enum RingBigData {
     }
 
     static func parseTemperature(_ packets: [Data], today: Date, calendar: Calendar) -> [TemperatureReading] {
-        let all = Array(packets.reduce(Data(), +))
-        guard all.count > 6, all[0] == 0xBC, all[1] == 0x25 else { return [] }
         let todayStart = calendar.startOfDay(for: today)
         var readings: [TemperatureReading] = []
-        var i = 6                                   // per-day blocks begin at index 6
-        while i + 2 + 48 <= all.count {             // [days_ago][skip 0x1E][48 slots]
-            let daysAgo = Int(all[i])
-            let blockStart = i + 2
-            guard let dayStart = calendar.date(byAdding: .day, value: -daysAgo, to: todayStart) else { break }
-            for slot in 0..<48 {
-                let raw = Int(all[blockStart + slot]) & 0xFF
+        // Each notification is its OWN day block with a 6-byte BC25 header — parse per packet
+        // (concatenating would mis-read the next packet's header bytes as temperature data).
+        // Layout per packet: [BC 25 len_lo len_hi crc_lo crc_hi][days_ago][interval][48 slots].
+        for packet in packets {
+            let p = Array(packet)
+            guard p.count > 8, p[0] == 0xBC, p[1] == 0x25 else { continue }
+            let daysAgo = Int(p[6])
+            guard let dayStart = calendar.date(byAdding: .day, value: -daysAgo, to: todayStart) else { continue }
+            let slotsStart = 8
+            for slot in 0..<min(48, p.count - slotsStart) {
+                let raw = Int(p[slotsStart + slot]) & 0xFF
                 if raw > 0 {
                     readings.append(TemperatureReading(date: dayStart.addingTimeInterval(Double(slot) * 1800),
                                                        celsius: Double(raw) / 10.0 + 20.0))
                 }
             }
-            i = blockStart + 48
         }
         return readings
     }

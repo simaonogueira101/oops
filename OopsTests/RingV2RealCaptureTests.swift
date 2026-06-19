@@ -32,6 +32,21 @@ struct RingV2RealCaptureTests {
         #expect(pcts.allSatisfy { $0 >= 70 && $0 <= 100 }, "implausible SpO2 in \(pcts.prefix(10))")
     }
 
+    // Real multi-day BC25 (temperature) response — 3 day-records with 0xA6/0xA7 raw values.
+    static let tempHex = [
+        "bc253200b3ae011e00000000000000000000000000000000000000000000000000000000000000000000009f9e0000a50000000000a7a7a6",
+        "bc253200b9fa001ea6a7a7a7a5a6a6a6a6a6a6a7a6a5a7000000a6a60000a500000000000000000000000000000000000000000000000000",
+        "bc2532002d93001ea6a7a7a7a5a6a6a6a6a6a6a7a6a5a7000000a6a60000a50000a700000000000000000000000000000000000000000000"
+    ]
+
+    @Test func parsesRealMultiDayTemperature() {
+        let packets = Self.tempHex.map(Self.hex)
+        let readings = RingBigData.parseTemperature(packets, today: Self.today, calendar: Self.cal)
+        #expect(!readings.isEmpty, "Temperature parser returned nothing for a real multi-day response")
+        let c = readings.map(\.celsius)
+        #expect(c.allSatisfy { $0 >= 28 && $0 <= 43 }, "implausible temperature in \(c.prefix(10))")
+    }
+
     @Test func parsesRealSleep() {
         let intervals = RingBigData.parseSleep([Self.hex(Self.sleepHex)], today: Self.today, calendar: Self.cal)
         #expect(!intervals.isEmpty, "Sleep parser returned nothing for a real response")

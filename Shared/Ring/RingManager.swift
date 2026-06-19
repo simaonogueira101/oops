@@ -68,33 +68,23 @@ final class RingManager {
                 try? modelContext.save()
             }
 
-            // a. Bind FIRST — register this phone as the ring's bound host (CMD_BIND_SUCCESS).
-            // The official app sends this on its "bind a device" step, and the ring gates
-            // real-time streaming (live HR) and history logging (sleep/HRV) on being bound.
-            // Fire-and-forget (the ring doesn't reply), then a brief pause so it's processed
-            // before we start reading.
-            trace("Sending bind (0x10 CMD_BIND_SUCCESS)")
-            transport.fireAndForget(RingProtocol.bindSuccessCommand())
-            try? await Task.sleep(for: .milliseconds(300))
-
-            // Ring-facing time is LOCAL: the official app sets the ring clock to local time
-            // (BCD local) and requests history at LOCAL midnights. Querying at UTC midnights
-            // (our earlier assumption) shifts the day window off by the timezone offset, so
-            // HR/stress/HRV reads land on empty ranges. RingHealthData also buckets by the
-            // local calendar, so local keeps the clock, the queries, and the UI aligned.
+            // Ring-facing time is LOCAL: the official app sets the ring clock to local BCD time.
+            // RingHealthData also buckets by the local calendar, so everything stays aligned.
             let utc = Calendar.current
 
-            // b. Set clock (best-effort)
-            try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: utc))
-
-            // a2. Enable HR logging (best-effort; harmless to repeat each sync)
-            try? await transport.send(RingProtocol.enableHeartRateLoggingCommand())
-
-            // a3. Enable HRV measurement (best-effort; harmless to repeat each sync)
-            try? await transport.send(RingProtocol.enableHRVCommand())
-
-            // b. Battery
-            do {
+            // Full bind/init handshake — replicates the official app byte-for-byte (verified via
+            // PacketLogger). This is what makes the ring grant the fast BLE connection interval
+            // (an iOS central can't set it) and serve V1 history reliably. Order matters; all are
+            // best-effort writes except battery (which we read).
+            try? await transport.send(RingProtocol.phoneInfoCommand())                          // 04 01 1a
+            try? await transport.send(RingProtocol.setTimeCommand(date: .now, calendar: utc))   // 01 setTime (local)
+            try? await transport.send(RingProtocol.deviceSupportCommand())                      // 3c device-support
+            try? await transport.send(RingProtocol.getConfig1Command())                         // 0a 01
+            try? await transport.send(RingProtocol.getConfig2Command())                         // 0a 02 …
+            try? await transport.send(RingProtocol.setPrefsCommand())                           // 19 01 01 01
+            transport.fireAndForget(RingProtocol.bindSuccessCommand())                          // 10 BIND
+            try? await Task.sleep(for: .milliseconds(200))
+            do {                                                                                // 03 battery
                 let response = try await transport.send(RingProtocol.batteryCommand())
                 if let status = RingProtocol.parseBattery(response) {
                     let now = Date()
@@ -102,21 +92,21 @@ final class RingManager {
                     lastUpdated = now
                     modelContext.insert(BatteryReading(timestamp: now, level: status.level, isCharging: status.isCharging))
                 }
-            } catch {
-                trace("battery step failed: \(error)")
-            }
-
-            // c. Init handshake — match the official app: query device support (0x3C) and run the
-            // BC 30 big-data handshake. This appears to put the ring into its real-time-capable
-            // state, the state in which it asks iOS for the fast BLE connection interval that
-            // live-HR streaming requires (a central can't set the interval itself on iOS).
-            try? await transport.send(RingProtocol.deviceSupportCommand())
-            if transport.supportsBigData {
+            } catch { trace("battery step failed: \(error)") }
+            if transport.supportsBigData {                                                      // BC 30 handshake
                 _ = try? await transport.sendBigData(RingBigData.handshakeRequest(),
                                                      isComplete: RingBigData.handshakeComplete)
             }
+            // Monitoring enables (16/2c/36/38/21/3b/3a), exact bytes from the capture.
+            try? await transport.send(RingProtocol.enableHRMonitorCommand())                    // 16 01 02
+            try? await transport.send(RingProtocol.enableSpO2MonitorCommand())                  // 2c 01
+            try? await transport.send(RingProtocol.enableStressMonitorCommand())                // 36 01
+            try? await transport.send(RingProtocol.enableHRVMonitorCommand())                   // 38 01 02
+            try? await transport.send(RingProtocol.goalsQueryCommand())                         // 21 01
+            try? await transport.send(RingProtocol.enable3BCommand())                           // 3b 01 01
+            try? await transport.send(RingProtocol.enableTempMonitorCommand())                  // 3a 03 01
 
-            // History backfill (UTC day boundaries to match the ring's UTC clock)
+            // History backfill (local day boundaries, matching the ring's local clock).
             let calendar = utc
             let today = calendar.startOfDay(for: .now)
             let meta = (try? syncMeta()) ?? RingSyncMeta()
@@ -232,13 +222,11 @@ final class RingManager {
                 }
             }
 
-            // Live HR LAST — the official app does its live read after the full init/history
-            // handshake, when the connection is warm and active (PacketLogger showed the ring
-            // streams ~60 frames at a fast interval in that state, vs one frame from a cold
-            // connection). Collect 0x69 frames until a non-zero BPM (byte[3], byte[2]==0) or cap.
+            // Live HR LAST — after the full init/history handshake, when the connection is warm.
+            // The official app sends NO keepalive (verified via PacketLogger): the ring auto-
+            // streams 0x69 echo frames ~0.5s apart after the start; we just listen until a
+            // non-zero BPM (byte[3], byte[2]==0) or a frame cap, then stop.
             do {
-                transport.startKeepalive(RingProtocol.liveHRKeepaliveCommand(), interval: 0.8)
-                defer { transport.stopKeepalive() }
                 let frames = try await transport.send(
                     RingProtocol.liveHRStartCommand(),
                     isComplete: { packets in
@@ -246,7 +234,6 @@ final class RingManager {
                     },
                     perPacketTimeout: 12
                 )
-                transport.stopKeepalive()
                 if let bpm = frames.compactMap({ RingProtocol.parseLiveHR($0) }).first {
                     liveHR = bpm
                 }

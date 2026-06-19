@@ -32,6 +32,10 @@ struct MockHealthData: HealthData {
     func stepsSeries(days: Int) -> [MetricSample] { series(days: days, base: 9000, spread: 4000) }
     func sleepScoreSeries(days: Int) -> [MetricSample] { series(days: days, base: 84, spread: 14) }
     func strainSeries(days: Int) -> [MetricSample] { series(days: days, base: 9, spread: 8) }
+    func heartRateSeries(days: Int) -> [MetricSample] { series(days: days, base: 64, spread: 12) }
+    func spo2Series(days: Int) -> [MetricSample] { series(days: days, base: 97, spread: 2) }
+    func stressSeries(days: Int) -> [MetricSample] { series(days: days, base: 32, spread: 20) }
+    func temperatureSeries(days: Int) -> [MetricSample] { series(days: days, base: 36.5, spread: 0.6) }
 
     /// `days` daily samples ending at `referenceDate`, jittered deterministically around `base`.
     func series(days: Int, base: Double, spread: Double) -> [MetricSample] {

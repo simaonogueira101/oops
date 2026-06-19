@@ -59,10 +59,16 @@ struct RingHealthData: HealthData {
         )
     }
 
-    func hrvSeries(days: Int) -> [MetricSample] { [] }
+    func hrvSeries(days: Int) -> [MetricSample] {
+        series(days: days) { start, end in
+            let samples = fetchHRV(from: start, to: end)
+            guard !samples.isEmpty else { return nil }
+            return Double(samples.map(\.value).reduce(0, +)) / Double(samples.count)
+        }
+    }
 
     func restingHRSeries(days: Int) -> [MetricSample] {
-        buildDailySeries(days: days) { start, end in
+        series(days: days) { start, end in
             let samples = fetchHR(from: start, to: end)
             guard !samples.isEmpty else { return nil }
             return Double(samples.map(\.bpm).min() ?? 0)
@@ -70,15 +76,54 @@ struct RingHealthData: HealthData {
     }
 
     func stepsSeries(days: Int) -> [MetricSample] {
-        buildDailySeries(days: days) { start, end in
+        series(days: days) { start, end in
             let samples = fetchActivity(from: start, to: end)
             guard !samples.isEmpty else { return nil }
             return Double(samples.reduce(0) { $0 + $1.steps })
         }
     }
 
-    func sleepScoreSeries(days: Int) -> [MetricSample] { [] }
+    func sleepScoreSeries(days: Int) -> [MetricSample] {
+        // Sleep is inherently per-night; no meaningful intraday breakdown.
+        buildDailySeries(days: days) { start, _ in
+            let perf = computeSleepPerformance(for: start)
+            return perf > 0 ? perf * 100 : nil
+        }
+    }
+
     func strainSeries(days: Int) -> [MetricSample] { [] }
+
+    func heartRateSeries(days: Int) -> [MetricSample] {
+        series(days: days) { start, end in
+            let samples = fetchHR(from: start, to: end)
+            guard !samples.isEmpty else { return nil }
+            return Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)
+        }
+    }
+
+    func spo2Series(days: Int) -> [MetricSample] {
+        series(days: days) { start, end in
+            let samples = fetchSpO2(from: start, to: end)
+            guard !samples.isEmpty else { return nil }
+            return Double(samples.map(\.percent).reduce(0, +)) / Double(samples.count)
+        }
+    }
+
+    func stressSeries(days: Int) -> [MetricSample] {
+        series(days: days) { start, end in
+            let samples = fetchStress(from: start, to: end)
+            guard !samples.isEmpty else { return nil }
+            return Double(samples.map(\.value).reduce(0, +)) / Double(samples.count)
+        }
+    }
+
+    func temperatureSeries(days: Int) -> [MetricSample] {
+        series(days: days) { start, end in
+            let samples = fetchTemperature(from: start, to: end)
+            guard !samples.isEmpty else { return nil }
+            return samples.map(\.celsius).reduce(0, +) / Double(samples.count)
+        }
+    }
 
     func sleepSession(for date: Date) -> SleepSession {
         let (start, end) = dayBounds(for: date)
@@ -162,6 +207,27 @@ struct RingHealthData: HealthData {
             predicate: #Predicate { $0.timestamp >= start && $0.timestamp < end }
         )
         return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    /// Branches on the window: `days <= 1` buckets today hour-by-hour, otherwise day-by-day,
+    /// using the same per-window aggregation closure.
+    private func series(days: Int, value: (Date, Date) -> Double?) -> [MetricSample] {
+        days <= 1 ? buildIntradaySeries(value: value) : buildDailySeries(days: days, value: value)
+    }
+
+    /// Buckets today into hourly windows from start-of-day through the current hour; one
+    /// `MetricSample(date: hourStart, value:)` per hour that has data.
+    private func buildIntradaySeries(value: (Date, Date) -> Double?) -> [MetricSample] {
+        let cal = Calendar.current
+        let now = Date.now
+        let dayStart = cal.startOfDay(for: now)
+        let currentHour = cal.dateComponents([.hour], from: dayStart, to: now).hour ?? 0
+        return (0...currentHour).compactMap { offset -> MetricSample? in
+            guard let hourStart = cal.date(byAdding: .hour, value: offset, to: dayStart) else { return nil }
+            let hourEnd = hourStart.addingTimeInterval(3600)
+            guard let v = value(hourStart, hourEnd) else { return nil }
+            return MetricSample(date: hourStart, value: v)
+        }
     }
 
     private func buildDailySeries(days: Int, value: (Date, Date) -> Double?) -> [MetricSample] {
